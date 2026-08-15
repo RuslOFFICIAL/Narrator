@@ -21,6 +21,7 @@ const client = new Client({
 let isBotReady = false;
 
 const CONFIG = {
+	authorizedTesters: ['675686068196212757'],
 	whitelist: ['1123273922851389502', '675686068196212757', '883687038220664882'], // ie550vxs, Rusl, Katy.
     kickChance: 10
 }
@@ -115,13 +116,6 @@ client.on('interactionCreate', async interaction => {
 	
 	if (!interaction.isChatInputCommand()) return;
 	
-	const logMessage = `[${getTimestamp()}] [Command Used] '/${interaction.commandName}' was executed by @${interaction.user.tag} (${interaction.user.id})`;
-	
-	readline.clearLine(process.stdout, 0);
-	readline.cursorTo(process.stdout, 0);
-	console.log(logMessage);
-	rl.prompt(true);
-	
 	switch (interaction.commandName) {
         case 'lore':
             await commandLore(interaction);
@@ -151,8 +145,39 @@ function getTimestamp() {
 	return `${timeStr} ${dateStr} UTC`;
 }
 
+function makeLogMessage(interaction) {
+	const logMessage = `[${getTimestamp()}] [Command Used] '/${interaction.commandName}' was executed by @${interaction.user.tag} (${interaction.user.id})`;
+	
+	readline.clearLine(process.stdout, 0);
+	readline.cursorTo(process.stdout, 0);
+	console.log(logMessage);
+	rl.prompt(true);
+}
+
+// Add "if (!(await isAuthorizedTester(interaction))) return;" at the beggining of command to make it for Authorized Testers. Comment it with "//" to disable the tester check.
+async function isAuthorizedTester(interaction) {
+	if(!CONFIG.authorizedTesters.includes(interaction.user.id)) {
+		const logMessage = `[${getTimestamp()}] [Testing Command Used] '/${interaction.commandName}' was executed by not a tester @${interaction.user.tag} (${interaction.user.id})`;
+		readline.clearLine(process.stdout, 0);
+		readline.cursorTo(process.stdout, 0);
+		console.log(logMessage);
+		rl.prompt(true);
+
+		await interaction.reply({
+			content: 'Ця команда тестується. Спробуйте використати іншу команду або пізніше.',
+			flags: [MessageFlags.Ephemeral]
+		});
+		return false;
+	}
+	return true;
+}
+
 // Discord Commands.
 async function commandLore(interaction) {
+	//if (!(await isAuthorizedTester(interaction))) return;
+	
+	makeLogMessage(interaction);
+	
 	try {
 		const randomIndex = Math.floor(Math.random() * LORE_SNIPPETS.length);
 		await interaction.reply(`Лор? Ну добре...\n\n${LORE_SNIPPETS[randomIndex]}`);
@@ -166,6 +191,10 @@ async function commandLore(interaction) {
 }
 
 async function commandInfo(interaction) {
+	//if (!(await isAuthorizedTester(interaction))) return;
+	
+	makeLogMessage(interaction);
+	
 	try {
 		await interaction.reply(INFO_TEXT);
 	} catch (error) {
@@ -178,6 +207,10 @@ async function commandInfo(interaction) {
 }
 	
 async function commandLotteryKick(interaction) {
+	//if (!(await isAuthorizedTester(interaction))) return;
+	
+	makeLogMessage(interaction);
+	
 	try {
 		
 		if (!interaction.inGuild()) {
