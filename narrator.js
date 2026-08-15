@@ -40,6 +40,13 @@ const LORE_SNIPPETS = [
 	'Короче: Чити - Бан; Кемперство - Бан; Оскорбление - Бан; Оскорбление Администрации - Растрел, потом бан. Всем удачи!'
 ];
 
+const HELP_TEXT = `Команди бота Narrator:
+
+/help - Показує команди бота.
+/lore - Розказує одну з частин лору.
+/info - Інформація про лор.
+/lottery-kick - ${CONFIG.kickChance}% на кік з серверу. Удачі!`;
+
 const INFO_TEXT = `Створенням лору та бота зайнявся Адмін Rusl, аватарку боту створила Адмін Katy.
  
 Посиланням на файл "Server-Lore" є: "https://mega.nz/folder/JmkQHTza#q1l478SHytQR-C0PWKL1oA". Ключем до посилання є: "q1l478SHytQR-C0PWKL1oA".
@@ -52,9 +59,10 @@ const INFO_TEXT = `Створенням лору та бота зайнявся 
 
 // Discord Commands Information.
 const commands = [
+	new SlashCommandBuilder().setName('help').setDescription('Показує команди бота.'),
 	new SlashCommandBuilder().setName('lore').setDescription('Команда для лору.'),
 	new SlashCommandBuilder().setName('info').setDescription('Інформація про лор.'),
-	new SlashCommandBuilder().setName('lottery-kick').setDescription('10% на кік з серверу. Удачі!').setContexts([InteractionContextType.Guild])
+	new SlashCommandBuilder().setName('lottery-kick').setDescription(`${CONFIG.kickChance}% на кік з серверу. Удачі!`).setContexts([InteractionContextType.Guild])
 ].map(command => command.toJSON());
 
 // Run this code after the client is ready.
@@ -117,6 +125,9 @@ client.on('interactionCreate', async interaction => {
 	if (!interaction.isChatInputCommand()) return;
 	
 	switch (interaction.commandName) {
+		case 'help':
+			await commandHelp(interaction);
+			break;
         case 'lore':
             await commandLore(interaction);
             break;
@@ -173,6 +184,22 @@ async function isAuthorizedTester(interaction) {
 }
 
 // Discord Commands.
+async function commandHelp(interaction) {
+	//if (!(await isAuthorizedTester(interaction))) return;
+	
+	makeLogMessage(interaction);
+	
+	try {
+		await interaction.reply(HELP_TEXT);
+	} catch (error) {
+		console.error(`Failed to execute command [/help] :`, error);
+		await interaction.reply({
+			content: 'Не вдалося виконати команду [/help]. Спробуйте пізніше.',
+			flags: [MessageFlags.Ephemeral]
+		})
+	}
+}
+
 async function commandLore(interaction) {
 	//if (!(await isAuthorizedTester(interaction))) return;
 	
