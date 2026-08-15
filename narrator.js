@@ -21,8 +21,7 @@ const client = new Client({
 let isBotReady = false;
 
 const CONFIG = {
-	authorizedTesters: ['675686068196212757'],
-	whitelist: ['1123273922851389502', '675686068196212757', '883687038220664882'],
+	whitelist: ['1123273922851389502', '675686068196212757', '883687038220664882'], // ie550vxs, Rusl, Katy.
     kickChance: 10
 }
 
