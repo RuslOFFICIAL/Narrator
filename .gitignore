@@ -1,3 +1,6 @@
+# Files.
+*.lnk
+
 # Environment variables.
 .env
 
