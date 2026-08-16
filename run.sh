@@ -4,4 +4,5 @@ cd "$(dirname "$0")" || exit
 echo "Make sure there is only one host of bot!" && echo
 
 npm install
+echo
 node --watch narrator.js
