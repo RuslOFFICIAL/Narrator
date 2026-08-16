@@ -203,7 +203,7 @@ async function commandHelp(interaction) {
 }
 
 async function commandLore(interaction) {
-	if (!(await isAuthorizedTester(interaction))) return;
+	//if (!(await isAuthorizedTester(interaction))) return;
 	
 	makeLogMessage(interaction);
 	
