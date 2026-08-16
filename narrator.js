@@ -30,14 +30,16 @@ const LORE_SNIPPETS = [
 	'ie550vxs є Творцем та Власником сервера. Його рішення є вирішальним.',
 	'Rusl це Адмін, якому все одно чи ви слухалися правил чи ні. Він банить кого хоче і що хоче.',
 	'Katy є другом ie550vxs, хоча вона не дуже використовує її силу Адміна. Але якщо щось не так, кнопка бана завжди доступна.',
-	'Ponko запросив двох учасників. Nazarpushka3 залишився, P3N1$ був забанений, але ненадовго. Яка причина? Неприпустимий контент.',
-	'Хто такий Оповідач? Це лише Оповідач. Не Адмін, не Творець, не Власник, не учасник. Лише Оповідач.',
+	'Ponko запросив двох Учасників. Nazarpushka3 залишився, P3N1$ був забанений, але ненадовго. Яка причина? Неприпустимий контент.',
+	'Хто такий Оповідач? Це лише Оповідач. Не Адмін, не Творець, не Власник, не Учасник. Лише Оповідач.',
 	'Посилання "https://www.youtube.com/watch?v=dQw4w9WgXcQ" веде на музичний кліп Ріка Естлі Never Gonna Give You Up, або ж Rickroll, який Адміни дуже обожнюють.',
-	'На сервері були ці власні боти: Bostl, Яндекс Алиса, Українська Алиса, Narrator, BanBot, Server HELPER.',
+	'На сервері були ці власні Боти: Bostl, Яндекс Алиса, Українська Алиса, Narrator, BanBot, Server HELPER.',
 	'Першим повідомленням на сервері був стікер надісланий 27 червня 2023 року о 19:40.',
 	'На сервері дуже, ну ДУЖЕ, полюбляють ігри... ну й також містику.',
-	'На сервері кількість Адмінів дорівнює 3: ie550vxs, Rusl, Katy.',
-	'Короче: Чити - Бан; Кемперство - Бан; Оскорбление - Бан; Оскорбление Администрации - Растрел, потом бан. Всем удачи!'
+	'На сервері є Трійка, яка складається з: ie550vxs, Rusl, Katy.',
+	'Короче: Чити - Бан; Кемперство - Бан; Оскорбление - Бан; Оскорбление Администрации - Растрел, потом бан. Всем удачи!',
+	'На диво, Учасникам сподобався Бот "The Casino". Через це з\'явилася роль Лудоман.',
+	'Агов! Чого використовувати Бота, якщо можна прочитати Лор від Оповідача? [Натисніть сюди](https://mega.nz/folder/JmkQHTza#q1l478SHytQR-C0PWKL1oA). Якщо треба ключ, ось він: "q1l478SHytQR-C0PWKL1oA".'
 ];
 
 const HELP_TEXT = `Команди бота Narrator:
@@ -201,7 +203,7 @@ async function commandHelp(interaction) {
 }
 
 async function commandLore(interaction) {
-	//if (!(await isAuthorizedTester(interaction))) return;
+	if (!(await isAuthorizedTester(interaction))) return;
 	
 	makeLogMessage(interaction);
 	
@@ -322,7 +324,7 @@ rl.on('line', (line) => {
             return;
             
         case 'status':
-            console.log(`[${getTimestamp()}] Status:\n- Bot is ready: ${isBotReady}\n- Logged in as: ${client.user ? client.user.tag : 'Not yet'}`);
+            console.log(`[${getTimestamp()}] Status:\n- Bot is ready: ${isBotReady}\n- Logged in as: ${client.user ? client.user.tag : 'Not yet'}\n- Server count: ${client.guilds.cache.size}`);
 			console.log();
             break;
 			
