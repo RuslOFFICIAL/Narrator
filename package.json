@@ -1,7 +1,7 @@
 {
 	"name": "narrator",
 	"version": "4.0.0",
-	"description": "",
+	"description": "Narrator bot for Discord.",
 	"main": "narrator.js",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1"
