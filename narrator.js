@@ -18,11 +18,14 @@ const client = new Client({
 });
 
 // Variables.
+const loreLink = process.env.LORE_LINK;
+const loreLinkKey = process.env.LORE_LINK_KEY;
+
 let isBotReady = false;
 
 const CONFIG = {
 	authorizedTesters: ['675686068196212757'],
-	whitelist: ['1123273922851389502', '675686068196212757', '883687038220664882'], // ie550vxs, Rusl, Katy.
+	whitelist: ['1123273922851389502', '675686068196212757', '883687038220664882'],
     kickChance: 10
 }
 
@@ -39,7 +42,8 @@ const LORE_SNIPPETS = [
 	'На сервері є Трійка, яка складається з: ie550vxs, Rusl, Katy.',
 	'Короче: Чити - Бан; Кемперство - Бан; Оскорбление - Бан; Оскорбление Администрации - Растрел, потом бан. Всем удачи!',
 	'На диво, Учасникам сподобався Бот "The Casino". Через це з\'явилася роль Лудоман.',
-	'Агов! Чого використовувати Бота, якщо можна прочитати Лор від Оповідача? [Натисніть сюди](https://mega.nz/folder/JmkQHTza#q1l478SHytQR-C0PWKL1oA). Якщо треба ключ, ось він: "q1l478SHytQR-C0PWKL1oA".'
+	`Агов! Чого використовувати Бота, якщо можна прочитати Лор від Оповідача? [Натисніть сюди](${loreLink}). Якщо треба ключ, ось він: "${loreLinkKey}".`,
+	'Чи знали Ви, що Бота "Narrator" можна використовувати навіть в Приватних Повідомленнях? Ні? Тоді спробуйте.'
 ];
 
 const HELP_TEXT = `Команди бота Narrator:
@@ -51,7 +55,7 @@ const HELP_TEXT = `Команди бота Narrator:
 
 const INFO_TEXT = `Створенням лору та бота зайнявся Адмін Rusl, аватарку боту створила Адмін Katy.
  
-Посиланням на файл "Server-Lore" є: "https://mega.nz/folder/JmkQHTza#q1l478SHytQR-C0PWKL1oA". Ключем до посилання є: "q1l478SHytQR-C0PWKL1oA".
+Посиланням на файл "Server-Lore" є: "${loreLink}". Ключем до посилання є: "${loreLinkKey}".
  
 Значеннями версії файлу "Server-Lore" є:
 Кількість частин.
@@ -252,7 +256,7 @@ async function commandLotteryKick(interaction) {
 		
 		if (CONFIG.whitelist.includes(interaction.user.id)) {
 			await interaction.reply({
-				content: `<@${interaction.user.id}>\n\nТебе не можна кикнути через правила боту. Не можна кікати ie550vxs, Rusl, Katy.`,
+				content: `<@${interaction.user.id}>\n\nТебе не можна кикнути через правила боту.`,
 				flags: [MessageFlags.Ephemeral]
 			});
 			return;
