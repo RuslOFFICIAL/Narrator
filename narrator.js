@@ -83,7 +83,7 @@ client.once('clientReady', async () => {
 	try {
 		process.stdout.write(`[${getTimestamp()}] Setting bot status up... `)
 		client.user.setPresence({
-			activities: [{ name: 'Лор Сервера', type: ActivityType.Playing, url: 'https://mega.nz/folder/JmkQHTza#q1l478SHytQR-C0PWKL1oA' }], /* After 'ActivityType.' can be:
+			activities: [{ name: 'Лор Сервера', type: ActivityType.Playing, url: `${loreLink}` }], /* After 'ActivityType.' can be:
 																						'Playing' (Playing [name]),
 																						'Streaming' (Streaming [name]) (requires a Twitch/YouTube URL),
 																						'Listening' (Listening to [name]),
