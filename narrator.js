@@ -51,7 +51,7 @@ const HELP_TEXT = `Команди бота Narrator:
 
 const INFO_TEXT = `Створенням лору та бота зайнявся Адмін Rusl, аватарку боту створила Адмін Katy.
  
-Посиланням на файл "Server-Lore" є: "${loreLink}". Ключем до посилання є: "${loreLinkKey}".
+Посиланням на файл "Server-Lore" є: "<${loreLink}>". Ключем до посилання є: "${loreLinkKey}".
  
 Значеннями версії файлу "Server-Lore" є:
 Кількість частин.
