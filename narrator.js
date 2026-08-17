@@ -24,9 +24,14 @@ const loreLinkKey = process.env.LORE_LINK_KEY;
 let isBotReady = false;
 
 const CONFIG = {
-	authorizedTesters: ['675686068196212757'],
-	whitelist: ['1123273922851389502', '675686068196212757', '883687038220664882'],
-    kickChance: 10
+	statusBot: process.env.STATUS,
+	statusName: process.env.STATUS_NAME,
+	statusType: process.env.STATUS_TYPE,
+	statusUrl: process.env.STATUS_URL,
+	
+	kickChance: parseInt(process.env.KICK_CHANCE, 10) || 10,
+	whitelist: process.env.WHITELIST ? process.env.WHITELIST.split(',') : [],
+	authorizedTesters: process.env.AUTHORIZED_TESTERS ? process.env.AUTHORIZED_TESTERS.split(',') : []
 }
 
 const LORE_SNIPPETS = [
@@ -83,13 +88,8 @@ client.once('clientReady', async () => {
 	try {
 		process.stdout.write(`[${getTimestamp()}] Setting bot status up... `)
 		client.user.setPresence({
-			activities: [{ name: 'Лор Сервера', type: ActivityType.Playing, url: `${loreLink}` }], /* After 'ActivityType.' can be:
-																						'Playing' (Playing [name]),
-																						'Streaming' (Streaming [name]) (requires a Twitch/YouTube URL),
-																						'Listening' (Listening to [name]),
-																						'Watching' (Watching [name]),
-																						'Competing' (Competing in [name]).*/
-			status: 'online', // Can be 'online', 'idle', 'dnd', 'invisible',
+			activities: [{ name: CONFIG.statusName, type: ActivityType[CONFIG.statusType], url: CONFIG.statusUrl }],
+			status: CONFIG.statusBot,
 		});
 		console.log('Success!');
 	} catch (error) {
