@@ -408,7 +408,7 @@ rl.on('line', async (line) => {
 				console.log();
 				break;
 			
-			case 'play-soundboard':
+			case 'soundboard-play':
 				if (!currentVoiceConnection) {
 					console.log(`[${getTimestamp()}] Error: Bot is not in a voice channel. Run "join-voice" first.`);
 					console.log();
