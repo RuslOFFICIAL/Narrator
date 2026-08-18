@@ -424,6 +424,13 @@ rl.on('line', async (line) => {
 					player.play(resource);
 					
 					console.log(`[${getTimestamp()}] Sound playback initialized for ID '${CONFIG.soundboardId}'.`);
+					
+					player.on('idle', () => {
+						readline.clearLine(process.stdout, 0);
+						readline.cursorTo(process.stdout, 0);
+						console.log(`[${getTimestamp()}] Soundboard sound finished playing.`);
+						rl.prompt(true);
+					});
 				} catch (error) {
 					console.error(`[${getTimestamp()}] Failed to play soundboard audio:`, error);
 				}
