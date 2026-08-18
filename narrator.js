@@ -484,7 +484,7 @@ async function commandSoundboardPlay(interaction) {
 		
 		if (!currentVoiceConnection) {
 			await interaction.reply({
-				content: 'Бот зараз не в голосовому каналі. Спробуйте спершу запустити команду "/join-voice".',
+				content: 'Бот зараз не в голосовому каналі. Спробуйте спершу запустити команду "/voice-join".',
 				flags: [MessageFlags.Ephemeral]
 			})
 			return;
@@ -625,7 +625,7 @@ rl.on('line', async (line) => {
 			
 			case 'voice-leave':
 				if (!currentVoiceConnection) {
-					console.log(`[${getTimestamp()}] Error: Bot is not currently in a voice channel. Run "join-voice" first.\n`);
+					console.log(`[${getTimestamp()}] Error: Bot is not currently in a voice channel. Run "voice-join" first.\n`);
 					break;
 				}
 				
@@ -641,7 +641,7 @@ rl.on('line', async (line) => {
 			
 			case 'soundboard-play':
 				if (!currentVoiceConnection) {
-					console.log(`[${getTimestamp()}] Error: Bot is not in a voice channel. Run "join-voice" first.\n`);
+					console.log(`[${getTimestamp()}] Error: Bot is not in a voice channel. Run "voice-join" first.\n`);
 					break;
 				}
 				
