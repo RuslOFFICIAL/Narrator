@@ -3,6 +3,7 @@ require('dotenv').config();
 const readline = require('readline');
 const { spawn, exec } = require('child_process');
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActivityType, InteractionContextType, MessageFlags } = require('discord.js');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, StreamType } = require('@discordjs/voice');
 
 process.on('unhandledRejection', error => {
     console.error(`[${getTimestamp()}] Unhandled promise rejection: `, error);
@@ -13,7 +14,8 @@ const client = new Client({
 	intents: [
 		GatewayIntentBits.Guilds,
 		GatewayIntentBits.GuildMessages,
-		GatewayIntentBits.MessageContent
+		GatewayIntentBits.MessageContent,
+		GatewayIntentBits.GuildVoiceStates
 	]
 });
 
@@ -29,10 +31,15 @@ const CONFIG = {
 	statusType: process.env.STATUS_TYPE,
 	statusUrl: process.env.STATUS_URL,
 	
+	voiceChannelId: process.env.VOICE_CHANNEL_ID,
+	soundboardId: process.env.SOUNDBOARD_ID,
+	
 	kickChance: parseInt(process.env.KICK_CHANCE, 10) || 10,
 	whitelist: process.env.WHITELIST ? process.env.WHITELIST.split(',') : [],
 	authorizedTesters: process.env.AUTHORIZED_TESTERS ? process.env.AUTHORIZED_TESTERS.split(',') : []
 }
+
+let currentVoiceConnection = null;
 
 const rawSnippets = require('./lore.js');
 
@@ -289,7 +296,7 @@ const rl = readline.createInterface({
 	prompt: '> '
 });
 
-rl.on('line', (line) => {
+rl.on('line', async (line) => {
 	const trimmedLine = line.trim();
 	
 	if (!trimmedLine) {
@@ -297,59 +304,138 @@ rl.on('line', (line) => {
         return;
     }
 	
-    const args = line.trim().split(' ');
-    const command = args[0].toLowerCase();
+	const subCommands = trimmedLine.split('&').map(cmd => cmd.trim()).filter(Boolean);
 	
-	readline.clearLine(process.stdout, 0);
-    readline.cursorTo(process.stdout, 0);
-
-	// Terminal commands.
-    switch (command) {
-		case 'help':
-			console.log(`[${getTimestamp()}] Commands:\n- help: Show terminal commands.\n- exit/stop/shutdown: Shut down the bot.\n- status: Status of the bot.\n- ping: Check bot latency.\n- clear: Clear the terminal screen.`);
-			console.log();
-			break;
-			
-        case 'exit':
-        case 'stop':
-		case 'shutdown':
-            console.log(`[${getTimestamp()}] Stopping bot via terminal command...`);
-            shutdown();
-			console.log();
-            return;
-            
-        case 'status':
-            console.log(`[${getTimestamp()}] Status:\n- Bot is ready: ${isBotReady}\n- Logged in as: ${client.user ? client.user.tag : 'Not yet'}\n- Server count: ${client.guilds.cache.size}`);
-			console.log();
-            break;
-			
-		case 'ping':
-			console.log(`[${getTimestamp()}] Pinging...`);
-            exec('ping -n 1 8.8.8.8', (error, stdout) => {
-				readline.clearLine(process.stdout, 0);
-				readline.cursorTo(process.stdout, 0);
-                if (error) {
-                    console.log(`[${getTimestamp()}] Failed to execute ping.`);
-                } else {
-                    // Pull out the time from Windows ping output.
-                    const match = stdout.match(/time[=<](\d+ms)/i) || stdout.match(/рисует.*?(\d+ms)/i);
-                    const time = match ? match[1] : 'unknown';
-                    console.log(`[${getTimestamp()}] Pong! Network latency: ${time}`);
-                }
+	for (const subCmd of subCommands) {
+		const args = subCmd.split(' ');
+		const command = args[0].toLowerCase();
+		
+		readline.clearLine(process.stdout, 0);
+		readline.cursorTo(process.stdout, 0);
+		
+		// Terminal commands.
+		switch (command) {
+			case 'help':
+				console.log(`[${getTimestamp()}] Commands:\nBOT:\n- help: Show terminal commands.\n- exit/stop/shutdown: Shut down the bot.\n- status: Status of the bot.\n- ping: Check bot latency.\n- clear: Clear the terminal screen.\n\nSERVER:\n- voice-join: Connect bot to voice channel from '.env' file.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.`);
 				console.log();
-                rl.prompt(true);
-            });
-			break;
-		
-		case 'clear':
-			console.clear();
-			break;
-		
-        default:
-            console.log(`[${getTimestamp()}] Unknown terminal command: "${command}". For commands, try "help".`);
-			console.log();
-            break;
-    }
+				break;
+			
+			case 'exit':
+			case 'stop':
+			case 'shutdown':
+				console.log(`[${getTimestamp()}] Stopping bot via terminal command...`);
+				shutdown();
+				console.log();
+				return;
+			
+			case 'status':
+				console.log(`[${getTimestamp()}] Status:\n- Bot is ready: ${isBotReady}\n- Logged in as: ${client.user ? client.user.tag : 'Not yet'}\n- Server count: ${client.guilds.cache.size}`);
+				console.log();
+				break;
+			
+			case 'ping':
+				console.log(`[${getTimestamp()}] Pinging...`);
+				exec('ping -n 1 8.8.8.8', (error, stdout) => {
+					readline.clearLine(process.stdout, 0);
+					readline.cursorTo(process.stdout, 0);
+					if (error) {
+						console.log(`[${getTimestamp()}] Failed to execute ping.`);
+					} else {
+						// Pull out the time from Windows ping output.
+						const match = stdout.match(/time[=<](\d+ms)/i) || stdout.match(/рисует.*?(\d+ms)/i);
+						const time = match ? match[1] : 'unknown';
+						console.log(`[${getTimestamp()}] Pong! Network latency: ${time}`);
+					}
+					console.log();
+					rl.prompt(true);
+				});
+				break;
+			
+			case 'clear':
+				console.clear();
+				break;
+			
+			case 'voice-join':
+				if (!CONFIG.voiceChannelId) {
+					console.log(`[${getTimestamp()}] Error: VOICE_CHANNEL_ID is not defined in '.env' file.`);
+					console.log();
+					break;
+				}
+				
+				// Find the channel across all guilds the bot is in.
+				let targetChannel = null;
+				for (const [guildId, guild] of client.guilds.cache) {
+					const channel = guild.channels.cache.get(CONFIG.voiceChannelId);
+					if (channel) {
+						targetChannel = channel;
+						break;
+					}
+				}
+
+				if (!targetChannel) {
+					console.log(`[${getTimestamp()}] Error: Could not find voice channel with ID ${CONFIG.voiceChannelId}. Make sure the bot is in that server.`);
+					console.log();
+					break;
+				}
+
+				try {
+					currentVoiceConnection = joinVoiceChannel({
+						channelId: targetChannel.id,
+						guildId: targetChannel.guild.id,
+						adapterCreator: targetChannel.guild.voiceAdapterCreator,
+					});
+					console.log(`[${getTimestamp()}] Successfully joined voice channel: '${targetChannel.name}' (${targetChannel.id})`);
+				} catch (error) {
+					console.error(`[${getTimestamp()}] Failed to join voice channel: `, error);
+				}
+				console.log();
+				break;
+			
+			case 'voice-leave':
+				if (!currentVoiceConnection) {
+					console.log(`[${getTimestamp()}] Error: Bot is not currently in a voice channel.`);
+					console.log();
+					break;
+				}
+				
+				try {
+					currentVoiceConnection.destroy();
+					currentVoiceConnection = null;
+					console.log(`[${getTimestamp()}] Successfully left the voice channel.`);
+				} catch (error) {
+					console.error(`[${getTimestamp()}] Failed to leave voice channel:`, error);
+				}
+				console.log();
+				break;
+			
+			case 'play-soundboard':
+				if (!currentVoiceConnection) {
+					console.log(`[${getTimestamp()}] Error: Bot is not in a voice channel. Run "join-voice" first.`);
+					console.log();
+					break;
+				}
+				
+				try {
+					console.log(`[${getTimestamp()}] Playing soundboard item ID: '${CONFIG.soundboardId}'...`);
+					
+					const player = createAudioPlayer();
+					const resource = createAudioResource(`./sounds/${CONFIG.soundboardId}.mp3`);
+					currentVoiceConnection.subscribe(player);
+					player.play(resource);
+					
+					console.log(`[${getTimestamp()}] Sound playback initialized for ID '${CONFIG.soundboardId}'.`);
+				} catch (error) {
+					console.error(`[${getTimestamp()}] Failed to play soundboard audio:`, error);
+				}
+				console.log();
+				break;
+			
+			default:
+				console.log(`[${getTimestamp()}] Unknown terminal command: "${command}". For commands, try "help".`);
+				console.log();
+				break;
+		}
+	}
 	
 	rl.prompt();
 });

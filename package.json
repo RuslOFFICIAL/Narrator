@@ -1,6 +1,6 @@
 {
 	"name": "narrator",
-	"version": "5.0.0",
+	"version": "6.0.0",
 	"description": "Narrator bot for Discord.",
 	"main": "narrator.js",
 	"scripts": {
@@ -11,7 +11,9 @@
 	"license": "ISC",
 	"type": "commonjs",
 	"dependencies": {
+		"@discordjs/voice": "^0.19.2",
 		"discord.js": "^14.27.0",
-		"dotenv": "^17.4.2"
+		"dotenv": "^17.4.2",
+		"opusscript": "^0.1.1"
 	}
 }
