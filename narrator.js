@@ -54,7 +54,10 @@ const HELP_TEXT = `Команди бота Narrator:
 /help - Показує команди бота.
 /lore - Розказує одну з частин лору.
 /info - Інформація про лор.
-/lottery-kick - ${CONFIG.kickChance}% на кік з серверу. Удачі!`;
+/lottery-kick - ${CONFIG.kickChance}% на кік з серверу. Удачі!
+/voice-join - Заходить в голосовий канал, який вибраний у хоста.
+/voice-leave - Покидає голосовий канал.
+/soundboard-play - Запускає звук в голосовому каналі, вибраний хостом.`;
 
 const INFO_TEXT = `Створенням лору та бота зайнявся Адмін Rusl, аватарку боту створила Адмін Katy.
  
@@ -71,7 +74,10 @@ const commands = [
 	new SlashCommandBuilder().setName('help').setDescription('Показує команди бота.'),
 	new SlashCommandBuilder().setName('lore').setDescription('Команда для лору.'),
 	new SlashCommandBuilder().setName('info').setDescription('Інформація про лор.'),
-	new SlashCommandBuilder().setName('lottery-kick').setDescription(`${CONFIG.kickChance}% на кік з серверу. Удачі!`).setContexts([InteractionContextType.Guild])
+	new SlashCommandBuilder().setName('lottery-kick').setDescription(`${CONFIG.kickChance}% на кік з серверу. Удачі!`).setContexts([InteractionContextType.Guild]),
+	new SlashCommandBuilder().setName('voice-join').setDescription('Заходить в голосовий канал, який вибраний у хоста.').setContexts([InteractionContextType.Guild]),
+	new SlashCommandBuilder().setName('voice-leave').setDescription('Покидає голосовий канал.').setContexts([InteractionContextType.Guild]),
+	new SlashCommandBuilder().setName('soundboard-play').setDescription('Запускає звук в голосовому каналі, вибраний хостом.').setContexts([InteractionContextType.Guild])
 ].map(command => command.toJSON());
 
 // Run this code after the client is ready.
@@ -141,6 +147,15 @@ client.on('interactionCreate', async interaction => {
         case 'lottery-kick':
             await commandLotteryKick(interaction);
             break;
+		case 'voice-join':
+			await commandVoiceJoin(interaction);
+            break;
+		case 'voice-leave':
+			await commandVoiceLeave(interaction);
+            break;
+		case 'soundboard-play':
+			await commandSoundboardPlay(interaction);
+			break;
     }
 });
 
@@ -196,7 +211,11 @@ async function commandHelp(interaction) {
 	try {
 		await interaction.reply(HELP_TEXT);
 	} catch (error) {
-		console.error(`Failed to execute command [/help] :`, error);
+		readline.clearLine(process.stdout, 0);
+		readline.cursorTo(process.stdout, 0);
+		console.error(`[${getTimestamp()}] Failed to execute command [/help] :`, error);
+		rl.prompt(true);
+		
 		await interaction.reply({
 			content: 'Не вдалося виконати команду [/help]. Спробуйте пізніше.',
 			flags: [MessageFlags.Ephemeral]
@@ -213,7 +232,11 @@ async function commandLore(interaction) {
 		const randomIndex = Math.floor(Math.random() * LORE_SNIPPETS.length);
 		await interaction.reply(`Лор? Ну добре...\n\n${LORE_SNIPPETS[randomIndex]}`);
 	} catch (error) {
-		console.error(`Failed to execute command [/lore] :`, error);
+		readline.clearLine(process.stdout, 0);
+		readline.cursorTo(process.stdout, 0);
+		console.error(`[${getTimestamp()}] Failed to execute command [/lore] :`, error);
+		rl.prompt(true);
+		
 		await interaction.reply({
 			content: 'Не вдалося виконати команду [/lore]. Спробуйте пізніше.',
 			flags: [MessageFlags.Ephemeral]
@@ -229,7 +252,11 @@ async function commandInfo(interaction) {
 	try {
 		await interaction.reply(INFO_TEXT);
 	} catch (error) {
-		console.error(`Failed to execute command [/info] :`, error);
+		readline.clearLine(process.stdout, 0);
+		readline.cursorTo(process.stdout, 0);
+		console.error(`[${getTimestamp()}] Failed to execute command [/info] :`, error);
+		rl.prompt(true);
+		
 		await interaction.reply({
 			content: 'Не вдалося виконати команду [/info]. Спробуйте пізніше.',
 			flags: [MessageFlags.Ephemeral]
@@ -254,7 +281,7 @@ async function commandLotteryKick(interaction) {
 		
 		if (CONFIG.whitelist.includes(interaction.user.id)) {
 			await interaction.reply({
-				content: `<@${interaction.user.id}>\n\nТебе не можна кикнути через правила боту.`,
+				content: `<@${interaction.user.id}>\n\nЧерез правила боту, тебе не можна кикнути.`,
 				flags: [MessageFlags.Ephemeral]
 			});
 			return;
@@ -271,7 +298,11 @@ async function commandLotteryKick(interaction) {
 				await interaction.user.send(`Хей! Ти тільки-но був кікнутий із серверу, нажаль. Ось посилання на сервер:\nhttps://discord.gg/${invite.code}`);
 				await interaction.member.kick('Нажаль, удача не на твоїй стороні була того разу. Спробуй знову наступного разу, якщо не страшно.');
 			} catch (err) {
-				console.log(`ERROR: Couldn't kick user @${interaction.user.tag} or send DM.`);
+				readline.clearLine(process.stdout, 0);
+				readline.cursorTo(process.stdout, 0);
+				console.log(`[${getTimestamp()}] ERROR: Couldn't kick user @${interaction.user.tag} or send DM.`);
+				rl.prompt(true);
+				
 				await interaction.reply({
 					content: `<@${interaction.user.id}>\n\nНе вдалося тебе кікнути. Спробуй знову.`,
 					flags: [MessageFlags.Ephemeral]
@@ -281,9 +312,210 @@ async function commandLotteryKick(interaction) {
 			await interaction.reply(`<@${interaction.user.id}>\n\nЩо ж, твій кік не сьогодні... Спробуй знову, якщо не боїшся.\n\nСпробуєш знову? Все-таки, кік і є виграшем тут.`);
 		}
 	} catch (error) {
-		console.error(`Failed to execute command [/lottery-kick] :`, error);
+		readline.clearLine(process.stdout, 0);
+		readline.cursorTo(process.stdout, 0);
+		console.error(`[${getTimestamp()}] Failed to execute command [/lottery-kick] :`, error);
+		rl.prompt(true);
+		
 		await interaction.reply({
 			content: 'Не вдалося виконати команду [/lottery-kick]. Спробуйте пізніше.',
+			flags: [MessageFlags.Ephemeral]
+		})
+	}
+}
+
+async function commandVoiceJoin(interaction) {
+	//if (!(await isAuthorizedTester(interaction))) return;
+	
+	makeLogMessage(interaction);
+	
+	try {
+		if (!interaction.inGuild()) {
+			await interaction.reply({
+				content: 'Цю команду можна використовувати лише на серверах!',
+				flags: [MessageFlags.Ephemeral]
+			});
+			return;
+		}
+		
+		if (!CONFIG.whitelist.includes(interaction.user.id)) {
+			await interaction.reply({
+				content: `<@${interaction.user.id}>\n\nЧерез правила боту, ти не можеш примусити бота приєднатися до голосового каналу.`,
+				flags: [MessageFlags.Ephemeral]
+			});
+			return;
+		}
+		
+		if (!CONFIG.voiceChannelId) {
+			await interaction.reply({
+				content: '\'VOICE_CHANNEL_ID\' не визначено в файлі хоста \'.env\'.',
+				flags: [MessageFlags.Ephemeral]
+			})
+			return;
+		}
+		
+		// Find the channel across all guilds the bot is in.
+		let targetChannel = null;
+		for (const [guildId, guild] of client.guilds.cache) {
+			const channel = guild.channels.cache.get(CONFIG.voiceChannelId);
+			if (channel) {
+				targetChannel = channel;
+				break;
+			}
+		}
+		
+		if (!targetChannel) {
+			await interaction.reply({
+				content: `Не вдалося знайти голосового каналу з ID '${CONFIG.voiceChannelId}'. Впевніться, що бот є на тому сервері.`,
+				flags: [MessageFlags.Ephemeral]
+			})
+			return;
+		}
+		try {
+			currentVoiceConnection = joinVoiceChannel({
+				channelId: targetChannel.id,
+				guildId: targetChannel.guild.id,
+				adapterCreator: targetChannel.guild.voiceAdapterCreator,
+			});
+			await interaction.reply(`Успішно приєднався до: '${targetChannel.name}'`);
+		} catch (error) {
+			readline.clearLine(process.stdout, 0);
+			readline.cursorTo(process.stdout, 0);
+			console.error(`[${getTimestamp()}] Failed to join voice channel: `, error);
+			rl.prompt(true);
+			
+			await interaction.reply({
+				content: `Не вдалося приєднатися до голосового каналу. Спробуйте знову.`,
+				flags: [MessageFlags.Ephemeral]
+			})
+		}
+	} catch (error) {
+		readline.clearLine(process.stdout, 0);
+		readline.cursorTo(process.stdout, 0);
+		console.error(`[${getTimestamp()}] Failed to execute command [/voice-join] :`, error);
+		rl.prompt(true);
+		
+		await interaction.reply({
+			content: 'Не вдалося виконати команду [/voice-join]. Спробуйте пізніше.',
+			flags: [MessageFlags.Ephemeral]
+		})
+	}
+}
+
+async function commandVoiceLeave(interaction) {
+	//if (!(await isAuthorizedTester(interaction))) return;
+	
+	makeLogMessage(interaction);
+	
+	try {
+		if (!interaction.inGuild()) {
+			await interaction.reply({
+				content: 'Цю команду можна використовувати лише на серверах!',
+				flags: [MessageFlags.Ephemeral]
+			});
+			return;
+		}
+		
+		if (!CONFIG.whitelist.includes(interaction.user.id)) {
+			await interaction.reply({
+				content: `<@${interaction.user.id}>\n\nЧерез правила боту, ти не можеш примусити бота покинути голосовий канал.`,
+				flags: [MessageFlags.Ephemeral]
+			});
+			return;
+		}
+		
+		if (!currentVoiceConnection) {
+			await interaction.reply({
+				content: 'Бот зараз не в голосовому каналі. Спробуйте спершу запустити команду "/voice-join".',
+				flags: [MessageFlags.Ephemeral]
+			})
+			return;
+		}
+		
+		try {
+			currentVoiceConnection.destroy();
+			currentVoiceConnection = null;
+			await interaction.reply('Бот успішно покинув голосовий канал.');
+		} catch (error) {
+			readline.clearLine(process.stdout, 0);
+			readline.cursorTo(process.stdout, 0);
+			console.error(`[${getTimestamp()}] Failed to join voice channel: `, error);
+			rl.prompt(true);
+				
+			await interaction.reply({
+				content: 'Не вдалося боту покинути голосовий канал. Спробуйте знову.',
+				flags: [MessageFlags.Ephemeral]
+			})
+		}
+	} catch (error) {
+		readline.clearLine(process.stdout, 0);
+		readline.cursorTo(process.stdout, 0);
+		console.error(`[${getTimestamp()}] Failed to execute command [/voice-leave] :`, error);
+		rl.prompt(true);
+		
+		await interaction.reply({
+			content: 'Не вдалося виконати команду [/voice-leave]. Спробуйте пізніше.',
+			flags: [MessageFlags.Ephemeral]
+		})
+	}
+}
+
+async function commandSoundboardPlay(interaction) {
+	//if (!(await isAuthorizedTester(interaction))) return;
+	
+	makeLogMessage(interaction);
+	
+	try {
+		if (!interaction.inGuild()) {
+			await interaction.reply({
+				content: 'Цю команду можна використовувати лише на серверах!',
+				flags: [MessageFlags.Ephemeral]
+			});
+			return;
+		}
+		
+		if (!CONFIG.whitelist.includes(interaction.user.id)) {
+			await interaction.reply({
+				content: `<@${interaction.user.id}>\n\nЧерез правила боту, ти не можеш примусити бота запустити звук в голосовому каналі.`,
+				flags: [MessageFlags.Ephemeral]
+			});
+			return;
+		}
+		
+		if (!currentVoiceConnection) {
+			await interaction.reply({
+				content: 'Бот зараз не в голосовому каналі. Спробуйте спершу запустити команду "/join-voice".',
+				flags: [MessageFlags.Ephemeral]
+			})
+			return;
+		}
+		
+		try {
+			await interaction.reply(`Запускаю звук з ID: '${CONFIG.soundboardId}'...`,)
+			
+			const player = createAudioPlayer();
+			const resource = createAudioResource(`./sounds/${CONFIG.soundboardId}.mp3`);
+			currentVoiceConnection.subscribe(player);
+			player.play(resource);
+		} catch (error) {
+			readline.clearLine(process.stdout, 0);
+			readline.cursorTo(process.stdout, 0);
+			console.error(`[${getTimestamp()}] Failed to play soundboard audio: `, error);
+			rl.prompt(true);
+			
+			await interaction.reply({
+				content: 'Не вдалося запустити звук. Спробуйте знову.',
+				flags: [MessageFlags.Ephemeral]
+			})
+		}
+	} catch (error) {
+		readline.clearLine(process.stdout, 0);
+		readline.cursorTo(process.stdout, 0);
+		console.error(`[${getTimestamp()}] Failed to execute command [/soundboard-play] :`, error);
+		rl.prompt(true);
+		
+		await interaction.reply({
+			content: 'Не вдалося виконати команду [/soundboard-play]. Спробуйте пізніше.',
 			flags: [MessageFlags.Ephemeral]
 		})
 	}
@@ -315,6 +547,7 @@ rl.on('line', async (line) => {
 		
 		// Terminal commands.
 		switch (command) {
+			// BOT:
 			case 'help':
 				console.log(`[${getTimestamp()}] Commands:\nBOT:\n- help: Show terminal commands.\n- exit/stop/shutdown: Shut down the bot.\n- status: Status of the bot.\n- ping: Check bot latency.\n- clear: Clear the terminal screen.\n\nSERVER:\n- voice-join: Connect bot to voice channel from '.env' file.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.`);
 				console.log();
@@ -355,10 +588,10 @@ rl.on('line', async (line) => {
 				console.clear();
 				break;
 			
+			// SERVER:
 			case 'voice-join':
 				if (!CONFIG.voiceChannelId) {
-					console.log(`[${getTimestamp()}] Error: VOICE_CHANNEL_ID is not defined in '.env' file.`);
-					console.log();
+					console.log(`[${getTimestamp()}] Error: 'VOICE_CHANNEL_ID' is not defined in '.env' file.\n`);
 					break;
 				}
 				
@@ -373,8 +606,7 @@ rl.on('line', async (line) => {
 				}
 
 				if (!targetChannel) {
-					console.log(`[${getTimestamp()}] Error: Could not find voice channel with ID ${CONFIG.voiceChannelId}. Make sure the bot is in that server.`);
-					console.log();
+					console.log(`[${getTimestamp()}] Error: Could not find voice channel with ID '${CONFIG.voiceChannelId}'. Make sure the bot is in that server.\n`);
 					break;
 				}
 
@@ -393,8 +625,7 @@ rl.on('line', async (line) => {
 			
 			case 'voice-leave':
 				if (!currentVoiceConnection) {
-					console.log(`[${getTimestamp()}] Error: Bot is not currently in a voice channel.`);
-					console.log();
+					console.log(`[${getTimestamp()}] Error: Bot is not currently in a voice channel. Run "join-voice" first.\n`);
 					break;
 				}
 				
@@ -410,8 +641,7 @@ rl.on('line', async (line) => {
 			
 			case 'soundboard-play':
 				if (!currentVoiceConnection) {
-					console.log(`[${getTimestamp()}] Error: Bot is not in a voice channel. Run "join-voice" first.`);
-					console.log();
+					console.log(`[${getTimestamp()}] Error: Bot is not in a voice channel. Run "join-voice" first.\n`);
 					break;
 				}
 				
@@ -432,14 +662,13 @@ rl.on('line', async (line) => {
 						rl.prompt(true);
 					});
 				} catch (error) {
-					console.error(`[${getTimestamp()}] Failed to play soundboard audio:`, error);
+					console.error(`[${getTimestamp()}] Failed to play soundboard audio: `, error);
 				}
 				console.log();
 				break;
 			
 			default:
-				console.log(`[${getTimestamp()}] Unknown terminal command: "${command}". For commands, try "help".`);
-				console.log();
+				console.log(`[${getTimestamp()}] Unknown terminal command: "${command}". For commands, try "help".\n`);
 				break;
 		}
 	}
