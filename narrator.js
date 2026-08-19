@@ -552,7 +552,7 @@ async function commandSoundboardStop(interaction) {
 		
 		if (!CONFIG.whitelist.includes(interaction.user.id)) {
 			await interaction.reply({
-				content: `<@${interaction.user.id}>\n\nЧерез правила боту, ти не можеш примусити бота покинути голосовий канал.`,
+				content: `<@${interaction.user.id}>\n\nЧерез правила боту, ти не можеш примусити бота припинити звук.`,
 				flags: [MessageFlags.Ephemeral]
 			});
 			return;
