@@ -1,5 +1,6 @@
 require('dotenv').config();
 
+const fs = require('fs');
 const readline = require('readline');
 const { spawn, exec } = require('child_process');
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActivityType, InteractionContextType, MessageFlags } = require('discord.js');
@@ -32,7 +33,6 @@ const CONFIG = {
 	statusUrl: process.env.STATUS_URL,
 	
 	voiceChannelId: process.env.VOICE_CHANNEL_ID,
-	soundboardId: process.env.SOUNDBOARD_ID,
 	
 	kickChance: parseInt(process.env.KICK_CHANCE, 10) || 10,
 	whitelist: process.env.WHITELIST ? process.env.WHITELIST.split(',') : [],
@@ -57,7 +57,7 @@ const HELP_TEXT = `Команди бота Narrator:
 /lottery-kick - ${CONFIG.kickChance}% на кік з серверу. Удачі!
 /voice-join - Заходить в голосовий канал, який вибраний у хоста.
 /voice-leave - Покидає голосовий канал.
-/soundboard-play - Запускає звук в голосовому каналі, вибраний хостом.`;
+/soundboard-play - Запускає вибраний звук в голосовому каналі.`;
 
 const INFO_TEXT = `Створенням лору та бота зайнявся Адмін Rusl, аватарку боту створила Адмін Katy.
  
@@ -77,7 +77,9 @@ const commands = [
 	new SlashCommandBuilder().setName('lottery-kick').setDescription(`${CONFIG.kickChance}% на кік з серверу. Удачі!`).setContexts([InteractionContextType.Guild]),
 	new SlashCommandBuilder().setName('voice-join').setDescription('Заходить в голосовий канал, який вибраний у хоста.').setContexts([InteractionContextType.Guild]),
 	new SlashCommandBuilder().setName('voice-leave').setDescription('Покидає голосовий канал.').setContexts([InteractionContextType.Guild]),
-	new SlashCommandBuilder().setName('soundboard-play').setDescription('Запускає звук в голосовому каналі, вибраний хостом.').setContexts([InteractionContextType.Guild])
+	new SlashCommandBuilder().setName('soundboard-play').setDescription('Запускає вибраний звук в голосовому каналі.').addStringOption(option =>
+		option.setName('sound').setDescription('Виберіть звук для відтворення.').setRequired(true).setAutocomplete(true)
+		).setContexts([InteractionContextType.Guild])
 ].map(command => command.toJSON());
 
 // Run this code after the client is ready.
@@ -130,6 +132,27 @@ client.on('interactionCreate', async interaction => {
 			});
 		}
 		
+		return;
+	}
+	
+	if (interaction.isAutocomplete()) {
+		if (interaction.commandName === 'soundboard-play') {
+			try {
+				const files = fs.readdirSync('./sounds');
+				const choices = files
+					.filter(file => file.endsWith('.mp3'))
+					.map(file => file.replace('.mp3', ''));
+				
+				const focusedValue = interaction.options.getFocused();
+				const filtered = choices.filter(choice => choice.toLowerCase().includes(focusedValue.toLowerCase()));
+				
+				await interaction.respond(
+					filtered.slice(0, 25).map(choice => ({ name: choice, value: choice }))
+				);
+			} catch (error) {
+				consoleLog('Error handling soundboard autocomplete: ', error);
+			}
+		}
 		return;
 	}
 	
@@ -435,7 +458,7 @@ async function commandVoiceLeave(interaction) {
 }
 
 async function commandSoundboardPlay(interaction) {
-	//if (!(await isAuthorizedTester(interaction))) return;
+	if (!(await isAuthorizedTester(interaction))) return;
 	
 	makeLogMessage(interaction);
 	
@@ -464,13 +487,28 @@ async function commandSoundboardPlay(interaction) {
 			return;
 		}
 		
+		const soundChoice = interaction.options.getString('sound');
+		const soundPath = `./sounds/${soundChoice}.mp3`;
+		
+		if (!fs.existsSync(soundPath)) {
+			await interaction.reply({
+				content: `Звук '${soundChoice}' не знайдено в папці хоста 'sounds'.`,
+				flags: [MessageFlags.Ephemeral]
+			});
+			return;
+		}
+		
 		try {
-			await interaction.reply(`Запускаю звук з ID: '${CONFIG.soundboardId}'...`,)
+			await interaction.reply(`Запускаю звук: '${soundChoice}'...`,)
 			
 			const player = createAudioPlayer();
-			const resource = createAudioResource(`./sounds/${CONFIG.soundboardId}.mp3`);
+			const resource = createAudioResource(soundPath);
 			currentVoiceConnection.subscribe(player);
 			player.play(resource);
+			
+			player.on('idle', () => {
+				consoleLog(`[${getTimestamp()}] Soundboard sound '${targetSound}.mp3' finished playing.`);
+			});
 		} catch (error) {
 			consoleLog(`[${getTimestamp()}] Failed to play soundboard audio: `, error);
 			await interaction.reply({
@@ -608,19 +646,33 @@ rl.on('line', async (line) => {
 					break;
 				}
 				
+				const rawTargetSound = args[1];
+				
+				if (!rawTargetSound) {
+                    consoleLog(`[${getTimestamp()}] Error: Please provide a sound name. Usage: soundboard-play [filename]\n`);
+                    break;
+                }
+				
+				const targetSound = rawTargetSound.endsWith('.mp3') ? rawTargetSound.slice(0, -4) : rawTargetSound;
+				const soundPath = `./sounds/${targetSound}.mp3`;
+				
+				if (!fs.existsSync(soundPath)) {
+					consoleLog(`[${getTimestamp()}] Error: Sound file '${targetSound}.mp3' not found in host's './sounds/' directory.\n`);
+					break;
+				}
+				
 				try {
-					consoleLog(`[${getTimestamp()}] Playing soundboard item ID: '${CONFIG.soundboardId}'...`);
+					consoleLog(`[${getTimestamp()}] Playing soundboard item: '${targetSound}.mp3'...`);
 					
 					const player = createAudioPlayer();
-					const resource = createAudioResource(`./sounds/${CONFIG.soundboardId}.mp3`);
+					const resource = createAudioResource(soundPath);
 					currentVoiceConnection.subscribe(player);
 					player.play(resource);
 					
-					consoleLog(`[${getTimestamp()}] Sound playback initialized for ID '${CONFIG.soundboardId}'.`);
+					consoleLog(`[${getTimestamp()}] Sound playback initialized for '${targetSound}.mp3'.`);
 					
 					player.on('idle', () => {
-						consoleLog(`[${getTimestamp()}] Soundboard sound finished playing.`);
-						rl.prompt(true);
+						consoleLog(`[${getTimestamp()}] Soundboard sound '${targetSound}.mp3' finished playing.`);
 					});
 				} catch (error) {
 					consoleLog(`[${getTimestamp()}] Failed to play soundboard audio: `, error);
