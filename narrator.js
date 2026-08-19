@@ -6,7 +6,7 @@ const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActivityTy
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, StreamType } = require('@discordjs/voice');
 
 process.on('unhandledRejection', error => {
-    console.error(`[${getTimestamp()}] Unhandled promise rejection: `, error);
+    consoleLog(`[${getTimestamp()}] Unhandled promise rejection: `, error);
 });
 
 // Create a new client instance with necessary intents.
@@ -82,14 +82,13 @@ const commands = [
 
 // Run this code after the client is ready.
 client.once('clientReady', async () => {
-	readline.clearLine(process.stdout, 0);
-	readline.cursorTo(process.stdout, 0);
-	
-	console.log(`\nPress Ctrl+C to shut down bot.\nPrint "help" for commands.\n`);
-	console.log(`[${getTimestamp()}] Logged in as ${client.user.tag}!`);
+	consoleLog(`\nPress Ctrl+C to shut down bot.\nPrint "help" for commands.\n`);
+	consoleLog(`[${getTimestamp()}] Logged in as ${client.user.tag}!`);
 	
 	// Status.
 	try {
+		readline.clearLine(process.stdout, 0);
+		readline.cursorTo(process.stdout, 0);
 		process.stdout.write(`[${getTimestamp()}] Setting bot status up... `)
 		client.user.setPresence({
 			activities: [{ name: CONFIG.statusName, type: ActivityType[CONFIG.statusType], url: CONFIG.statusUrl }],
@@ -97,12 +96,14 @@ client.once('clientReady', async () => {
 		});
 		console.log('Success!');
 	} catch (error) {
-		console.error(error);
+		consoleLog(error);
 	}
 	
 	// Register slash (/).
 	const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 	try {
+		readline.clearLine(process.stdout, 0);
+		readline.cursorTo(process.stdout, 0);
 		process.stdout.write(`[${getTimestamp()}] Refreshing application (/) commands... `);
 		
 		await rest.put(
@@ -111,12 +112,12 @@ client.once('clientReady', async () => {
 		);
 		
 		console.log('Success!');
-		console.log(`[${getTimestamp()}] Waiting for commands...\n`);
+		consoleLog(`[${getTimestamp()}] Waiting for commands...\n`);
 		
 		isBotReady = true;
 		rl.prompt();
 	} catch (error) {
-		console.error(error);
+		consoleLog(error);
 	}
 });
 
@@ -159,7 +160,21 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
+
+
 // Functions.
+function consoleLog(...args) {
+	readline.clearLine(process.stdout, 0);
+	readline.cursorTo(process.stdout, 0);
+	console.log(...args);
+	
+	try {
+		rl.prompt(true);
+	} catch (err) {
+		// Readline is closed, ignore or handle silently.
+	}
+}
+
 function getTimestamp() {
 	const now = new Date();
 	
@@ -177,21 +192,14 @@ function getTimestamp() {
 
 function makeLogMessage(interaction) {
 	const logMessage = `[${getTimestamp()}] [Command Used] '/${interaction.commandName}' was executed by @${interaction.user.tag} (${interaction.user.id})`;
-	
-	readline.clearLine(process.stdout, 0);
-	readline.cursorTo(process.stdout, 0);
-	console.log(logMessage);
-	rl.prompt(true);
+	consoleLog(logMessage);
 }
 
 // Add "if (!(await isAuthorizedTester(interaction))) return;" at the beggining of command to make it for Authorized Testers. Comment it with "//" to disable the tester check.
 async function isAuthorizedTester(interaction) {
 	if(!CONFIG.authorizedTesters.includes(interaction.user.id)) {
 		const logMessage = `[${getTimestamp()}] [Testing Command Used] '/${interaction.commandName}' was executed by not a tester @${interaction.user.tag} (${interaction.user.id})`;
-		readline.clearLine(process.stdout, 0);
-		readline.cursorTo(process.stdout, 0);
-		console.log(logMessage);
-		rl.prompt(true);
+		consoleLog(logMessage);
 
 		await interaction.reply({
 			content: 'Ця команда тестується. Спробуйте використати іншу команду або пізніше.',
@@ -202,6 +210,8 @@ async function isAuthorizedTester(interaction) {
 	return true;
 }
 
+
+
 // Discord Commands.
 async function commandHelp(interaction) {
 	//if (!(await isAuthorizedTester(interaction))) return;
@@ -211,11 +221,7 @@ async function commandHelp(interaction) {
 	try {
 		await interaction.reply(HELP_TEXT);
 	} catch (error) {
-		readline.clearLine(process.stdout, 0);
-		readline.cursorTo(process.stdout, 0);
-		console.error(`[${getTimestamp()}] Failed to execute command [/help] :`, error);
-		rl.prompt(true);
-		
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/help] :`, error);
 		await interaction.reply({
 			content: 'Не вдалося виконати команду [/help]. Спробуйте пізніше.',
 			flags: [MessageFlags.Ephemeral]
@@ -232,11 +238,7 @@ async function commandLore(interaction) {
 		const randomIndex = Math.floor(Math.random() * LORE_SNIPPETS.length);
 		await interaction.reply(`Лор? Ну добре...\n\n${LORE_SNIPPETS[randomIndex]}`);
 	} catch (error) {
-		readline.clearLine(process.stdout, 0);
-		readline.cursorTo(process.stdout, 0);
-		console.error(`[${getTimestamp()}] Failed to execute command [/lore] :`, error);
-		rl.prompt(true);
-		
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/lore] :`, error);		
 		await interaction.reply({
 			content: 'Не вдалося виконати команду [/lore]. Спробуйте пізніше.',
 			flags: [MessageFlags.Ephemeral]
@@ -252,11 +254,7 @@ async function commandInfo(interaction) {
 	try {
 		await interaction.reply(INFO_TEXT);
 	} catch (error) {
-		readline.clearLine(process.stdout, 0);
-		readline.cursorTo(process.stdout, 0);
-		console.error(`[${getTimestamp()}] Failed to execute command [/info] :`, error);
-		rl.prompt(true);
-		
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/info] :`, error);
 		await interaction.reply({
 			content: 'Не вдалося виконати команду [/info]. Спробуйте пізніше.',
 			flags: [MessageFlags.Ephemeral]
@@ -298,11 +296,7 @@ async function commandLotteryKick(interaction) {
 				await interaction.user.send(`Хей! Ти тільки-но був кікнутий із серверу, нажаль. Ось посилання на сервер:\nhttps://discord.gg/${invite.code}`);
 				await interaction.member.kick('Нажаль, удача не на твоїй стороні була того разу. Спробуй знову наступного разу, якщо не страшно.');
 			} catch (err) {
-				readline.clearLine(process.stdout, 0);
-				readline.cursorTo(process.stdout, 0);
-				console.log(`[${getTimestamp()}] ERROR: Couldn't kick user @${interaction.user.tag} or send DM.`);
-				rl.prompt(true);
-				
+				consoleLog(`[${getTimestamp()}] ERROR: Couldn't kick user @${interaction.user.tag} or send DM.`);
 				await interaction.reply({
 					content: `<@${interaction.user.id}>\n\nНе вдалося тебе кікнути. Спробуй знову.`,
 					flags: [MessageFlags.Ephemeral]
@@ -312,11 +306,7 @@ async function commandLotteryKick(interaction) {
 			await interaction.reply(`<@${interaction.user.id}>\n\nЩо ж, твій кік не сьогодні... Спробуй знову, якщо не боїшся.\n\nСпробуєш знову? Все-таки, кік і є виграшем тут.`);
 		}
 	} catch (error) {
-		readline.clearLine(process.stdout, 0);
-		readline.cursorTo(process.stdout, 0);
-		console.error(`[${getTimestamp()}] Failed to execute command [/lottery-kick] :`, error);
-		rl.prompt(true);
-		
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/lottery-kick] :`, error);
 		await interaction.reply({
 			content: 'Не вдалося виконати команду [/lottery-kick]. Спробуйте пізніше.',
 			flags: [MessageFlags.Ephemeral]
@@ -379,22 +369,14 @@ async function commandVoiceJoin(interaction) {
 			});
 			await interaction.reply(`Успішно приєднався до: '${targetChannel.name}'`);
 		} catch (error) {
-			readline.clearLine(process.stdout, 0);
-			readline.cursorTo(process.stdout, 0);
-			console.error(`[${getTimestamp()}] Failed to join voice channel: `, error);
-			rl.prompt(true);
-			
+			consoleLog(`[${getTimestamp()}] Failed to join voice channel: `, error);
 			await interaction.reply({
 				content: `Не вдалося приєднатися до голосового каналу. Спробуйте знову.`,
 				flags: [MessageFlags.Ephemeral]
 			})
 		}
 	} catch (error) {
-		readline.clearLine(process.stdout, 0);
-		readline.cursorTo(process.stdout, 0);
-		console.error(`[${getTimestamp()}] Failed to execute command [/voice-join] :`, error);
-		rl.prompt(true);
-		
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/voice-join] :`, error);
 		await interaction.reply({
 			content: 'Не вдалося виконати команду [/voice-join]. Спробуйте пізніше.',
 			flags: [MessageFlags.Ephemeral]
@@ -437,22 +419,14 @@ async function commandVoiceLeave(interaction) {
 			currentVoiceConnection = null;
 			await interaction.reply('Бот успішно покинув голосовий канал.');
 		} catch (error) {
-			readline.clearLine(process.stdout, 0);
-			readline.cursorTo(process.stdout, 0);
-			console.error(`[${getTimestamp()}] Failed to join voice channel: `, error);
-			rl.prompt(true);
-				
+			consoleLog(`[${getTimestamp()}] Failed to join voice channel: `, error);
 			await interaction.reply({
 				content: 'Не вдалося боту покинути голосовий канал. Спробуйте знову.',
 				flags: [MessageFlags.Ephemeral]
 			})
 		}
 	} catch (error) {
-		readline.clearLine(process.stdout, 0);
-		readline.cursorTo(process.stdout, 0);
-		console.error(`[${getTimestamp()}] Failed to execute command [/voice-leave] :`, error);
-		rl.prompt(true);
-		
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/voice-leave] :`, error);
 		await interaction.reply({
 			content: 'Не вдалося виконати команду [/voice-leave]. Спробуйте пізніше.',
 			flags: [MessageFlags.Ephemeral]
@@ -498,28 +472,22 @@ async function commandSoundboardPlay(interaction) {
 			currentVoiceConnection.subscribe(player);
 			player.play(resource);
 		} catch (error) {
-			readline.clearLine(process.stdout, 0);
-			readline.cursorTo(process.stdout, 0);
-			console.error(`[${getTimestamp()}] Failed to play soundboard audio: `, error);
-			rl.prompt(true);
-			
+			consoleLog(`[${getTimestamp()}] Failed to play soundboard audio: `, error);
 			await interaction.reply({
 				content: 'Не вдалося запустити звук. Спробуйте знову.',
 				flags: [MessageFlags.Ephemeral]
 			})
 		}
 	} catch (error) {
-		readline.clearLine(process.stdout, 0);
-		readline.cursorTo(process.stdout, 0);
-		console.error(`[${getTimestamp()}] Failed to execute command [/soundboard-play] :`, error);
-		rl.prompt(true);
-		
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/soundboard-play] :`, error);
 		await interaction.reply({
 			content: 'Не вдалося виконати команду [/soundboard-play]. Спробуйте пізніше.',
 			flags: [MessageFlags.Ephemeral]
 		})
 	}
 }
+
+
 
 // Terminal.
 const rl = readline.createInterface({
@@ -542,44 +510,44 @@ rl.on('line', async (line) => {
 		const args = subCmd.split(' ');
 		const command = args[0].toLowerCase();
 		
-		readline.clearLine(process.stdout, 0);
-		readline.cursorTo(process.stdout, 0);
+		//readline.clearLine(process.stdout, 0);
+		//readline.cursorTo(process.stdout, 0);
 		
 		// Terminal commands.
 		switch (command) {
 			// BOT:
 			case 'help':
-				console.log(`[${getTimestamp()}] Commands:\nBOT:\n- help: Show terminal commands.\n- exit/stop/shutdown: Shut down the bot.\n- status: Status of the bot.\n- ping: Check bot latency.\n- clear: Clear the terminal screen.\n\nSERVER:\n- voice-join: Connect bot to voice channel from '.env' file.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.`);
-				console.log();
+				consoleLog(`[${getTimestamp()}] Commands:\nBOT:\n- help: Show terminal commands.\n- exit/stop/shutdown: Shut down the bot.\n- status: Status of the bot.\n- ping: Check bot latency.\n- clear: Clear the terminal screen.\n\nSERVER:\n- voice-join: Connect bot to voice channel from '.env' file.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.`);
+				consoleLog();
 				break;
 			
 			case 'exit':
 			case 'stop':
 			case 'shutdown':
-				console.log(`[${getTimestamp()}] Stopping bot via terminal command...`);
+				consoleLog(`[${getTimestamp()}] Stopping bot via terminal command...`);
 				shutdown();
-				console.log();
+				consoleLog();
 				return;
 			
 			case 'status':
-				console.log(`[${getTimestamp()}] Status:\n- Bot is ready: ${isBotReady}\n- Logged in as: ${client.user ? client.user.tag : 'Not yet'}\n- Server count: ${client.guilds.cache.size}`);
-				console.log();
+				consoleLog(`[${getTimestamp()}] Status:\n- Bot is ready: ${isBotReady}\n- Logged in as: ${client.user ? client.user.tag : 'Not yet'}\n- Server count: ${client.guilds.cache.size}`);
+				consoleLog();
 				break;
 			
 			case 'ping':
-				console.log(`[${getTimestamp()}] Pinging...`);
+				consoleLog(`[${getTimestamp()}] Pinging...`);
 				exec('ping -n 1 8.8.8.8', (error, stdout) => {
-					readline.clearLine(process.stdout, 0);
-					readline.cursorTo(process.stdout, 0);
+					//readline.clearLine(process.stdout, 0);
+					//readline.cursorTo(process.stdout, 0);
 					if (error) {
-						console.log(`[${getTimestamp()}] Failed to execute ping.`);
+						consoleLog(`[${getTimestamp()}] Failed to execute ping.`);
 					} else {
 						// Pull out the time from Windows ping output.
 						const match = stdout.match(/time[=<](\d+ms)/i) || stdout.match(/рисует.*?(\d+ms)/i);
 						const time = match ? match[1] : 'unknown';
-						console.log(`[${getTimestamp()}] Pong! Network latency: ${time}`);
+						consoleLog(`[${getTimestamp()}] Pong! Network latency: ${time}`);
 					}
-					console.log();
+					consoleLog();
 					rl.prompt(true);
 				});
 				break;
@@ -591,7 +559,7 @@ rl.on('line', async (line) => {
 			// SERVER:
 			case 'voice-join':
 				if (!CONFIG.voiceChannelId) {
-					console.log(`[${getTimestamp()}] Error: 'VOICE_CHANNEL_ID' is not defined in '.env' file.\n`);
+					consoleLog(`[${getTimestamp()}] Error: 'VOICE_CHANNEL_ID' is not defined in '.env' file.\n`);
 					break;
 				}
 				
@@ -606,7 +574,7 @@ rl.on('line', async (line) => {
 				}
 
 				if (!targetChannel) {
-					console.log(`[${getTimestamp()}] Error: Could not find voice channel with ID '${CONFIG.voiceChannelId}'. Make sure the bot is in that server.\n`);
+					consoleLog(`[${getTimestamp()}] Error: Could not find voice channel with ID '${CONFIG.voiceChannelId}'. Make sure the bot is in that server.\n`);
 					break;
 				}
 
@@ -616,59 +584,57 @@ rl.on('line', async (line) => {
 						guildId: targetChannel.guild.id,
 						adapterCreator: targetChannel.guild.voiceAdapterCreator,
 					});
-					console.log(`[${getTimestamp()}] Successfully joined voice channel: '${targetChannel.name}' (${targetChannel.id})`);
+					consoleLog(`[${getTimestamp()}] Successfully joined voice channel: '${targetChannel.name}' (${targetChannel.id})`);
 				} catch (error) {
-					console.error(`[${getTimestamp()}] Failed to join voice channel: `, error);
+					consoleLog(`[${getTimestamp()}] Failed to join voice channel: `, error);
 				}
-				console.log();
+				consoleLog();
 				break;
 			
 			case 'voice-leave':
 				if (!currentVoiceConnection) {
-					console.log(`[${getTimestamp()}] Error: Bot is not currently in a voice channel. Run "voice-join" first.\n`);
+					consoleLog(`[${getTimestamp()}] Error: Bot is not currently in a voice channel. Run "voice-join" first.\n`);
 					break;
 				}
 				
 				try {
 					currentVoiceConnection.destroy();
 					currentVoiceConnection = null;
-					console.log(`[${getTimestamp()}] Successfully left the voice channel.`);
+					consoleLog(`[${getTimestamp()}] Successfully left the voice channel.`);
 				} catch (error) {
-					console.error(`[${getTimestamp()}] Failed to leave voice channel:`, error);
+					consoleLog(`[${getTimestamp()}] Failed to leave voice channel:`, error);
 				}
-				console.log();
+				consoleLog();
 				break;
 			
 			case 'soundboard-play':
 				if (!currentVoiceConnection) {
-					console.log(`[${getTimestamp()}] Error: Bot is not in a voice channel. Run "voice-join" first.\n`);
+					consoleLog(`[${getTimestamp()}] Error: Bot is not in a voice channel. Run "voice-join" first.\n`);
 					break;
 				}
 				
 				try {
-					console.log(`[${getTimestamp()}] Playing soundboard item ID: '${CONFIG.soundboardId}'...`);
+					consoleLog(`[${getTimestamp()}] Playing soundboard item ID: '${CONFIG.soundboardId}'...`);
 					
 					const player = createAudioPlayer();
 					const resource = createAudioResource(`./sounds/${CONFIG.soundboardId}.mp3`);
 					currentVoiceConnection.subscribe(player);
 					player.play(resource);
 					
-					console.log(`[${getTimestamp()}] Sound playback initialized for ID '${CONFIG.soundboardId}'.`);
+					consoleLog(`[${getTimestamp()}] Sound playback initialized for ID '${CONFIG.soundboardId}'.`);
 					
 					player.on('idle', () => {
-						readline.clearLine(process.stdout, 0);
-						readline.cursorTo(process.stdout, 0);
-						console.log(`[${getTimestamp()}] Soundboard sound finished playing.`);
+						consoleLog(`[${getTimestamp()}] Soundboard sound finished playing.`);
 						rl.prompt(true);
 					});
 				} catch (error) {
-					console.error(`[${getTimestamp()}] Failed to play soundboard audio: `, error);
+					consoleLog(`[${getTimestamp()}] Failed to play soundboard audio: `, error);
 				}
-				console.log();
+				consoleLog();
 				break;
 			
 			default:
-				console.log(`[${getTimestamp()}] Unknown terminal command: "${command}". For commands, try "help".\n`);
+				consoleLog(`[${getTimestamp()}] Unknown terminal command: "${command}". For commands, try "help".\n`);
 				break;
 		}
 	}
@@ -699,7 +665,7 @@ async function shutdown() {
 		
 		await client.destroy();
 	} catch (error) {
-		console.error(error);
+		console.log(error);
 	} finally {
 		console.log("Press 'Ctrl+C' or close the window to end process, or make changes in '.js' file.");
 		process.exit(0);
@@ -708,6 +674,8 @@ async function shutdown() {
 
 process.once('SIGINT', () => shutdown());
 process.once('SIGTERM', () => shutdown());
+
+
 
 // Login.
 client.login(process.env.DISCORD_TOKEN);
