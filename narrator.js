@@ -1,10 +1,46 @@
+// Dependencies.
 require('dotenv').config();
 
+const locales = {
+    uk: require('./locales/uk.js'),
+    en: require('./locales/en.js')
+};
 const fs = require('fs');
 const readline = require('readline');
 const { spawn, exec } = require('child_process');
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActivityType, InteractionContextType, MessageFlags, ChannelType } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, StreamType } = require('@discordjs/voice');
+
+// Localization.
+const defaultLang = 'en'; 
+
+function getCmdText(key) {
+    return locales[defaultLang]?.[key] || locales['uk'][key] || key;
+}
+
+function getLocText(interaction, key, variables = {}) {
+    const langCode = interaction.locale?.startsWith('en') ? 'en' : 'uk';
+    let text = locales[langCode]?.[key] || locales['uk'][key] || key;
+	
+    for (const [varName, value] of Object.entries(variables)) {
+        text = text.replace(new RegExp(`\\{${varName}\\}`, 'g'), value);
+    }
+    return text;
+}
+
+const rawSnippetsUk = require('./locales/uk-lore.js');
+const rawSnippetsEn = require('./locales/en-lore.js');
+
+function getLocalizedLoreSnippets(interaction) {
+    const langCode = interaction.locale?.startsWith('en') ? 'en' : 'uk';
+    const snippets = langCode === 'en' ? rawSnippetsEn : rawSnippetsUk;
+    
+    return snippets.map(snippet => 
+        snippet
+            .replace('$loreLink$', loreLink)
+            .replace('$loreLinkKey$', loreLinkKey)
+    );
+}
 
 process.on('unhandledRejection', error => {
     consoleLog(`[${getTimestamp()}] Unhandled promise rejection: `, error);
@@ -39,49 +75,18 @@ const CONFIG = {
 
 let currentVoiceConnection = null;
 
-const rawSnippets = require('./lore.js');
-
-const LORE_SNIPPETS = rawSnippets.map(snippet => 
-	snippet
-        .replace('$loreLink$', loreLink)
-        .replace('$loreLinkKey$', loreLinkKey)
-);
-
-const HELP_TEXT = `Команди бота Narrator:
-
-/help - Показує команди бота.
-/lore - Розказує одну з частин лору.
-/info - Інформація про лор.
-/lottery-kick - ${CONFIG.kickChance}% на кік з серверу. Удачі!
-/voice-join - Заходить в обраний олосовий канал.
-/voice-leave - Покидає голосовий канал.
-/soundboard-play - Запускає обраний звук в голосовому каналі.
-/soundboard-stop - Припиняє звук в голосовому каналі.`;
-
-const INFO_TEXT = `Створенням лору та бота зайнявся Адмін Rusl, аватарку боту створила Адмін Katy.
- 
-Посиланням на файл "Server-Lore" є: "<${loreLink}>". Ключем до посилання є: "${loreLinkKey}".
- 
-Значеннями версії файлу "Server-Lore" є:
-Кількість частин.
-Кількість змін за перше число версії.
-
-Всі учасники сервера, які коли-небудь приєднувалися на сервер, автоматично приймають згоду на те, що вони можуть бути в лорі. Це може бути відмовлено лише, якщо написати Rusl з проханням цього та якщо він прийме це.`;
-
 // Discord Commands Information.
 const commands = [
-	new SlashCommandBuilder().setName('help').setDescription('Показує команди бота.'),
-	new SlashCommandBuilder().setName('lore').setDescription('Команда для лору.'),
-	new SlashCommandBuilder().setName('info').setDescription('Інформація про лор.'),
-	new SlashCommandBuilder().setName('lottery-kick').setDescription(`${CONFIG.kickChance}% на кік з серверу. Удачі!`).setContexts([InteractionContextType.Guild]),
-	new SlashCommandBuilder().setName('voice-join').setDescription('Заходить в обраний голосовий канал.').setContexts([InteractionContextType.Guild]).addChannelOption(option =>
-		option.setName('channel').setDescription('Виберіть голосовий канал.').addChannelTypes(ChannelType.GuildVoice).setRequired(true)
-		),
-	new SlashCommandBuilder().setName('voice-leave').setDescription('Покидає голосовий канал.').setContexts([InteractionContextType.Guild]),
-	new SlashCommandBuilder().setName('soundboard-play').setDescription('Запускає обраний звук в голосовому каналі.').setContexts([InteractionContextType.Guild]).addStringOption(option =>
-		option.setName('sound').setDescription('Виберіть звук для відтворення.').setRequired(true).setAutocomplete(true)
-		),
-	new SlashCommandBuilder().setName('soundboard-stop').setDescription('Припиняє звук в голосовому каналі.').setContexts([InteractionContextType.Guild])
+	new SlashCommandBuilder().setName('help').setDescription(getCmdText('descHelp')),
+	new SlashCommandBuilder().setName('lore').setDescription(getCmdText('descLore')),
+	new SlashCommandBuilder().setName('info').setDescription(getCmdText('descInfo')),
+	new SlashCommandBuilder().setName('lottery-kick').setDescription(getCmdText('descLotteryKick').replace('{kickChance}', CONFIG.kickChance)).setContexts([InteractionContextType.Guild]),
+	new SlashCommandBuilder().setName('voice-join').setDescription(getCmdText('descVoiceJoin')).setContexts([InteractionContextType.Guild]).addChannelOption(option =>
+		option.setName('channel').setDescription(getCmdText('optionChannel')).addChannelTypes(ChannelType.GuildVoice).setRequired(true)),
+	new SlashCommandBuilder().setName('voice-leave').setDescription(getCmdText('descVoiceLeave')).setContexts([InteractionContextType.Guild]),
+	new SlashCommandBuilder().setName('soundboard-play').setDescription(getCmdText('descSoundboardPlay')).setContexts([InteractionContextType.Guild]).addStringOption(option =>
+		option.setName('sound').setDescription(getCmdText('optionSound')).setRequired(true).setAutocomplete(true)),
+	new SlashCommandBuilder().setName('soundboard-stop').setDescription(getCmdText('descSoundboardStop')).setContexts([InteractionContextType.Guild])
 ].map(command => command.toJSON());
 
 // Run this code after the client is ready.
@@ -129,7 +134,7 @@ client.on('interactionCreate', async interaction => {
 	if (!isBotReady) {
 		if (interaction.isChatInputCommand()) {
 			await interaction.reply({
-				content: 'Бот ще завантажується. Почекайте, будь ласка.',
+				content: getLocText(interaction, 'replyBotLoading'),
 				flags: [MessageFlags.Ephemeral]
 			});
 		}
@@ -223,14 +228,43 @@ function makeLogMessage(interaction) {
 	consoleLog(logMessage);
 }
 
-// Add "if (!(await isAuthorizedTester(interaction))) return;" at the beggining of command to make it for Authorized Testers. Comment it with "//" to disable the tester check.
-async function isAuthorizedTester(interaction) {
-	if(!CONFIG.authorizedTesters.includes(interaction.user.id)) {
-		const logMessage = `[${getTimestamp()}] [Testing Command Used] '/${interaction.commandName}' was executed by not a tester @${interaction.user.tag} (${interaction.user.id})`;
+// Add "if (await isWhiteListIn(interaction)) return;", if is in whitelist, and "if (await isWhiteListNot(interaction)) return;", if is not in whitelist, at the beggining of command to make it for Authorized Testers. Comment it with "//" to disable the tester check.
+async function isWhiteListIn(interaction) {
+	if(CONFIG.whitelist.includes(interaction.user.id)) {
+		const logMessage = `[${getTimestamp()}] [Whitelist Command Used] '/${interaction.commandName}' was executed by a whitelist user: @${interaction.user.tag} (${interaction.user.id})`;
 		consoleLog(logMessage);
 
 		await interaction.reply({
-			content: 'Ця команда тестується. Спробуйте використати іншу команду або пізніше.',
+			content: getLocText(interaction, 'replyWhitelistYes'),
+			flags: [MessageFlags.Ephemeral]
+		});
+		return true;
+	}
+	return false;
+}
+
+async function isWhiteListNot(interaction) {
+	if(!CONFIG.whitelist.includes(interaction.user.id)) {
+		const logMessage = `[${getTimestamp()}] [Whitelist Command Used] '/${interaction.commandName}' was executed by not a whitelist user: @${interaction.user.tag} (${interaction.user.id})`;
+		consoleLog(logMessage);
+
+		await interaction.reply({
+			content: getLocText(interaction, 'replyWhitelistNo'),
+			flags: [MessageFlags.Ephemeral]
+		});
+		return true;
+	}
+	return false;
+}
+
+// Add "if (!(await isAuthorizedTester(interaction))) return;" at the beggining of command to make it for Authorized Testers. Comment it with "//" to disable the tester check.
+async function isAuthorizedTester(interaction) {
+	if(!CONFIG.authorizedTesters.includes(interaction.user.id)) {
+		const logMessage = `[${getTimestamp()}] [Testing Command Used] '/${interaction.commandName}' was executed by not a tester: @${interaction.user.tag} (${interaction.user.id})`;
+		consoleLog(logMessage);
+
+		await interaction.reply({
+			content: getLocText(interaction, 'replyAuthorizedTester'),
 			flags: [MessageFlags.Ephemeral]
 		});
 		return false;
@@ -242,55 +276,73 @@ async function isAuthorizedTester(interaction) {
 
 // Discord Commands.
 async function commandHelp(interaction) {
+	//if (!(await isWhiteListIn(interaction))) return;
 	//if (!(await isAuthorizedTester(interaction))) return;
 	
 	makeLogMessage(interaction);
 	
 	try {
+		const HELP_TEXT = getLocText(interaction, 'helpText', {
+			kickChance: CONFIG.kickChance
+		});
 		await interaction.reply(HELP_TEXT);
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/help] :`, error);
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
 		await interaction.reply({
-			content: 'Не вдалося виконати команду [/help]. Спробуйте пізніше.',
+			content: getLocText(interaction, 'replyCommandError', { commandName: '/help' }),
 			flags: [MessageFlags.Ephemeral]
 		})
 	}
 }
 
 async function commandLore(interaction) {
+	//if (!(await isWhiteListIn(interaction))) return;
 	//if (!(await isAuthorizedTester(interaction))) return;
 	
 	makeLogMessage(interaction);
 	
 	try {
-		const randomIndex = Math.floor(Math.random() * LORE_SNIPPETS.length);
-		await interaction.reply(`Лор? Ну добре...\n\n${LORE_SNIPPETS[randomIndex]}`);
+		const loreSnippets = getLocalizedLoreSnippets(interaction);
+		const randomIndex = Math.floor(Math.random() * loreSnippets.length);
+		
+		const replyText = getLocText(interaction, 'replyLore', {
+            loreSnippet: loreSnippets[randomIndex]
+        });
+		
+		await interaction.reply(replyText);
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/lore] :`, error);		
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);		
 		await interaction.reply({
-			content: 'Не вдалося виконати команду [/lore]. Спробуйте пізніше.',
+			content:getLocText(interaction, 'replyCommandError', { commandName: '/lore' }),
 			flags: [MessageFlags.Ephemeral]
 		})
 	}
 }
 
 async function commandInfo(interaction) {
+	//if (!(await isWhiteListIn(interaction))) return;
 	//if (!(await isAuthorizedTester(interaction))) return;
 	
 	makeLogMessage(interaction);
 	
 	try {
+		const INFO_TEXT = getLocText(interaction, 'infoText', {
+			loreLink: loreLink,
+			loreLinkKey: loreLinkKey
+		});
+		
 		await interaction.reply(INFO_TEXT);
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/info] :`, error);
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
 		await interaction.reply({
-			content: 'Не вдалося виконати команду [/info]. Спробуйте пізніше.',
+			content: getLocText(interaction, 'replyCommandError', { commandName: '/info' }),
 			flags: [MessageFlags.Ephemeral]
 		})
 	}
 }
 	
 async function commandLotteryKick(interaction) {
+	if (await isWhiteListIn(interaction)) return;
 	//if (!(await isAuthorizedTester(interaction))) return;
 	
 	makeLogMessage(interaction);
@@ -299,15 +351,7 @@ async function commandLotteryKick(interaction) {
 		
 		if (!interaction.inGuild()) {
 			await interaction.reply({
-				content: 'Цю команду можна використовувати лише на серверах!',
-				flags: [MessageFlags.Ephemeral]
-			});
-			return;
-		}
-		
-		if (CONFIG.whitelist.includes(interaction.user.id)) {
-			await interaction.reply({
-				content: `<@${interaction.user.id}>\n\nЧерез правила боту, тебе не можна кикнути.`,
+				content: getLocText(interaction, 'replyGuild'),
 				flags: [MessageFlags.Ephemeral]
 			});
 			return;
@@ -316,33 +360,47 @@ async function commandLotteryKick(interaction) {
 		const roll = Math.floor(Math.random() * 100) + 1;
 		
 		if (roll <= CONFIG.kickChance) {
-			await interaction.reply(`<@${interaction.user.id}>\n\nОй, схоже вдача не на твоїй стороні сьогодні. Шкода... насправді ні.\n\nЧерез 30 секунд твій кік. Напиши свої останні слова.`);
+			const kickMsg = getLocText(interaction, 'replyLotteryKickYes', {
+                userId: interaction.user.id
+            });
+			
+			await interaction.reply(kickMsg);
 			await new Promise(resolve => setTimeout(resolve, 30000));
 			
 			try {
 				const invite = await interaction.channel.createInvite({ maxAge: 86400, maxUses: 1, unique: true });
-				await interaction.user.send(`Хей! Ти тільки-но був кікнутий із серверу, нажаль. Ось посилання на сервер:\nhttps://discord.gg/${invite.code}`);
-				await interaction.member.kick('Нажаль, удача не на твоїй стороні була того разу. Спробуй знову наступного разу, якщо не страшно.');
+                
+                const dmMsg = getLocText(interaction, 'replyLotteryKickDm', { inviteCode: invite.code });
+				await interaction.user.send(dmMsg);
+                
+                const reasonMsg = getLocText(interaction, 'replyLotteryKickReason');
+				await interaction.member.kick(reasonMsg);
 			} catch (err) {
 				consoleLog(`[${getTimestamp()}] ERROR: Couldn't kick user @${interaction.user.tag} or send DM.`);
-				await interaction.reply({
-					content: `<@${interaction.user.id}>\n\nНе вдалося тебе кікнути. Спробуй знову.`,
+				const errorKick = getLocText(interaction, 'replyLotteryKickError', {
+					userId: interaction.user.id
+				});
+				
+				await interaction.followUp({
+					content: errorKick,
 					flags: [MessageFlags.Ephemeral]
-				})
+				});
 			}
 		} else {
-			await interaction.reply(`<@${interaction.user.id}>\n\nЩо ж, твій кік не сьогодні... Спробуй знову, якщо не боїшся.\n\nСпробуєш знову? Все-таки, кік і є виграшем тут.`);
+			const noKickMsg = getLocText(interaction, 'replyLotteryKickNo', { userId: interaction.user.id });
+			await interaction.reply(noKickMsg);
 		}
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/lottery-kick] :`, error);
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
 		await interaction.reply({
-			content: 'Не вдалося виконати команду [/lottery-kick]. Спробуйте пізніше.',
+			content: getLocText(interaction, 'replyCommandError', { commandName: '/lottery-kick' }),
 			flags: [MessageFlags.Ephemeral]
 		})
 	}
 }
 
 async function commandVoiceJoin(interaction) {
+	if (await isWhiteListNot(interaction)) return;
 	//if (!(await isAuthorizedTester(interaction))) return;
 	
 	makeLogMessage(interaction);
@@ -350,15 +408,7 @@ async function commandVoiceJoin(interaction) {
 	try {
 		if (!interaction.inGuild()) {
 			await interaction.reply({
-				content: 'Цю команду можна використовувати лише на серверах!',
-				flags: [MessageFlags.Ephemeral]
-			});
-			return;
-		}
-		
-		if (!CONFIG.whitelist.includes(interaction.user.id)) {
-			await interaction.reply({
-				content: `<@${interaction.user.id}>\n\nЧерез правила боту, ти не можеш примусити бота приєднатися до голосового каналу.`,
+				content: getLocText(interaction, 'replyGuild'),
 				flags: [MessageFlags.Ephemeral]
 			});
 			return;
@@ -368,8 +418,11 @@ async function commandVoiceJoin(interaction) {
 		let targetChannel = optionChannel;
 		
 		if (!targetChannel) {
+			const voiceNotFound = getLocText(interaction, 'replyVoiceNotFound', {
+				channelId: optionChannel?.id || 'unknown'
+			});
 			await interaction.reply({
-				content: `Не вдалося знайти голосового каналу з ID '${targetChannelId}'. Впевніться, що бот є на тому сервері.`,
+				content: voiceNotFound,
 				flags: [MessageFlags.Ephemeral]
 			})
 			return;
@@ -380,25 +433,30 @@ async function commandVoiceJoin(interaction) {
 				guildId: targetChannel.guild.id,
 				adapterCreator: targetChannel.guild.voiceAdapterCreator,
 			});
+			const voiceJoin = getLocText(interaction, 'replyVoiceJoinSuccess', {
+				channelName: targetChannel.name
+			});
+			
 			consoleLog(`[${getTimestamp()}] Successfully joined the voice channel.`);
-			await interaction.reply(`Успішно приєднався до: '${targetChannel.name}'`);
+			await interaction.reply(voiceJoin);
 		} catch (error) {
 			consoleLog(`[${getTimestamp()}] Failed to join voice channel: `, error);
 			await interaction.reply({
-				content: `Не вдалося приєднатися до голосового каналу. Спробуйте знову.`,
+				content: getLocText(interaction, 'replyVoiceJoinError'),
 				flags: [MessageFlags.Ephemeral]
 			})
 		}
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/voice-join] :`, error);
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
 		await interaction.reply({
-			content: 'Не вдалося виконати команду [/voice-join]. Спробуйте пізніше.',
+			content: getLocText(interaction, 'replyCommandError', { commandName: '/voice-join' }),
 			flags: [MessageFlags.Ephemeral]
 		})
 	}
 }
 
 async function commandVoiceLeave(interaction) {
+	if (await isWhiteListNot(interaction)) return;
 	//if (!(await isAuthorizedTester(interaction))) return;
 	
 	makeLogMessage(interaction);
@@ -406,15 +464,7 @@ async function commandVoiceLeave(interaction) {
 	try {
 		if (!interaction.inGuild()) {
 			await interaction.reply({
-				content: 'Цю команду можна використовувати лише на серверах!',
-				flags: [MessageFlags.Ephemeral]
-			});
-			return;
-		}
-		
-		if (!CONFIG.whitelist.includes(interaction.user.id)) {
-			await interaction.reply({
-				content: `<@${interaction.user.id}>\n\nЧерез правила боту, ти не можеш примусити бота покинути голосовий канал.`,
+				content: getLocText(interaction, 'replyGuild'),
 				flags: [MessageFlags.Ephemeral]
 			});
 			return;
@@ -422,7 +472,7 @@ async function commandVoiceLeave(interaction) {
 		
 		if (!currentVoiceConnection) {
 			await interaction.reply({
-				content: 'Бот зараз не в голосовому каналі. Спробуйте спершу запустити команду "/voice-join".',
+				content: getLocText(interaction, 'replyNotInVoice'), 
 				flags: [MessageFlags.Ephemeral]
 			})
 			return;
@@ -431,25 +481,26 @@ async function commandVoiceLeave(interaction) {
 		try {
 			currentVoiceConnection.destroy();
 			currentVoiceConnection = null;
-			consoleLog(`[${getTimestamp()}] Successfully left voice channel: '${targetChannel.name}' (${targetChannel.id})`);
-			await interaction.reply('Бот успішно покинув голосовий канал.');
+			consoleLog(`[${getTimestamp()}] Successfully left voice channel.`);
+			await interaction.reply(getLocText(interaction, 'replyVoiceLeaveSuccess'));
 		} catch (error) {
 			consoleLog(`[${getTimestamp()}] Failed to leave voice channel: `, error);
 			await interaction.reply({
-				content: 'Не вдалося боту покинути голосовий канал. Спробуйте знову.',
+				content: getLocText(interaction, 'replyVoiceLeaveError'),
 				flags: [MessageFlags.Ephemeral]
 			});
 		}
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/voice-leave] :`, error);
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
 		await interaction.reply({
-			content: 'Не вдалося виконати команду [/voice-leave]. Спробуйте пізніше.',
+			content: getLocText(interaction, 'replyCommandError', { commandName: '/voice-leave' }),
 			flags: [MessageFlags.Ephemeral]
 		});
 	}
 }
 
 async function commandSoundboardPlay(interaction) {
+	if (await isWhiteListNot(interaction)) return;
 	//if (!(await isAuthorizedTester(interaction))) return;
 	
 	makeLogMessage(interaction);
@@ -457,15 +508,7 @@ async function commandSoundboardPlay(interaction) {
 	try {
 		if (!interaction.inGuild()) {
 			await interaction.reply({
-				content: 'Цю команду можна використовувати лише на серверах!',
-				flags: [MessageFlags.Ephemeral]
-			});
-			return;
-		}
-		
-		if (!CONFIG.whitelist.includes(interaction.user.id)) {
-			await interaction.reply({
-				content: `<@${interaction.user.id}>\n\nЧерез правила боту, ти не можеш примусити бота запустити звук в голосовому каналі.`,
+				content: getLocText(interaction, 'replyGuild'),
 				flags: [MessageFlags.Ephemeral]
 			});
 			return;
@@ -473,7 +516,7 @@ async function commandSoundboardPlay(interaction) {
 		
 		if (!currentVoiceConnection) {
 			await interaction.reply({
-				content: 'Бот зараз не в голосовому каналі. Спробуйте спершу запустити команду "/voice-join".',
+				content: getLocText(interaction, 'replyNotInVoice'),
 				flags: [MessageFlags.Ephemeral]
 			})
 			return;
@@ -484,7 +527,7 @@ async function commandSoundboardPlay(interaction) {
 		
 		if (!fs.existsSync(soundPath)) {
 			await interaction.reply({
-				content: `Звук '${soundChoice}' не знайдено в папці хоста 'sounds'.`,
+				content: getLocText(interaction, 'replySoundboardPlayNotFound'),
 				flags: [MessageFlags.Ephemeral]
 			});
 			return;
@@ -492,7 +535,7 @@ async function commandSoundboardPlay(interaction) {
 		
 		try {
 			consoleLog(`[${getTimestamp()}] Playing soundboard item: '${soundChoice}.mp3'...`);
-			await interaction.reply(`Запускаю звук: '${soundChoice}'...`)
+			await interaction.reply( getLocText(interaction, 'replySoundboardPlaySuccess'))
 			
 			const player = createAudioPlayer();
 			const resource = createAudioResource(soundPath);
@@ -507,14 +550,14 @@ async function commandSoundboardPlay(interaction) {
 		} catch (error) {
 			consoleLog(`[${getTimestamp()}] Failed to play soundboard audio: `, error);
 			await interaction.reply({
-				content: 'Не вдалося запустити звук. Спробуйте знову.',
+				content: getLocText(interaction, 'replySoundboardPlayError'),
 				flags: [MessageFlags.Ephemeral]
 			})
 		}
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/soundboard-play] :`, error);
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
 		await interaction.reply({
-			content: 'Не вдалося виконати команду [/soundboard-play]. Спробуйте пізніше.',
+			content: getLocText(interaction, 'replyCommandError', { commandName: '/soundboard-play' }),
 			flags: [MessageFlags.Ephemeral]
 		})
 	}
@@ -522,6 +565,7 @@ async function commandSoundboardPlay(interaction) {
 
 
 async function commandSoundboardStop(interaction) {
+	if (await isWhiteListNot(interaction)) return;
 	//if (!(await isAuthorizedTester(interaction))) return;
 	
 	makeLogMessage(interaction);
@@ -529,15 +573,7 @@ async function commandSoundboardStop(interaction) {
 	try {
 		if (!interaction.inGuild()) {
 			await interaction.reply({
-				content: 'Цю команду можна використовувати лише на серверах!',
-				flags: [MessageFlags.Ephemeral]
-			});
-			return;
-		}
-		
-		if (!CONFIG.whitelist.includes(interaction.user.id)) {
-			await interaction.reply({
-				content: `<@${interaction.user.id}>\n\nЧерез правила боту, ти не можеш примусити бота припинити звук.`,
+				content: getLocText(interaction, 'replyGuild'),
 				flags: [MessageFlags.Ephemeral]
 			});
 			return;
@@ -545,7 +581,7 @@ async function commandSoundboardStop(interaction) {
 		
 		if (!currentVoiceConnection) {
 			await interaction.reply({
-				content: 'Бот зараз не в голосовому каналі. Спробуйте спершу запустити команду "/voice-join".',
+				content: getLocText(interaction, 'replyNotInVoice'),
 				flags: [MessageFlags.Ephemeral]
 			})
 			return;
@@ -555,18 +591,18 @@ async function commandSoundboardStop(interaction) {
 			const stopPlayer = createAudioPlayer();
 			currentVoiceConnection.subscribe(stopPlayer);
 			consoleLog(`[${getTimestamp()}] Sound playback stopped.`);
-			await interaction.reply('Звук припинено в голосовому каналі.');
+			await interaction.reply(getLocText(interaction, 'replySoundboardStopSuccess'));
 		} catch (error) {
 			consoleLog(`[${getTimestamp()}] Failed to stop audio: `, error);
 			await interaction.reply({
-				content: 'Не вдалося припини звук в голосовому каналі. Спробуйте знову.',
+				content: getLocText(interaction, 'replySoundboardStopError'),
 				flags: [MessageFlags.Ephemeral]
 			})
 		}
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/soundboard-stop] :`, error);
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
 		await interaction.reply({
-			content: 'Не вдалося виконати команду [/soundboard-stop]. Спробуйте пізніше.',
+			content: getLocText(interaction, 'replyCommandError', { commandName: '/soundboard-stop' }),
 			flags: [MessageFlags.Ephemeral]
 		})
 	}
