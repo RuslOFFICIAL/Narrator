@@ -57,7 +57,8 @@ const HELP_TEXT = `Команди бота Narrator:
 /lottery-kick - ${CONFIG.kickChance}% на кік з серверу. Удачі!
 /voice-join - Заходить в голосовий канал, який вибраний у хоста.
 /voice-leave - Покидає голосовий канал.
-/soundboard-play - Запускає вибраний звук в голосовому каналі.`;
+/soundboard-play - Запускає вибраний звук в голосовому каналі.
+/soundboard-stop - Припиняє звук в голосовому каналі.`;
 
 const INFO_TEXT = `Створенням лору та бота зайнявся Адмін Rusl, аватарку боту створила Адмін Katy.
  
@@ -79,7 +80,8 @@ const commands = [
 	new SlashCommandBuilder().setName('voice-leave').setDescription('Покидає голосовий канал.').setContexts([InteractionContextType.Guild]),
 	new SlashCommandBuilder().setName('soundboard-play').setDescription('Запускає вибраний звук в голосовому каналі.').addStringOption(option =>
 		option.setName('sound').setDescription('Виберіть звук для відтворення.').setRequired(true).setAutocomplete(true)
-		).setContexts([InteractionContextType.Guild])
+		).setContexts([InteractionContextType.Guild]),
+	new SlashCommandBuilder().setName('soundboard-stop').setDescription('Припиняє звук в голосовому каналі.').setContexts([InteractionContextType.Guild])
 ].map(command => command.toJSON());
 
 // Run this code after the client is ready.
@@ -179,6 +181,9 @@ client.on('interactionCreate', async interaction => {
             break;
 		case 'soundboard-play':
 			await commandSoundboardPlay(interaction);
+			break;
+		case 'soundboard-stop':
+			await commandSoundboardStop(interaction);
 			break;
     }
 });
@@ -448,14 +453,14 @@ async function commandVoiceLeave(interaction) {
 			await interaction.reply({
 				content: 'Не вдалося боту покинути голосовий канал. Спробуйте знову.',
 				flags: [MessageFlags.Ephemeral]
-			})
+			});
 		}
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/voice-leave] :`, error);
 		await interaction.reply({
 			content: 'Не вдалося виконати команду [/voice-leave]. Спробуйте пізніше.',
 			flags: [MessageFlags.Ephemeral]
-		})
+		});
 	}
 }
 
@@ -502,7 +507,7 @@ async function commandSoundboardPlay(interaction) {
 		
 		try {
 			consoleLog(`[${getTimestamp()}] Playing soundboard item: '${soundChoice}.mp3'...`);
-			await interaction.reply(`Запускаю звук: '${soundChoice}'...`,)
+			await interaction.reply(`Запускаю звук: '${soundChoice}'...`)
 			
 			const player = createAudioPlayer();
 			const resource = createAudioResource(soundPath);
@@ -525,6 +530,58 @@ async function commandSoundboardPlay(interaction) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/soundboard-play] :`, error);
 		await interaction.reply({
 			content: 'Не вдалося виконати команду [/soundboard-play]. Спробуйте пізніше.',
+			flags: [MessageFlags.Ephemeral]
+		})
+	}
+}
+
+
+async function commandSoundboardStop(interaction) {
+	//if (!(await isAuthorizedTester(interaction))) return;
+	
+	makeLogMessage(interaction);
+	
+	try {
+		if (!interaction.inGuild()) {
+			await interaction.reply({
+				content: 'Цю команду можна використовувати лише на серверах!',
+				flags: [MessageFlags.Ephemeral]
+			});
+			return;
+		}
+		
+		if (!CONFIG.whitelist.includes(interaction.user.id)) {
+			await interaction.reply({
+				content: `<@${interaction.user.id}>\n\nЧерез правила боту, ти не можеш примусити бота покинути голосовий канал.`,
+				flags: [MessageFlags.Ephemeral]
+			});
+			return;
+		}
+		
+		if (!currentVoiceConnection) {
+			await interaction.reply({
+				content: 'Бот зараз не в голосовому каналі. Спробуйте спершу запустити команду "/voice-join".',
+				flags: [MessageFlags.Ephemeral]
+			})
+			return;
+		}
+				
+		try {
+			const stopPlayer = createAudioPlayer();
+			currentVoiceConnection.subscribe(stopPlayer);
+			consoleLog(`[${getTimestamp()}] Sound playback stopped.`);
+			await interaction.reply('Звук припинено в голосовому каналі.');
+		} catch (error) {
+			consoleLog(`[${getTimestamp()}] Failed to stop audio: `, error);
+			await interaction.reply({
+				content: 'Не вдалося припини звук в голосовому каналі. Спробуйте знову.',
+				flags: [MessageFlags.Ephemeral]
+			})
+		}
+	} catch (error) {
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/soundboard-stop] :`, error);
+		await interaction.reply({
+			content: 'Не вдалося виконати команду [/soundboard-stop]. Спробуйте пізніше.',
 			flags: [MessageFlags.Ephemeral]
 		})
 	}
@@ -557,7 +614,7 @@ rl.on('line', async (line) => {
 		switch (command) {
 			// BOT:
 			case 'help':
-				consoleLog(`[${getTimestamp()}] Commands:\nBOT:\n- help: Show terminal commands.\n- exit/stop/shutdown: Shut down the bot.\n- status: Status of the bot.\n- ping: Check bot latency.\n- clear: Clear the terminal screen.\n\nSERVER:\n- voice-join: Connect bot to voice channel from '.env' file.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.`);
+				consoleLog(`[${getTimestamp()}] Commands:\nBOT:\n- help: Show terminal commands.\n- exit/stop/shutdown: Shut down the bot.\n- status: Status of the bot.\n- ping: Check bot latency.\n- clear: Clear the terminal screen.\n\nSERVER:\n- voice-join: Connect bot to voice channel from '.env' file.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.\n- soundboard-stop: Stop playing the soundboard audio.`);
 				consoleLog();
 				break;
 			
@@ -681,6 +738,22 @@ rl.on('line', async (line) => {
 					});
 				} catch (error) {
 					consoleLog(`[${getTimestamp()}] Failed to play soundboard audio: `, error);
+				}
+				consoleLog();
+				break;
+			
+			case 'soundboard-stop':
+				if (!currentVoiceConnection) {
+					consoleLog(`[${getTimestamp()}] Error: Bot is not in a voice channel.\n`);
+					break;
+				}
+				
+				try {
+					const stopPlayer = createAudioPlayer();
+					currentVoiceConnection.subscribe(stopPlayer);
+					consoleLog(`[${getTimestamp()}] Sound playback stopped.`);
+				} catch (error) {
+					consoleLog(`[${getTimestamp()}] Failed to stop audio: `, error);
 				}
 				consoleLog();
 				break;
