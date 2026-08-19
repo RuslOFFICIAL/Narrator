@@ -1,3 +1,7 @@
+# Directories.
+/sounds/*
+!/sounds/
+
 # Files.
 *.lnk
 
