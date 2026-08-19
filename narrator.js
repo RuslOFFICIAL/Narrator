@@ -245,7 +245,7 @@ async function isWhiteListIn(interaction) {
 
 async function isWhiteListNot(interaction) {
 	if(!CONFIG.whitelist.includes(interaction.user.id)) {
-		const logMessage = `[${getTimestamp()}] [Whitelist Command Used] '/${interaction.commandName}' was executed by not a whitelist user: @${interaction.user.tag} (${interaction.user.id})`;
+		const logMessage = `[${getTimestamp()}] [Whitelist Command Failed] '/${interaction.commandName}' was executed by not a whitelist user: @${interaction.user.tag} (${interaction.user.id})`;
 		consoleLog(logMessage);
 
 		await interaction.reply({
