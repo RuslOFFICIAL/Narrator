@@ -1,9 +1,9 @@
 # Directories.
 /sounds/*
-!/sounds/
 
 # Files.
 *.lnk
+!/sounds/README.md
 
 # Environment variables.
 .env

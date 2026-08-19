@@ -1,0 +1,1 @@
+Move '.mp3' files in this directory ('sounds') to use them with command 'soundboard-play'.
