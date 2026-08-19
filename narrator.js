@@ -501,7 +501,7 @@ async function commandSoundboardPlay(interaction) {
 		}
 		
 		try {
-			consoleLog(`[${getTimestamp()}] Playing soundboard item: '${targetSound}.mp3'...`);
+			consoleLog(`[${getTimestamp()}] Playing soundboard item: '${soundChoice}.mp3'...`);
 			await interaction.reply(`Запускаю звук: '${soundChoice}'...`,)
 			
 			const player = createAudioPlayer();
@@ -509,7 +509,7 @@ async function commandSoundboardPlay(interaction) {
 			currentVoiceConnection.subscribe(player);
 			player.play(resource);
 			
-			consoleLog(`[${getTimestamp()}] Sound playback initialized for '${targetSound}.mp3'.`);
+			consoleLog(`[${getTimestamp()}] Sound playback initialized for '${soundChoice}.mp3'.`);
 			
 			player.on('idle', () => {
 				consoleLog(`[${getTimestamp()}] Soundboard sound '${soundChoice}.mp3' finished playing.`);
