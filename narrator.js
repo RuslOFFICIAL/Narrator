@@ -3,7 +3,7 @@ require('dotenv').config();
 const fs = require('fs');
 const readline = require('readline');
 const { spawn, exec } = require('child_process');
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActivityType, InteractionContextType, MessageFlags } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActivityType, InteractionContextType, MessageFlags, ChannelType } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, StreamType } = require('@discordjs/voice');
 
 process.on('unhandledRejection', error => {
@@ -32,8 +32,6 @@ const CONFIG = {
 	statusType: process.env.STATUS_TYPE,
 	statusUrl: process.env.STATUS_URL,
 	
-	voiceChannelId: process.env.VOICE_CHANNEL_ID,
-	
 	kickChance: parseInt(process.env.KICK_CHANCE, 10) || 10,
 	whitelist: process.env.WHITELIST ? process.env.WHITELIST.split(',') : [],
 	authorizedTesters: process.env.AUTHORIZED_TESTERS ? process.env.AUTHORIZED_TESTERS.split(',') : []
@@ -55,9 +53,9 @@ const HELP_TEXT = `Команди бота Narrator:
 /lore - Розказує одну з частин лору.
 /info - Інформація про лор.
 /lottery-kick - ${CONFIG.kickChance}% на кік з серверу. Удачі!
-/voice-join - Заходить в голосовий канал, який вибраний у хоста.
+/voice-join - Заходить в обраний олосовий канал.
 /voice-leave - Покидає голосовий канал.
-/soundboard-play - Запускає вибраний звук в голосовому каналі.
+/soundboard-play - Запускає обраний звук в голосовому каналі.
 /soundboard-stop - Припиняє звук в голосовому каналі.`;
 
 const INFO_TEXT = `Створенням лору та бота зайнявся Адмін Rusl, аватарку боту створила Адмін Katy.
@@ -76,11 +74,13 @@ const commands = [
 	new SlashCommandBuilder().setName('lore').setDescription('Команда для лору.'),
 	new SlashCommandBuilder().setName('info').setDescription('Інформація про лор.'),
 	new SlashCommandBuilder().setName('lottery-kick').setDescription(`${CONFIG.kickChance}% на кік з серверу. Удачі!`).setContexts([InteractionContextType.Guild]),
-	new SlashCommandBuilder().setName('voice-join').setDescription('Заходить в голосовий канал, який вибраний у хоста.').setContexts([InteractionContextType.Guild]),
+	new SlashCommandBuilder().setName('voice-join').setDescription('Заходить в обраний голосовий канал.').setContexts([InteractionContextType.Guild]).addChannelOption(option =>
+		option.setName('channel').setDescription('Виберіть голосовий канал.').addChannelTypes(ChannelType.GuildVoice).setRequired(true)
+		),
 	new SlashCommandBuilder().setName('voice-leave').setDescription('Покидає голосовий канал.').setContexts([InteractionContextType.Guild]),
-	new SlashCommandBuilder().setName('soundboard-play').setDescription('Запускає вибраний звук в голосовому каналі.').addStringOption(option =>
+	new SlashCommandBuilder().setName('soundboard-play').setDescription('Запускає обраний звук в голосовому каналі.').setContexts([InteractionContextType.Guild]).addStringOption(option =>
 		option.setName('sound').setDescription('Виберіть звук для відтворення.').setRequired(true).setAutocomplete(true)
-		).setContexts([InteractionContextType.Guild]),
+		),
 	new SlashCommandBuilder().setName('soundboard-stop').setDescription('Припиняє звук в голосовому каналі.').setContexts([InteractionContextType.Guild])
 ].map(command => command.toJSON());
 
@@ -364,27 +364,12 @@ async function commandVoiceJoin(interaction) {
 			return;
 		}
 		
-		if (!CONFIG.voiceChannelId) {
-			await interaction.reply({
-				content: '\'VOICE_CHANNEL_ID\' не визначено в файлі хоста \'.env\'.',
-				flags: [MessageFlags.Ephemeral]
-			})
-			return;
-		}
-		
-		// Find the channel across all guilds the bot is in.
-		let targetChannel = null;
-		for (const [guildId, guild] of client.guilds.cache) {
-			const channel = guild.channels.cache.get(CONFIG.voiceChannelId);
-			if (channel) {
-				targetChannel = channel;
-				break;
-			}
-		}
+		const optionChannel = interaction.options.getChannel('channel');
+		let targetChannel = optionChannel;
 		
 		if (!targetChannel) {
 			await interaction.reply({
-				content: `Не вдалося знайти голосового каналу з ID '${CONFIG.voiceChannelId}'. Впевніться, що бот є на тому сервері.`,
+				content: `Не вдалося знайти голосового каналу з ID '${targetChannelId}'. Впевніться, що бот є на тому сервері.`,
 				flags: [MessageFlags.Ephemeral]
 			})
 			return;
@@ -614,7 +599,7 @@ rl.on('line', async (line) => {
 		switch (command) {
 			// BOT:
 			case 'help':
-				consoleLog(`[${getTimestamp()}] Commands:\nBOT:\n- help: Show terminal commands.\n- exit/stop/shutdown: Shut down the bot.\n- status: Status of the bot.\n- ping: Check bot latency.\n- clear: Clear the terminal screen.\n\nSERVER:\n- voice-join: Connect bot to voice channel from '.env' file.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.\n- soundboard-stop: Stop playing the soundboard audio.`);
+				consoleLog(`[${getTimestamp()}] Commands:\nBOT:\n- help: Show terminal commands.\n- exit/stop/shutdown: Shut down the bot.\n- status: Status of the bot.\n- ping: Check bot latency.\n- clear: Clear the terminal screen.\n\nSERVER:\n- voice-join: Connect bot to specified voice channel by ID.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.\n- soundboard-stop: Stop playing the soundboard audio.`);
 				consoleLog();
 				break;
 			
@@ -653,15 +638,17 @@ rl.on('line', async (line) => {
 			
 			// SERVER:
 			case 'voice-join':
-				if (!CONFIG.voiceChannelId) {
-					consoleLog(`[${getTimestamp()}] Error: 'VOICE_CHANNEL_ID' is not defined in '.env' file.\n`);
+				const targetChannelId = args[1];
+				
+				if (!targetChannelId) {
+					consoleLog(`[${getTimestamp()}] Error: Please provide a voice channel ID. Usage: voice-join [channelId]\n`);
 					break;
 				}
 				
 				// Find the channel across all guilds the bot is in.
 				let targetChannel = null;
 				for (const [guildId, guild] of client.guilds.cache) {
-					const channel = guild.channels.cache.get(CONFIG.voiceChannelId);
+					const channel = guild.channels.cache.get(targetChannelId);
 					if (channel) {
 						targetChannel = channel;
 						break;
@@ -669,7 +656,7 @@ rl.on('line', async (line) => {
 				}
 
 				if (!targetChannel) {
-					consoleLog(`[${getTimestamp()}] Error: Could not find voice channel with ID '${CONFIG.voiceChannelId}'. Make sure the bot is in that server.\n`);
+					consoleLog(`[${getTimestamp()}] Error: Could not find voice channel with ID '${targetChannelId}'. Make sure the bot is in that server.\n`);
 					break;
 				}
 
