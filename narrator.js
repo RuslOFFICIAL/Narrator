@@ -529,13 +529,17 @@ async function commandSoundboardPlay(interaction) {
 			await interaction.reply({
 				content: getLocText(interaction, 'replySoundboardPlayNotFound'),
 				flags: [MessageFlags.Ephemeral]
-			});
+			})
 			return;
 		}
 		
 		try {
+			const playingMsg = getLocText(interaction, 'replySoundboardPlayPlaying', {
+				soundChoice: soundChoice
+			});
+			
 			consoleLog(`[${getTimestamp()}] Playing soundboard item: '${soundChoice}.mp3'...`);
-			await interaction.reply( getLocText(interaction, 'replySoundboardPlaySuccess'))
+			await interaction.reply(playingMsg)
 			
 			const player = createAudioPlayer();
 			const resource = createAudioResource(soundPath);
@@ -597,7 +601,7 @@ async function commandSoundboardStop(interaction) {
 			await interaction.reply({
 				content: getLocText(interaction, 'replySoundboardStopError'),
 				flags: [MessageFlags.Ephemeral]
-			})
+			});
 		}
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
