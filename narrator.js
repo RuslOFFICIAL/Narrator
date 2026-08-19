@@ -510,9 +510,6 @@ rl.on('line', async (line) => {
 		const args = subCmd.split(' ');
 		const command = args[0].toLowerCase();
 		
-		//readline.clearLine(process.stdout, 0);
-		//readline.cursorTo(process.stdout, 0);
-		
 		// Terminal commands.
 		switch (command) {
 			// BOT:
@@ -537,8 +534,6 @@ rl.on('line', async (line) => {
 			case 'ping':
 				consoleLog(`[${getTimestamp()}] Pinging...`);
 				exec('ping -n 1 8.8.8.8', (error, stdout) => {
-					//readline.clearLine(process.stdout, 0);
-					//readline.cursorTo(process.stdout, 0);
 					if (error) {
 						consoleLog(`[${getTimestamp()}] Failed to execute ping.`);
 					} else {
