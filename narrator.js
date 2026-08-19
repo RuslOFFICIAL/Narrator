@@ -458,7 +458,7 @@ async function commandVoiceLeave(interaction) {
 }
 
 async function commandSoundboardPlay(interaction) {
-	if (!(await isAuthorizedTester(interaction))) return;
+	//if (!(await isAuthorizedTester(interaction))) return;
 	
 	makeLogMessage(interaction);
 	
