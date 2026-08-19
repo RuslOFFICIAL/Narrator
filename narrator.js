@@ -507,7 +507,7 @@ async function commandSoundboardPlay(interaction) {
 			player.play(resource);
 			
 			player.on('idle', () => {
-				consoleLog(`[${getTimestamp()}] Soundboard sound '${targetSound}.mp3' finished playing.`);
+				consoleLog(`[${getTimestamp()}] Soundboard sound '${soundChoice}.mp3' finished playing.`);
 			});
 		} catch (error) {
 			consoleLog(`[${getTimestamp()}] Failed to play soundboard audio: `, error);
