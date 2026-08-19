@@ -390,6 +390,7 @@ async function commandVoiceJoin(interaction) {
 				guildId: targetChannel.guild.id,
 				adapterCreator: targetChannel.guild.voiceAdapterCreator,
 			});
+			consoleLog(`[${getTimestamp()}] Successfully joined the voice channel.`);
 			await interaction.reply(`Успішно приєднався до: '${targetChannel.name}'`);
 		} catch (error) {
 			consoleLog(`[${getTimestamp()}] Failed to join voice channel: `, error);
@@ -440,9 +441,10 @@ async function commandVoiceLeave(interaction) {
 		try {
 			currentVoiceConnection.destroy();
 			currentVoiceConnection = null;
+			consoleLog(`[${getTimestamp()}] Successfully left voice channel: '${targetChannel.name}' (${targetChannel.id})`);
 			await interaction.reply('Бот успішно покинув голосовий канал.');
 		} catch (error) {
-			consoleLog(`[${getTimestamp()}] Failed to join voice channel: `, error);
+			consoleLog(`[${getTimestamp()}] Failed to leave voice channel: `, error);
 			await interaction.reply({
 				content: 'Не вдалося боту покинути голосовий канал. Спробуйте знову.',
 				flags: [MessageFlags.Ephemeral]
