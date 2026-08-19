@@ -556,7 +556,7 @@ async function commandSoundboardPlay(interaction) {
 			await interaction.reply({
 				content: getLocText(interaction, 'replySoundboardPlayError'),
 				flags: [MessageFlags.Ephemeral]
-			})
+			});
 		}
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
