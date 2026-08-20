@@ -1,10 +1,5 @@
 // Dependencies.
 require('dotenv').config();
-
-const locales = {
-    uk: require('./locales/uk.js'),
-    en: require('./locales/en.js')
-};
 const fs = require('fs');
 const readline = require('readline');
 const { spawn, exec } = require('child_process');
@@ -12,6 +7,22 @@ const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActivityTy
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, StreamType } = require('@discordjs/voice');
 
 // Localization.
+function loadSafeModule(filePath, fallbackValue) {
+    try {
+        if (fs.existsSync(filePath)) {
+            return require(filePath);
+        }
+    } catch (error) {
+        console.log(`[Warning] Could not load file at ${filePath}:`, error.message);
+    }
+    return fallbackValue;
+}
+
+const locales = {
+    en: loadSafeModule('./locales/en.js', {}),
+    uk: loadSafeModule('./locales/uk.js', {})
+};
+
 const defaultLang = 'en'; 
 
 function getCmdText(key) {
@@ -28,8 +39,8 @@ function getLocText(interaction, key, variables = {}) {
     return text;
 }
 
-const rawSnippetsUk = require('./locales/uk-lore.js');
-const rawSnippetsEn = require('./locales/en-lore.js');
+const rawSnippetsUk = loadSafeModule('./locales/uk-lore.js', []);
+const rawSnippetsEn = loadSafeModule('./locales/en-lore.js', []);
 
 function getLocalizedLoreSnippets(interaction) {
     const langCode = interaction.locale?.startsWith('en') ? 'en' : 'uk';
@@ -37,6 +48,7 @@ function getLocalizedLoreSnippets(interaction) {
     
     return snippets.map(snippet => 
         snippet
+			// Variables for lore snippets.
             .replace('$loreLink$', loreLink)
             .replace('$loreLinkKey$', loreLinkKey)
     );

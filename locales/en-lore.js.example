@@ -1,0 +1,4 @@
+module.exports = [
+	`In this file should be your lore snippets.`,
+	`They would be used by "/lore" command.`
+];

@@ -3,6 +3,7 @@
 
 # Files.
 *.lnk
+/locales/*-lore.js
 !/sounds/README.md
 
 # Environment variables.
