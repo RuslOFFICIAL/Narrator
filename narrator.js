@@ -836,7 +836,7 @@ async function shutdown() {
 
 		if (currentVoiceConnection !== null) {
 			try {
-				console.log([`${getTimestamp()}] Leaving voice channels...`);
+				console.log(`[${getTimestamp()}] Leaving voice channels...`);
 				currentVoiceConnection.destroy();
 				currentVoiceConnection = null;
 				consoleLog(`[${getTimestamp()}] Successfully left the voice channel.`);
