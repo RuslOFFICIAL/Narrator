@@ -49,8 +49,8 @@ function getLocalizedLoreSnippets(interaction) {
     return snippets.map(snippet => 
         snippet
 			// Variables for lore snippets.
-            .replace('$loreLink$', loreLink)
-            .replace('$loreLinkKey$', loreLinkKey)
+            .replace('$loreLink$', CONFIG.loreLink)
+            .replace('$loreLinkKey$', CONFIG.loreLinkKey)
     );
 }
 
@@ -69,9 +69,6 @@ const client = new Client({
 });
 
 // Variables.
-const loreLink = process.env.LORE_LINK;
-const loreLinkKey = process.env.LORE_LINK_KEY;
-
 let isBotReady = false;
 
 const CONFIG = {
@@ -82,7 +79,12 @@ const CONFIG = {
 	
 	kickChance: parseInt(process.env.KICK_CHANCE, 10) || 10,
 	whitelist: process.env.WHITELIST ? process.env.WHITELIST.split(',') : [],
-	authorizedTesters: process.env.AUTHORIZED_TESTERS ? process.env.AUTHORIZED_TESTERS.split(',') : []
+	authorizedTesters: process.env.AUTHORIZED_TESTERS ? process.env.AUTHORIZED_TESTERS.split(',') : [],
+	
+	soundVolume: process.env.SOUND_VOLUME,
+	
+	loreLink: process.env.LORE_LINK,
+	loreLinkKey: process.env.LORE_LINK_KEY
 }
 
 let currentVoiceConnection = null;
@@ -339,8 +341,8 @@ async function commandInfo(interaction) {
 	
 	try {
 		const INFO_TEXT = getLocText(interaction, 'infoText', {
-			loreLink: loreLink,
-			loreLinkKey: loreLinkKey
+			loreLink: CONFIG.loreLink,
+			loreLinkKey: CONFIG.loreLinkKey
 		});
 		
 		await interaction.reply(INFO_TEXT);
@@ -530,7 +532,7 @@ async function commandSoundboardPlay(interaction) {
 			await interaction.reply({
 				content: getLocText(interaction, 'replyNotInVoice'),
 				flags: [MessageFlags.Ephemeral]
-			})
+			});
 			return;
 		}
 		
@@ -541,7 +543,7 @@ async function commandSoundboardPlay(interaction) {
 			await interaction.reply({
 				content: getLocText(interaction, 'replySoundboardPlayNotFound'),
 				flags: [MessageFlags.Ephemeral]
-			})
+			});
 			return;
 		}
 		
@@ -551,12 +553,16 @@ async function commandSoundboardPlay(interaction) {
 			});
 			
 			consoleLog(`[${getTimestamp()}] Playing soundboard item: '${soundChoice}.mp3'...`);
-			await interaction.reply(playingMsg)
+			await interaction.reply(playingMsg);
 			
 			const player = createAudioPlayer();
-			const resource = createAudioResource(soundPath);
+			const resource = createAudioResource(soundPath, {
+				inlineVolume: true
+			});
+			resource.volume.setVolume(CONFIG.soundVolume);
+			
 			currentVoiceConnection.subscribe(player);
-			player.play(resource);
+			player.play(resource);;
 			
 			consoleLog(`[${getTimestamp()}] Sound playback initialized for '${soundChoice}.mp3'.`);
 			
@@ -575,7 +581,7 @@ async function commandSoundboardPlay(interaction) {
 		await interaction.reply({
 			content: getLocText(interaction, 'replyCommandError', { commandName: '/soundboard-play' }),
 			flags: [MessageFlags.Ephemeral]
-		})
+		});
 	}
 }
 
@@ -766,7 +772,11 @@ rl.on('line', async (line) => {
 					consoleLog(`[${getTimestamp()}] Playing soundboard item: '${targetSound}.mp3'...`);
 					
 					const player = createAudioPlayer();
-					const resource = createAudioResource(soundPath);
+					const resource = createAudioResource(soundPath, {
+						inlineVolume: true
+					});
+					resource.volume.setVolume(CONFIG.soundVolume);
+					
 					currentVoiceConnection.subscribe(player);
 					player.play(resource);
 					
