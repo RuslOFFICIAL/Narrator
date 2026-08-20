@@ -834,15 +834,15 @@ async function shutdown() {
 	try {
 		rl.close();
 
-		try {
-			if (currentVoiceConnection !== null) {
-				console.log(`n[${getTimestamp()}] Leaving voice channels...`);
+		if (currentVoiceConnection !== null) {
+			try {
+				console.log([`${getTimestamp()}] Leaving voice channels...`);
 				currentVoiceConnection.destroy();
 				currentVoiceConnection = null;
 				consoleLog(`[${getTimestamp()}] Successfully left the voice channel.`);
+			} catch (error) {
+				consoleLog(`[${getTimestamp()}] Failed to leave voice channel:`, error);
 			}
-		} catch (error) {
-			consoleLog(`[${getTimestamp()}] Failed to leave voice channel:`, error);
 		}
 		
 		if (client.ws) {
