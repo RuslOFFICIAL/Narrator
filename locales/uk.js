@@ -53,16 +53,21 @@ module.exports = {
 	replySoundboardStopSuccess: `Звук Бота припинено в голосовому каналі.`,
 	replySoundboardStopError: `Боту не вдалося припинити звук в голосовому каналі. Спробуйте знову.`,
 	
+	replyVoiceVolumeSuccess: `Гучність успішно встановлено на {volume}%.`,
+	replyVoiceVolumeError: `Боту не вдалося встановити гучність. Спробуйте знову.`,
+	
 	// Commands.
-	descHelp: 'Показує команди бота.',
-    descLore: 'Команда для лору.',
-    descInfo: 'Інформація про лор.',
-    descLotteryKick: '{kickChance}% на кік з серверу. Удачі!',
-    descVoiceJoin: 'Заходить в обраний голосовий канал.',
-    descVoiceLeave: 'Покидає голосовий канал.',
-    descSoundboardPlay: 'Запускає обраний звук в голосовому каналі.',
-    descSoundboardStop: 'Припиняє звук в голосовому каналі.',
+	descHelp: `Показує команди бота.`,
+    descLore: `Команда для лору.`,
+    descInfo: `Інформація про лор.`,
+    descLotteryKick: `{kickChance}% на кік з серверу. Удачі!`,
+    descVoiceJoin: `Заходить в обраний голосовий канал.`,
+    descVoiceLeave: `Покидає голосовий канал.`,
+    descSoundboardPlay: `Запускає обраний звук в голосовому каналі.`,
+    descSoundboardStop: `Припиняє звук в голосовому каналі.`,
+	descSoundboardVolume: `Змінити гучність відтворення бота.`,
 
-    optionChannel: 'Виберіть голосовий канал.',
-    optionSound: 'Виберіть звук для відтворення.'
+    optionChannel: `Виберіть голосовий канал.`,
+    optionSound: `Виберіть звук для відтворення.`,
+	optionVolumeLevel: `Рівень гучності від 0 до 100.`
 }

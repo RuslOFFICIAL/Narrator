@@ -53,16 +53,21 @@ All server members who have ever joined the server automatically consent to the 
 	replySoundboardStopSuccess: `The bot's sound has been stopped in the voice channel.`,
 	replySoundboardStopError: `The bot failed to stop the sound in the voice channel. Try again.`,
 	
+	replyVoiceVolumeSuccess: `The bot successfully set audio volume to {volume}%.`,
+	replyVoiceVolumeError: `The bot failed to set audio volume. Try again.`,
+	
 	// Commands.
-	descHelp: 'Shows the bot commands.',
-    descLore: 'Command for the lore.',
-    descInfo: 'Information about the lore.',
-    descLotteryKick: '{kickChance}% chance to be kicked from the server. Good luck!',
-    descVoiceJoin: 'Joins the selected voice channel.',
-    descVoiceLeave: 'Leaves the voice channel.',
-    descSoundboardPlay: 'Plays the selected sound in the voice channel.',
-    descSoundboardStop: 'Stops the sound in the voice channel.',
+	descHelp: `Shows the bot commands.`,
+    descLore: `Command for the lore.`,
+    descInfo: `Information about the lore.`,
+    descLotteryKick: `{kickChance}% chance to be kicked from the server. Good luck!`,
+    descVoiceJoin: `Joins the selected voice channel.`,
+    descVoiceLeave: `Leaves the voice channel.`,
+    descSoundboardPlay: `Plays the selected sound in the voice channel.`,
+    descSoundboardStop: `Stops the sound in the voice channel.`,
+	descSoundboardVolume: `Adjust the playback volume of the bot.`,
 
-    optionChannel: 'Select a voice channel.',
-    optionSound: 'Select a sound to play.'
+    optionChannel: `Select a voice channel.`,
+    optionSound: `Select a sound to play.`,
+	optionVolumeLevel: `Volume level from 0 to 100.`
 }

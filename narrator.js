@@ -70,6 +70,8 @@ const client = new Client({
 
 // Variables.
 let isBotReady = false;
+let currentAudioResource = null;
+let currentVolume = 1.0;
 
 const CONFIG = {
 	statusBot: process.env.STATUS,
@@ -80,8 +82,6 @@ const CONFIG = {
 	kickChance: parseInt(process.env.KICK_CHANCE, 10) || 10,
 	whitelist: process.env.WHITELIST ? process.env.WHITELIST.split(',') : [],
 	authorizedTesters: process.env.AUTHORIZED_TESTERS ? process.env.AUTHORIZED_TESTERS.split(',') : [],
-	
-	soundVolume: process.env.SOUND_VOLUME,
 	
 	loreLink: process.env.LORE_LINK,
 	loreLinkKey: process.env.LORE_LINK_KEY
@@ -100,7 +100,9 @@ const commands = [
 	new SlashCommandBuilder().setName('voice-leave').setDescription(getCmdText('descVoiceLeave')).setContexts([InteractionContextType.Guild]),
 	new SlashCommandBuilder().setName('soundboard-play').setDescription(getCmdText('descSoundboardPlay')).setContexts([InteractionContextType.Guild]).addStringOption(option =>
 		option.setName('sound').setDescription(getCmdText('optionSound')).setRequired(true).setAutocomplete(true)),
-	new SlashCommandBuilder().setName('soundboard-stop').setDescription(getCmdText('descSoundboardStop')).setContexts([InteractionContextType.Guild])
+	new SlashCommandBuilder().setName('soundboard-stop').setDescription(getCmdText('descSoundboardStop')).setContexts([InteractionContextType.Guild]),
+	new SlashCommandBuilder().setName('soundboard-volume').setDescription(getCmdText('descSoundboardVolume')).setContexts([InteractionContextType.Guild]).addIntegerOption(option =>
+		option.setName('level').setDescription(getCmdText('optionVolumeLevel')).setMinValue(0).setMaxValue(100).setRequired(true))
 ].map(command => command.toJSON());
 
 // Run this code after the client is ready.
@@ -203,6 +205,9 @@ client.on('interactionCreate', async interaction => {
 			break;
 		case 'soundboard-stop':
 			await commandSoundboardStop(interaction);
+			break;
+		case 'soundboard-volume':
+			await commandSoundboardVolume(interaction);
 			break;
     }
 });
@@ -559,7 +564,8 @@ async function commandSoundboardPlay(interaction) {
 			const resource = createAudioResource(soundPath, {
 				inlineVolume: true
 			});
-			resource.volume.setVolume(CONFIG.soundVolume);
+			resource.volume.setVolume(currentVolume);
+			currentAudioResource = resource;
 			
 			currentVoiceConnection.subscribe(player);
 			player.play(resource);;
@@ -630,6 +636,51 @@ async function commandSoundboardStop(interaction) {
 	}
 }
 
+async function commandSoundboardVolume(interaction) {
+    if (await isWhiteListNot(interaction)) return;
+	//if (!(await isAuthorizedTester(interaction))) return;
+    
+    makeLogMessage(interaction);
+    
+    try {
+        if (!interaction.inGuild()) {
+            await interaction.reply({
+                content: getLocText(interaction, 'replyGuild'),
+                flags: [MessageFlags.Ephemeral]
+            });
+            return;
+        }
+        
+		try {
+			const volumePercent = interaction.options.getInteger('level');
+			currentVolume = volumePercent / 100;
+			
+			if (currentAudioResource && currentAudioResource.volume) {
+				currentAudioResource.volume.setVolume(currentVolume);
+			}
+			
+			const successMsg = getLocText(interaction, 'replyVoiceVolumeSuccess', {
+				volume: volumePercent
+			});
+			
+			consoleLog(`[${getTimestamp()}] Voice volume set to ${volumePercent}% by @${interaction.user.tag} (${interaction.user.id})`);
+			await interaction.reply(successMsg);
+		} catch (error) {
+			consoleLog(`[${getTimestamp()}] Failed to set audio volume: `, error);
+			await interaction.reply({
+				content: getLocText(interaction, 'replySoundboardVolumeError'),
+				flags: [MessageFlags.Ephemeral]
+			});
+		}
+	} catch (error) {
+        consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
+        await interaction.reply({
+            content: getLocText(interaction, 'replyCommandError', { commandName: '/voice-volume' }),
+            flags: [MessageFlags.Ephemeral]
+        });
+    }
+}
+
 
 
 // Terminal.
@@ -657,7 +708,8 @@ rl.on('line', async (line) => {
 		switch (command) {
 			// BOT:
 			case 'help':
-				consoleLog(`[${getTimestamp()}] Commands:\nBOT:\n- help: Show terminal commands.\n- exit/stop/shutdown: Shut down the bot.\n- status: Status of the bot.\n- ping: Check bot latency.\n- clear: Clear the terminal screen.\n\nSERVER:\n- voice-join: Connect bot to specified voice channel by ID.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.\n- soundboard-stop: Stop playing the soundboard audio.`);
+				consoleLog(`[${getTimestamp()}] Commands:\nBOT:\n- help: Show terminal commands.\n- exit/stop/shutdown: Shut down the bot.\n- status: Status of the bot.\n- ping: Check bot latency.\n- clear: Clear the terminal screen.\n
+SERVER:\n- lore: Print a random lore snippet.\n- info: Show bot info and links.\n- voice-join: Connect bot to specified voice channel by ID.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.\n- soundboard-stop: Stop playing the soundboard audio.\n- soundboard-volume: Set playback volume (0-100).`);
 				consoleLog();
 				break;
 			
@@ -695,6 +747,33 @@ rl.on('line', async (line) => {
 				break;
 			
 			// SERVER:
+			case 'lore':
+				const rawSnippets = defaultLang === 'en' ? rawSnippetsEn : rawSnippetsUk;
+				if (!rawSnippets || rawSnippets.length === 0) {
+					consoleLog(`[${getTimestamp()}] No lore snippets found.\n`);
+					break;
+				}
+				
+				const randomIndex = Math.floor(Math.random() * rawSnippets.length);
+				const selectedSnippet = rawSnippets[randomIndex]
+					.replace(/\$loreLink\$/g, CONFIG.loreLink || '')
+					.replace(/\$loreLinkKey\$/g, CONFIG.loreLinkKey || '');
+				
+				const loreTemplate = locales[defaultLang]?.replyLore || locales['uk']?.replyLore || 'Lore: {loreSnippet}';
+				const formattedLore = loreTemplate.replace(/\{loreSnippet\}/g, selectedSnippet);
+				
+				consoleLog(`[${getTimestamp()}] ${formattedLore}\n`);
+				break;
+			
+			case 'info':
+				const infoText = locales[defaultLang]?.infoText || locales['uk']?.infoText || 'Info text unavailable';
+				const formattedInfo = infoText
+					.replace(/\{loreLink\}/g, CONFIG.loreLink || '')
+					.replace(/\{loreLinkKey\}/g, CONFIG.loreLinkKey || '');
+				
+				consoleLog(`[${getTimestamp()}] Bot Info:\n${formattedInfo}\n`);
+				break;
+			
 			case 'voice-join':
 				const targetChannelId = args[1];
 				
@@ -775,7 +854,8 @@ rl.on('line', async (line) => {
 					const resource = createAudioResource(soundPath, {
 						inlineVolume: true
 					});
-					resource.volume.setVolume(CONFIG.soundVolume);
+					resource.volume.setVolume(currentVolume);
+					currentAudioResource = resource;
 					
 					currentVoiceConnection.subscribe(player);
 					player.play(resource);
@@ -805,6 +885,30 @@ rl.on('line', async (line) => {
 					consoleLog(`[${getTimestamp()}] Failed to stop audio: `, error);
 				}
 				consoleLog();
+				break;
+			
+			case 'soundboard-volume':
+				const rawVolume = args[1];
+				
+				if (!rawVolume) {
+					consoleLog(`[${getTimestamp()}] Error: Please provide a volume level. Usage: soundboard-volume [0-100]\n`);
+					break;
+				}
+				
+				const volumePercent = parseInt(rawVolume, 10);
+				
+				if (isNaN(volumePercent) || volumePercent < 0 || volumePercent > 100) {
+					consoleLog(`[${getTimestamp()}] Error: Volume must be a number between 0 and 100.\n`);
+					break;
+				}
+				
+				currentVolume = volumePercent / 100;
+				
+				if (currentAudioResource && currentAudioResource.volume) {
+					currentAudioResource.volume.setVolume(currentVolume);
+				}
+				
+				consoleLog(`[${getTimestamp()}] Voice volume successfully set to ${volumePercent}%.\n`);
 				break;
 			
 			default:
