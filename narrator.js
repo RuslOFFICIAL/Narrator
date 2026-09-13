@@ -1164,7 +1164,5 @@ async function shutdown() {
 process.once('SIGINT', () => shutdown());
 process.once('SIGTERM', () => shutdown());
 
-
-
 // Login.
 client.login(process.env.DISCORD_TOKEN);
