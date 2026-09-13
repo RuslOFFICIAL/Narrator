@@ -751,7 +751,7 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
 				if (args[1] === '-e') {
 					// Format: "echo -e [MESSAGE_ID] [EDITED_TEXT]".
 					const messageId = args[2];
-					const newText = args.slice(3).join(' ');
+					const newText = args.slice(3).join(' ').replace(/\\n/g, '\n');
 					
 					if (!messageId || !newText) {
 						consoleLog(`[${getTimestamp()}] Error: Please provide a message ID and new text. Usage: echo -e [MESSAGE_ID] [EDITED_TEXT]\n`);
@@ -794,7 +794,7 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
 				} else {
 					// Format: "echo [CHANNEL_ID] [MESSAGE]".
 					const channelId = args[1];
-					const messageText = args.slice(2).join(' ');
+					const messageText = args.slice(2).join(' ').replace(/\\n/g, '\n');
 					
 					if (!channelId || !messageText) {
 						consoleLog(`[${getTimestamp()}] Error: Please provide a channel ID and a message. Usage: echo [CHANNEL_ID] [MESSAGE]\n`);
