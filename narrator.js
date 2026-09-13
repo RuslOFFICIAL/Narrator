@@ -4,7 +4,7 @@ const fs = require('fs');
 const readline = require('readline');
 const { spawn, exec } = require('child_process');
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActivityType, InteractionContextType, MessageFlags, ChannelType } = require('discord.js');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, StreamType } = require('@discordjs/voice');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, StreamType, VoiceConnectionStatus } = require('@discordjs/voice');
 
 // Localization.
 function loadSafeModule(filePath, fallbackValue) {
@@ -73,6 +73,10 @@ let isBotReady = false;
 let currentAudioResource = null;
 let currentVolume = 1.0;
 
+const voiceConnections = new Map();
+const guildVolumes = new Map();
+const guildPlayers = new Map();
+
 const CONFIG = {
 	statusBot: process.env.STATUS,
 	statusName: process.env.STATUS_NAME,
@@ -86,8 +90,6 @@ const CONFIG = {
 	loreLink: process.env.LORE_LINK,
 	loreLinkKey: process.env.LORE_LINK_KEY
 }
-
-let currentVoiceConnection = null;
 
 // Discord Commands Information.
 const commands = [
@@ -447,16 +449,26 @@ async function commandVoiceJoin(interaction) {
 			return;
 		}
 		try {
-			currentVoiceConnection = joinVoiceChannel({
+			const connection = joinVoiceChannel({
 				channelId: targetChannel.id,
 				guildId: targetChannel.guild.id,
 				adapterCreator: targetChannel.guild.voiceAdapterCreator,
 			});
+
+			voiceConnections.set(targetChannel.guild.id, connection);
+
+			// Handle automatic cleanup if the bot is disconnected or kicked from the voice state.
+			connection.on('stateChange', (oldState, newState) => {
+				if (newState.status === VoiceConnectionStatus.Disconnected) {
+					voiceConnections.delete(targetChannel.guild.id);
+				}
+			});
+			
 			const voiceJoin = getLocText(interaction, 'replyVoiceJoinSuccess', {
 				channelName: targetChannel.name
 			});
 			
-			consoleLog(`[${getTimestamp()}] Successfully joined the voice channel.`);
+			consoleLog(`[${getTimestamp()}] Successfully joined the voice channel '${targetChannel.name}' (${targetChannel.id}) by @${interaction.user.tag} (${interaction.user.id})`);
 			await interaction.reply(voiceJoin);
 		} catch (error) {
 			consoleLog(`[${getTimestamp()}] Failed to join voice channel: `, error);
@@ -489,18 +501,19 @@ async function commandVoiceLeave(interaction) {
 			return;
 		}
 		
-		if (!currentVoiceConnection) {
+		const connection = voiceConnections.get(interaction.guildId);
+		if (!connection) {
 			await interaction.reply({
 				content: getLocText(interaction, 'replyNotInVoice'), 
 				flags: [MessageFlags.Ephemeral]
-			})
+			});
 			return;
 		}
 		
 		try {
-			currentVoiceConnection.destroy();
-			currentVoiceConnection = null;
-			consoleLog(`[${getTimestamp()}] Successfully left voice channel.`);
+			connection.destroy();
+			voiceConnections.delete(interaction.guildId);
+			consoleLog(`[${getTimestamp()}] Successfully left voice channel for guild '${interaction.guildId}' by @${interaction.user.tag} (${interaction.user.id})`);
 			await interaction.reply(getLocText(interaction, 'replyVoiceLeaveSuccess'));
 		} catch (error) {
 			consoleLog(`[${getTimestamp()}] Failed to leave voice channel: `, error);
@@ -533,7 +546,8 @@ async function commandSoundboardPlay(interaction) {
 			return;
 		}
 		
-		if (!currentVoiceConnection) {
+		const connection = voiceConnections.get(interaction.guildId);
+		if (!connection) {
 			await interaction.reply({
 				content: getLocText(interaction, 'replyNotInVoice'),
 				flags: [MessageFlags.Ephemeral]
@@ -557,26 +571,27 @@ async function commandSoundboardPlay(interaction) {
 				soundChoice: soundChoice
 			});
 			
-			consoleLog(`[${getTimestamp()}] Playing soundboard item: '${soundChoice}.mp3'...`);
+			consoleLog(`[${getTimestamp()}] Playing soundboard item for guild '${interaction.guildId}': '${soundChoice}.mp3'...`);
 			await interaction.reply(playingMsg);
 			
 			const player = createAudioPlayer();
 			const resource = createAudioResource(soundPath, {
 				inlineVolume: true
 			});
-			resource.volume.setVolume(currentVolume);
+			const volume = guildVolumes.get(interaction.guildId) ?? currentVolume;
+			resource.volume.setVolume(volume);
 			currentAudioResource = resource;
 			
-			currentVoiceConnection.subscribe(player);
-			player.play(resource);;
+			guildPlayers.set(interaction.guildId, { player, resource });
 			
-			consoleLog(`[${getTimestamp()}] Sound playback initialized for '${soundChoice}.mp3'.`);
+			connection.subscribe(player);
+			player.play(resource);
 			
 			player.on('idle', () => {
-				consoleLog(`[${getTimestamp()}] Soundboard sound '${soundChoice}.mp3' finished playing.`);
+				consoleLog(`[${getTimestamp()}] Soundboard sound '${soundChoice}.mp3' finished playing in guild '${interaction.guildId}'.`);
 			});
 		} catch (error) {
-			consoleLog(`[${getTimestamp()}] Failed to play soundboard audio: `, error);
+			consoleLog(`[${getTimestamp()}] Failed to play soundboard audio in guild '${interaction.guildId}': `, error);
 			await interaction.reply({
 				content: getLocText(interaction, 'replySoundboardPlayError'),
 				flags: [MessageFlags.Ephemeral]
@@ -607,18 +622,19 @@ async function commandSoundboardStop(interaction) {
 			return;
 		}
 		
-		if (!currentVoiceConnection) {
+		const connection = voiceConnections.get(interaction.guildId);
+		if (!connection) {
 			await interaction.reply({
 				content: getLocText(interaction, 'replyNotInVoice'),
 				flags: [MessageFlags.Ephemeral]
-			})
+			});
 			return;
 		}
 				
 		try {
 			const stopPlayer = createAudioPlayer();
-			currentVoiceConnection.subscribe(stopPlayer);
-			consoleLog(`[${getTimestamp()}] Sound playback stopped.`);
+			connection.subscribe(stopPlayer);
+			consoleLog(`[${getTimestamp()}] Sound playback stopped for guild '${interaction.guildId}' by @${interaction.user.tag} (${interaction.user.id})`);
 			await interaction.reply(getLocText(interaction, 'replySoundboardStopSuccess'));
 		} catch (error) {
 			consoleLog(`[${getTimestamp()}] Failed to stop audio: `, error);
@@ -653,17 +669,22 @@ async function commandSoundboardVolume(interaction) {
         
 		try {
 			const volumePercent = interaction.options.getInteger('level');
-			currentVolume = volumePercent / 100;
+			const volume = volumePercent / 100;
 			
-			if (currentAudioResource && currentAudioResource.volume) {
-				currentAudioResource.volume.setVolume(currentVolume);
+			guildVolumes.set(interaction.guildId, volume);
+			
+			const activeEntry = guildPlayers.get(interaction.guildId);
+			if (activeEntry && activeEntry.resource && activeEntry.resource.volume) {
+				try {
+					activeEntry.resource.volume.setVolume(volume);
+				} catch (e) {}
 			}
 			
-			const successMsg = getLocText(interaction, 'replyVoiceVolumeSuccess', {
+			const successMsg = getLocText(interaction, 'replySoundboardVolumeSuccess', {
 				volume: volumePercent
 			});
 			
-			consoleLog(`[${getTimestamp()}] Voice volume set to ${volumePercent}% by @${interaction.user.tag} (${interaction.user.id})`);
+			consoleLog(`[${getTimestamp()}] Voice volume for guild '${interaction.guildId}' set to ${volumePercent}% by @${interaction.user.tag} (${interaction.user.id})`);
 			await interaction.reply(successMsg);
 		} catch (error) {
 			consoleLog(`[${getTimestamp()}] Failed to set audio volume: `, error);
@@ -675,7 +696,7 @@ async function commandSoundboardVolume(interaction) {
 	} catch (error) {
         consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
         await interaction.reply({
-            content: getLocText(interaction, 'replyCommandError', { commandName: '/voice-volume' }),
+            content: getLocText(interaction, 'replyCommandError', { commandName: '/soundboard-volume' }),
             flags: [MessageFlags.Ephemeral]
         });
     }
@@ -749,7 +770,7 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
 			// SERVER:
 			case 'echo':
 				if (args[1] === '-e') {
-					// Format: "echo -e [MESSAGE_ID] [EDITED_TEXT]".
+					// Format: echo -e [MESSAGE_ID] [EDITED_TEXT]
 					const messageId = args[2];
 					const newText = args.slice(3).join(' ').replace(/\\n/g, '\n');
 					
@@ -792,7 +813,7 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
 						consoleLog(`[${getTimestamp()}] Failed to edit message: `, error);
 					}
 				} else {
-					// Format: "echo [CHANNEL_ID] [MESSAGE]".
+					// Format: echo [CHANNEL_ID] [MESSAGE]
 					const channelId = args[1];
 					const messageText = args.slice(2).join(' ').replace(/\\n/g, '\n');
 					
@@ -853,7 +874,6 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
 			
 			case 'voice-join':
 				const targetChannelId = args[1];
-				
 				if (!targetChannelId) {
 					consoleLog(`[${getTimestamp()}] Error: Please provide a voice channel ID. Usage: voice-join [channelId]\n`);
 					break;
@@ -875,11 +895,19 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
 				}
 
 				try {
-					currentVoiceConnection = joinVoiceChannel({
+					const connection = joinVoiceChannel({
 						channelId: targetChannel.id,
 						guildId: targetChannel.guild.id,
 						adapterCreator: targetChannel.guild.voiceAdapterCreator,
 					});
+					voiceConnections.set(targetChannel.guild.id, connection);
+					
+					connection.on('stateChange', (oldState, newState) => {
+						if (newState.status === VoiceConnectionStatus.Disconnected) {
+							voiceConnections.delete(targetChannel.guild.id);
+						}
+					});
+					
 					consoleLog(`[${getTimestamp()}] Successfully joined voice channel: '${targetChannel.name}' (${targetChannel.id})`);
 				} catch (error) {
 					consoleLog(`[${getTimestamp()}] Failed to join voice channel: `, error);
@@ -888,15 +916,37 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
 				break;
 			
 			case 'voice-leave':
-				if (!currentVoiceConnection) {
-					consoleLog(`[${getTimestamp()}] Error: Bot is not currently in a voice channel. Run "voice-join" first.\n`);
+				const leaveGuildId = args[1];
+				if (!leaveGuildId) {
+					// Leave all voice channels if no argument is provided.
+					if (voiceConnections.size === 0) {
+						consoleLog(`[${getTimestamp()}] Error: Bot is not currently in any voice channel.\n`);
+						break;
+					}
+					try {
+						for (const [gId, connection] of voiceConnections.entries()) {
+							connection.destroy();
+						}
+						voiceConnections.clear();
+						consoleLog(`[${getTimestamp()}] Successfully left all voice channels.`);
+					} catch (error) {
+						consoleLog(`[${getTimestamp()}] Failed to leave voice channels:`, error);
+					}
+					consoleLog();
+					break;
+				}
+				
+				// Leave specific guild voice channel if ID is provided.
+				const connectionToLeave = voiceConnections.get(leaveGuildId);
+				if (!connectionToLeave) {
+					consoleLog(`[${getTimestamp()}] Error: Bot is not in a voice channel for guild ID '${leaveGuildId}'.\n`);
 					break;
 				}
 				
 				try {
-					currentVoiceConnection.destroy();
-					currentVoiceConnection = null;
-					consoleLog(`[${getTimestamp()}] Successfully left the voice channel.`);
+					connectionToLeave.destroy();
+					voiceConnections.delete(leaveGuildId);
+					consoleLog(`[${getTimestamp()}] Successfully left the voice channel for guild ID '${leaveGuildId}'.`);
 				} catch (error) {
 					consoleLog(`[${getTimestamp()}] Failed to leave voice channel:`, error);
 				}
@@ -904,12 +954,20 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
 				break;
 			
 			case 'soundboard-play':
-				if (!currentVoiceConnection) {
-					consoleLog(`[${getTimestamp()}] Error: Bot is not in a voice channel. Run "voice-join" first.\n`);
+				if (voiceConnections.size === 0) {
+					consoleLog(`[${getTimestamp()}] Error: Bot is not in any voice channel. Run "voice-join" first.\n`);
 					break;
 				}
 				
-				const rawTargetSound = args[1];
+				let playGuildId = null;
+				let rawTargetSound = '';
+				
+				if (args[1] && voiceConnections.has(args[1])) {
+					playGuildId = args[1];
+					rawTargetSound = args.slice(2).join(' ');
+				} else {
+					rawTargetSound = args.slice(1).join(' ');
+				}
 				
 				if (!rawTargetSound) {
                     consoleLog(`[${getTimestamp()}] Error: Please provide a sound name. Usage: soundboard-play [filename]\n`);
@@ -924,51 +982,90 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
 					break;
 				}
 				
-				try {
-					consoleLog(`[${getTimestamp()}] Playing soundboard item: '${targetSound}.mp3'...`);
+				const guildsToPlay = playGuildId ? [playGuildId] : Array.from(voiceConnections.keys());
+				
+				for (const gId of guildsToPlay) {
+					const conn = voiceConnections.get(gId);
+					if (!conn) continue;
 					
-					const player = createAudioPlayer();
-					const resource = createAudioResource(soundPath, {
-						inlineVolume: true
-					});
-					resource.volume.setVolume(currentVolume);
-					currentAudioResource = resource;
-					
-					currentVoiceConnection.subscribe(player);
-					player.play(resource);
-					
-					consoleLog(`[${getTimestamp()}] Sound playback initialized for '${targetSound}.mp3'.`);
-					
-					player.on('idle', () => {
-						consoleLog(`[${getTimestamp()}] Soundboard sound '${targetSound}.mp3' finished playing.`);
-					});
-				} catch (error) {
-					consoleLog(`[${getTimestamp()}] Failed to play soundboard audio: `, error);
+					try {
+						consoleLog(`[${getTimestamp()}] Playing soundboard item: '${targetSound}.mp3'...`);
+						
+						const player = createAudioPlayer();
+						const resource = createAudioResource(soundPath, {
+							inlineVolume: true
+						});
+						const volume = guildVolumes.get(gId) ?? currentVolume;
+						resource.volume.setVolume(volume);
+						
+						guildPlayers.set(gId, { player, resource });
+						
+						conn.subscribe(player);
+						player.play(resource);
+						
+						player.on('idle', () => {
+							consoleLog(`[${getTimestamp()}] Soundboard sound '${targetSound}.mp3' finished playing in guild ${gId}.`);
+						});
+					} catch (error) {
+						consoleLog(`[${getTimestamp()}] Failed to play soundboard audio in guild ${gId}: `, error);
+					}
 				}
 				consoleLog();
 				break;
 			
 			case 'soundboard-stop':
-				if (!currentVoiceConnection) {
-					consoleLog(`[${getTimestamp()}] Error: Bot is not in a voice channel.\n`);
-					break;
+				const stopGuildId = args[1];
+
+				if (stopGuildId) {
+					const stopConn = voiceConnections.get(stopGuildId);
+					if (!stopConn) {
+						consoleLog(`[${getTimestamp()}] Error: Bot is not in a voice channel for guild ID '${stopGuildId}'.\n`);
+						break;
+					}
+					const activeEntry = guildPlayers.get(stopGuildId);
+					if (activeEntry && activeEntry.player) {
+						activeEntry.player.stop();
+					} else {
+						stopConn.subscribe(createAudioPlayer()).stop();
+					}
+					consoleLog(`[${getTimestamp()}] Sound playback stopped for guild '${stopGuildId}'.\n`);
+				} else {
+					if (voiceConnections.size === 0) {
+						consoleLog(`[${getTimestamp()}] Error: Bot is not currently in any voice channel.\n`);
+						break;
+					}
+					try {
+						for (const [gId, entry] of guildPlayers.entries()) {
+							if (entry && entry.player) {
+								entry.player.stop();
+							}
+						}
+						guildPlayers.clear();
+						for (const [gId, conn] of voiceConnections.entries()) {
+							try {
+								conn.subscribe(createAudioPlayer()).stop();
+							} catch (e) {}
+						}
+						consoleLog(`[${getTimestamp()}] Sound playback stopped for all guilds.\n`);
+					} catch (error) {
+						consoleLog(`[${getTimestamp()}] Failed to stop audio: `, error);
+					}
 				}
-				
-				try {
-					const stopPlayer = createAudioPlayer();
-					currentVoiceConnection.subscribe(stopPlayer);
-					consoleLog(`[${getTimestamp()}] Sound playback stopped.`);
-				} catch (error) {
-					consoleLog(`[${getTimestamp()}] Failed to stop audio: `, error);
-				}
-				consoleLog();
 				break;
-			
+
 			case 'soundboard-volume':
-				const rawVolume = args[1];
-				
-				if (!rawVolume) {
-					consoleLog(`[${getTimestamp()}] Error: Please provide a volume level. Usage: soundboard-volume [0-100]\n`);
+				let targetGuildId = null;
+				let rawVolume = null;
+
+				if (args.length === 2) {
+					// Global change: soundboard-volume [0-100]
+					rawVolume = args[1];
+				} else if (args.length >= 3) {
+					// Guild specific change: soundboard-volume [GUILD_ID] [0-100]
+					targetGuildId = args[1];
+					rawVolume = args[2];
+				} else {
+					consoleLog(`[${getTimestamp()}] Error: Please provide a volume level. Usage: soundboard-volume [0-100] or soundboard-volume [GUILD_ID] [0-100]\n`);
 					break;
 				}
 				
@@ -979,13 +1076,28 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
 					break;
 				}
 				
-				currentVolume = volumePercent / 100;
-				
-				if (currentAudioResource && currentAudioResource.volume) {
-					currentAudioResource.volume.setVolume(currentVolume);
+				const volume = volumePercent / 100;
+
+				if (targetGuildId) {
+					guildVolumes.set(targetGuildId, volume);
+					const activeEntry = guildPlayers.get(targetGuildId);
+					if (activeEntry && activeEntry.resource && activeEntry.resource.volume) {
+						try {
+							activeEntry.resource.volume.setVolume(volume);
+						} catch (e) {}
+					}
+					consoleLog(`[${getTimestamp()}] Voice volume for guild '${targetGuildId}' successfully set to ${volumePercent}%.\n`);
+				} else {
+					currentVolume = volume;
+					for (const [gId, activeEntry] of guildPlayers.entries()) {
+						if (!guildVolumes.has(gId) && activeEntry && activeEntry.resource && activeEntry.resource.volume) {
+							try {
+								activeEntry.resource.volume.setVolume(volume);
+							} catch (e) {}
+						}
+					}
+					consoleLog(`[${getTimestamp()}] Global voice volume successfully set to ${volumePercent}%.\n`);
 				}
-				
-				consoleLog(`[${getTimestamp()}] Voice volume successfully set to ${volumePercent}%.\n`);
 				break;
 			
 			default:
@@ -1015,14 +1127,18 @@ async function shutdown() {
 	try {
 		rl.close();
 
-		if (currentVoiceConnection !== null) {
+		if (voiceConnections.size > 0) {
 			try {
 				console.log(`[${getTimestamp()}] Leaving voice channels...`);
-				currentVoiceConnection.destroy();
-				currentVoiceConnection = null;
-				consoleLog(`[${getTimestamp()}] Successfully left the voice channel.`);
+				for (const [guildId, connection] of voiceConnections.entries()) {
+					connection.destroy();
+				}
+				voiceConnections.clear();
+				consoleLog(`[${getTimestamp()}] Successfully left all voice channels.`);
+				
+				await new Promise(resolve => setTimeout(resolve, 1000));
 			} catch (error) {
-				consoleLog(`[${getTimestamp()}] Failed to leave voice channel:`, error);
+				consoleLog(`[${getTimestamp()}] Failed to leave voice channels:`, error);
 			}
 		}
 		

@@ -55,8 +55,8 @@ All server members who have ever joined the server automatically consent to the 
 	replySoundboardStopSuccess: `The bot's sound has been stopped in the voice channel.`,
 	replySoundboardStopError: `The bot failed to stop the sound in the voice channel. Try again.`,
 	
-	replyVoiceVolumeSuccess: `The bot successfully set audio volume to {volume}%.`,
-	replyVoiceVolumeError: `The bot failed to set audio volume. Try again.`,
+	replySoundboardVolumeSuccess: `The bot successfully set audio volume to {volume}%.`,
+	replySoundboardVolumeError: `The bot failed to set audio volume. Try again.`,
 	
 	// Commands.
 	descHelp: `Shows the bot commands.`,

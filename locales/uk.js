@@ -55,8 +55,8 @@ module.exports = {
 	replySoundboardStopSuccess: `Звук Бота припинено в голосовому каналі.`,
 	replySoundboardStopError: `Боту не вдалося припинити звук в голосовому каналі. Спробуйте знову.`,
 	
-	replyVoiceVolumeSuccess: `Гучність успішно встановлено на {volume}%.`,
-	replyVoiceVolumeError: `Боту не вдалося встановити гучність. Спробуйте знову.`,
+	replySoundboardVolumeSuccess: `Гучність успішно встановлено на {volume}%.`,
+	replySoundboardVolumeError: `Боту не вдалося встановити гучність. Спробуйте знову.`,
 	
 	// Commands.
 	descHelp: `Показує команди бота.`,
