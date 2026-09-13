@@ -709,7 +709,7 @@ rl.on('line', async (line) => {
 			// BOT:
 			case 'help':
 				consoleLog(`[${getTimestamp()}] Commands:\nBOT:\n- help: Show terminal commands.\n- exit/stop/shutdown: Shut down the bot.\n- status: Status of the bot.\n- ping: Check bot latency.\n- clear: Clear the terminal screen.\n
-SERVER:\n- lore: Print a random lore snippet.\n- info: Show bot info and links.\n- voice-join: Connect bot to specified voice channel by ID.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.\n- soundboard-stop: Stop playing the soundboard audio.\n- soundboard-volume: Set playback volume (0-100).`);
+SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by message ID.\n- lore: Print a random lore snippet.\n- info: Show bot info and links.\n- voice-join: Connect bot to specified voice channel by ID.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.\n- soundboard-stop: Stop playing the soundboard audio.\n- soundboard-volume: Set playback volume (0-100).`);
 				consoleLog();
 				break;
 			
@@ -747,6 +747,83 @@ SERVER:\n- lore: Print a random lore snippet.\n- info: Show bot info and links.\
 				break;
 			
 			// SERVER:
+			case 'echo':
+				if (args[1] === '-e') {
+					// Format: "echo -e [MESSAGE_ID] [EDITED_TEXT]".
+					const messageId = args[2];
+					const newText = args.slice(3).join(' ');
+					
+					if (!messageId || !newText) {
+						consoleLog(`[${getTimestamp()}] Error: Please provide a message ID and new text. Usage: echo -e [MESSAGE_ID] [EDITED_TEXT]\n`);
+						break;
+					}
+					
+					// Search across all text channels in the bot's guilds to find and edit the message.
+					let targetMessage = null;
+					let targetChannel = null;
+					
+					for (const [guildId, guild] of client.guilds.cache) {
+						for (const [channelId, channel] of guild.channels.cache) {
+							if (channel.isTextBased()) {
+								try {
+									const fetchedMsg = await channel.messages.fetch(messageId);
+									if (fetchedMsg) {
+										targetMessage = fetchedMsg;
+										targetChannel = channel;
+										break;
+									}
+								} catch (e) {
+									// Message not in this channel, continue searching.
+								}
+							}
+						}
+						if (targetMessage) break;
+					}
+					
+					if (!targetMessage) {
+						consoleLog(`[${getTimestamp()}] Error: Could not find message with ID '${messageId}' in any accessible channel.\n`);
+						break;
+					}
+					
+					try {
+						await targetMessage.edit(newText);
+						consoleLog(`[${getTimestamp()}] Message successfully edited in channel #${targetChannel.name} (${targetChannel.id}).\n`);
+					} catch (error) {
+						consoleLog(`[${getTimestamp()}] Failed to edit message: `, error);
+					}
+				} else {
+					// Format: "echo [CHANNEL_ID] [MESSAGE]".
+					const channelId = args[1];
+					const messageText = args.slice(2).join(' ');
+					
+					if (!channelId || !messageText) {
+						consoleLog(`[${getTimestamp()}] Error: Please provide a channel ID and a message. Usage: echo [CHANNEL_ID] [MESSAGE]\n`);
+						break;
+					}
+					
+					let targetEchoChannel = null;
+					for (const [guildId, guild] of client.guilds.cache) {
+						const channel = guild.channels.cache.get(channelId);
+						if (channel) {
+							targetEchoChannel = channel;
+							break;
+						}
+					}
+					
+					if (!targetEchoChannel || !targetEchoChannel.isTextBased()) {
+						consoleLog(`[${getTimestamp()}] Error: Could not find a valid text channel with ID '${channelId}'.\n`);
+						break;
+					}
+					
+					try {
+						await targetEchoChannel.send(messageText);
+						consoleLog(`[${getTimestamp()}] Message successfully sent to channel #${targetEchoChannel.name} (${channelId}).\n`);
+					} catch (error) {
+						consoleLog(`[${getTimestamp()}] Failed to send message: `, error);
+					}
+				}
+				break;
+			
 			case 'lore':
 				const rawSnippets = defaultLang === 'en' ? rawSnippetsEn : rawSnippetsUk;
 				if (!rawSnippets || rawSnippets.length === 0) {
