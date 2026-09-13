@@ -873,6 +873,7 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
 				break;
 			
 			case 'voice-join':
+				// Format: voice-join [CHANNEL_ID]
 				const targetChannelId = args[1];
 				if (!targetChannelId) {
 					consoleLog(`[${getTimestamp()}] Error: Please provide a voice channel ID. Usage: voice-join [channelId]\n`);
@@ -918,7 +919,7 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
 			case 'voice-leave':
 				const leaveGuildId = args[1];
 				if (!leaveGuildId) {
-					// Leave all voice channels if no argument is provided.
+					// Global: voice-leave
 					if (voiceConnections.size === 0) {
 						consoleLog(`[${getTimestamp()}] Error: Bot is not currently in any voice channel.\n`);
 						break;
@@ -935,8 +936,8 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
 					consoleLog();
 					break;
 				}
-				
-				// Leave specific guild voice channel if ID is provided.
+
+				// Guild-Specific: voice-leave [GUILD_ID]
 				const connectionToLeave = voiceConnections.get(leaveGuildId);
 				if (!connectionToLeave) {
 					consoleLog(`[${getTimestamp()}] Error: Bot is not in a voice channel for guild ID '${leaveGuildId}'.\n`);
@@ -963,9 +964,11 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
 				let rawTargetSound = '';
 				
 				if (args[1] && voiceConnections.has(args[1])) {
+					// Guild specific: soundboard-play [GUILD_ID] [SOUND_NAME]
 					playGuildId = args[1];
 					rawTargetSound = args.slice(2).join(' ');
 				} else {
+					// Global: soundboard-play [SOUND_NAME]
 					rawTargetSound = args.slice(1).join(' ');
 				}
 				
@@ -1017,6 +1020,7 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
 				const stopGuildId = args[1];
 
 				if (stopGuildId) {
+					// Global: soundboard-stop [GUILD_ID]
 					const stopConn = voiceConnections.get(stopGuildId);
 					if (!stopConn) {
 						consoleLog(`[${getTimestamp()}] Error: Bot is not in a voice channel for guild ID '${stopGuildId}'.\n`);
@@ -1030,6 +1034,7 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
 					}
 					consoleLog(`[${getTimestamp()}] Sound playback stopped for guild '${stopGuildId}'.\n`);
 				} else {
+					// Guild specific: soundboard-stop
 					if (voiceConnections.size === 0) {
 						consoleLog(`[${getTimestamp()}] Error: Bot is not currently in any voice channel.\n`);
 						break;
