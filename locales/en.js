@@ -11,15 +11,17 @@ module.exports = {
 /soundboard-play - Plays the selected sound in the voice channel.
 /soundboard-stop - Stops the sound in the voice channel.`,
 	
-	infoText: `The creation of the lore and the bot was handled by Rusl, and the bot's avatar was created by Katy.
+	infoText: `The original creation of the lore and the Bot was handled by Rusl, and the original bot's avatar was created by Katy.
  
 The link to the "Server-Lore" file is: "<{loreLink}>". The key to the link is: "{loreLinkKey}".
  
 The "Server-Lore" file version values are:
-Number of parts.
+Number of chapters.
 Number of changes for the first version number.
 
-All server members who have ever joined the server automatically consent to the fact that they may be in the lore. This can only be refused if you write to Rusl with a request for this and if he accepts it.`,	
+The link to the repository of the original "Narrator" is: "<https://gitlab.com/server-discord/narrator>"
+
+All server members who have ever joined the server automatically consent to the fact that they may be in the lore. This can only be refused if you write to Host Bot with a request for this and if he accepts it.`,	
 	
 	// Messages.
 	replyBotLoading: `The bot is still loading. Please wait.`,
