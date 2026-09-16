@@ -5,6 +5,7 @@ const readline = require('readline');
 const { spawn, exec } = require('child_process');
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActivityType, InteractionContextType, MessageFlags, ChannelType } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, StreamType, VoiceConnectionStatus } = require('@discordjs/voice');
+const packageJson = require('./package.json');
 
 // Import modularized commands
 const { getCommands, handleDiscordInteraction } = require('./commands/discord.js');
@@ -230,9 +231,10 @@ client.once('clientReady', async () => {
 	
 	// Status.
 	try {
-		consoleLog(`[${getTimestamp()}] Setting bot status up... `)
+		consoleLog(`[${getTimestamp()}] Setting bot status up... `);
+		const statusText = `${CONFIG.statusName} | Version ${packageJson.version}`;
 		client.user.setPresence({
-			activities: [{ name: CONFIG.statusName, type: ActivityType[CONFIG.statusType], url: CONFIG.statusUrl }],
+			activities: [{ name: statusText, type: ActivityType[CONFIG.statusType], url: CONFIG.statusUrl }],
 			status: CONFIG.statusBot,
 		});
 	} catch (error) {
