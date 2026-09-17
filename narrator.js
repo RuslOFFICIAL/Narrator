@@ -226,7 +226,8 @@ const executionContext = {
 
 // Run this code after the client is ready.
 client.once('clientReady', async () => {
-	consoleLog(`\nPress Ctrl+C to shut down bot.\nPrint "help" for commands.\n`);
+	consoleLog(`\nNarrator | ${packageJson.version}`);
+	consoleLog(`Press Ctrl+C to shut down bot.\nPrint "help" for commands.\n`);
 	consoleLog(`[${getTimestamp()}] Logged in as ${client.user.tag}!`);
 	
 	// Status.
