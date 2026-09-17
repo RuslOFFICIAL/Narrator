@@ -1,19 +1,28 @@
-const { SlashCommandBuilder, InteractionContextType, ChannelType, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType, ApplicationIntegrationType, ChannelType, MessageFlags } = require('discord.js');
 const fs = require('fs');
 
 function getCommands(CONFIG, getCmdText) {
     return [
-        new SlashCommandBuilder().setName('help').setDescription(getCmdText('descHelp')),
-        new SlashCommandBuilder().setName('lore').setDescription(getCmdText('descLore')),
-        new SlashCommandBuilder().setName('info').setDescription(getCmdText('descInfo')),
-        new SlashCommandBuilder().setName('lottery-kick').setDescription(getCmdText('descLotteryKick').replace('{kickChance}', CONFIG.kickChance)).setContexts([InteractionContextType.Guild]),
-        new SlashCommandBuilder().setName('voice-join').setDescription(getCmdText('descVoiceJoin')).setContexts([InteractionContextType.Guild]).addChannelOption(option =>
+        new SlashCommandBuilder().setName('help').setDescription(getCmdText('descHelp'))
+			.setContexts([0, 1, 2]).setIntegrationTypes([0, 1]),
+		new SlashCommandBuilder().setName('lore').setDescription(getCmdText('descLore'))
+			.setContexts([0, 1, 2]).setIntegrationTypes([0, 1]),
+        new SlashCommandBuilder().setName('info').setDescription(getCmdText('descInfo'))
+			.setContexts([0, 1, 2]).setIntegrationTypes([0, 1]),
+        new SlashCommandBuilder().setName('lottery-kick').setDescription(getCmdText('descLotteryKick').replace('{kickChance}', CONFIG.kickChance))
+			.setContexts([0]).setIntegrationTypes([0]),
+        new SlashCommandBuilder().setName('voice-join').setDescription(getCmdText('descVoiceJoin'))
+			.setContexts([0]).setIntegrationTypes([0]).addChannelOption(option =>
             option.setName('channel').setDescription(getCmdText('optionChannel')).addChannelTypes(ChannelType.GuildVoice).setRequired(true)),
-        new SlashCommandBuilder().setName('voice-leave').setDescription(getCmdText('descVoiceLeave')).setContexts([InteractionContextType.Guild]),
-        new SlashCommandBuilder().setName('soundboard-play').setDescription(getCmdText('descSoundboardPlay')).setContexts([InteractionContextType.Guild]).addStringOption(option =>
+        new SlashCommandBuilder().setName('voice-leave').setDescription(getCmdText('descVoiceLeave'))
+			.setContexts([0]).setIntegrationTypes([0]),
+        new SlashCommandBuilder().setName('soundboard-play').setDescription(getCmdText('descSoundboardPlay'))
+			.setContexts([0]).setIntegrationTypes([0]).addStringOption(option =>
             option.setName('sound').setDescription(getCmdText('optionSound')).setRequired(true).setAutocomplete(true)),
-        new SlashCommandBuilder().setName('soundboard-stop').setDescription(getCmdText('descSoundboardStop')).setContexts([InteractionContextType.Guild]),
-        new SlashCommandBuilder().setName('soundboard-volume').setDescription(getCmdText('descSoundboardVolume')).setContexts([InteractionContextType.Guild]).addIntegerOption(option =>
+        new SlashCommandBuilder().setName('soundboard-stop').setDescription(getCmdText('descSoundboardStop'))
+			.setContexts([0]).setIntegrationTypes([0]),
+        new SlashCommandBuilder().setName('soundboard-volume').setDescription(getCmdText('descSoundboardVolume'))
+			.setContexts([0]).setIntegrationTypes([0]).addIntegerOption(option =>
             option.setName('level').setDescription(getCmdText('optionVolumeLevel')).setMinValue(0).setMaxValue(100).setRequired(true))
     ].map(command => command.toJSON());
 }

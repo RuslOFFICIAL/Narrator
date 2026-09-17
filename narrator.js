@@ -3,7 +3,7 @@ require('dotenv').config();
 const fs = require('fs');
 const readline = require('readline');
 const { spawn, exec } = require('child_process');
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActivityType, InteractionContextType, MessageFlags, ChannelType } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActivityType, InteractionContextType, ApplicationIntegrationType, MessageFlags, ChannelType } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, StreamType, VoiceConnectionStatus } = require('@discordjs/voice');
 const packageJson = require('./package.json');
 
