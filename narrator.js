@@ -210,7 +210,7 @@ async function shutdown() {
 	} catch (error) {
 		console.log(error);
 	} finally {
-		console.log("Press 'Ctrl+C' or close the window to end process, or make changes in '.js' file.");
+		console.log("Press 'Ctrl+C' or close the window to end process, or make some changes in files.");
 		process.exit(0);
 	}
 }

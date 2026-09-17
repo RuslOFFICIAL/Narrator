@@ -48,6 +48,9 @@ async function handleDiscordInteraction(interaction, context) {
     if (interaction.isAutocomplete()) {
         if (interaction.commandName === 'soundboard-play') {
             try {
+				if (!fs.existsSync('./sounds')) {
+                    return;
+                }
                 const files = fs.readdirSync('./sounds');
                 const choices = files
                     .filter(file => file.endsWith('.mp3'))
@@ -55,12 +58,16 @@ async function handleDiscordInteraction(interaction, context) {
                 
                 const focusedValue = interaction.options.getFocused();
                 const filtered = choices.filter(choice => choice.toLowerCase().includes(focusedValue.toLowerCase()));
-                
-                await interaction.respond(
-                    filtered.slice(0, 25).map(choice => ({ name: choice, value: choice }))
-                );
+				
+				if (!interaction.responded) {
+					await interaction.respond(
+						filtered.slice(0, 25).map(choice => ({ name: choice, value: choice }))
+					);
+				}
             } catch (error) {
-                consoleLog('Error handling soundboard autocomplete: ', error);
+				if (error.code !== 10062) {
+					consoleLog('Error handling soundboard autocomplete: ', error);
+				}
             }
         }
         return;
