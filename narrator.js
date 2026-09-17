@@ -232,7 +232,7 @@ client.once('clientReady', async () => {
 	// Status.
 	try {
 		consoleLog(`[${getTimestamp()}] Setting bot status up... `);
-		const statusText = `${CONFIG.statusName} | Version ${packageJson.version}`;
+		const statusText = `${CONFIG.statusName} | ${packageJson.version}`;
 		client.user.setPresence({
 			activities: [{ name: statusText, type: ActivityType[CONFIG.statusType], url: CONFIG.statusUrl }],
 			status: CONFIG.statusBot,

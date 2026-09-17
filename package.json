@@ -1,13 +1,12 @@
 {
 	"name": "narrator",
-	"version": "8.3.1",
+	"version": "8.3.2",
 	"description": "Narrator bot for Discord.",
 	"main": "narrator.js",
 	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"run": "./run.sh"
 	},
-	"keywords": [],
-	"author": "",
+	"author": "Rusl",
 	"license": "ISC",
 	"type": "commonjs",
 	"dependencies": {
