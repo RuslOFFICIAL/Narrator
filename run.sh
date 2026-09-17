@@ -9,4 +9,4 @@ FILE_STARTUP=narrator.js
 # Startup.
 npm install
 echo
-npx nodemon --watch . --watch .env --ext js,json,env "$FILE_STARTUP"
+node --watch --env-file=.env "$FILE_STARTUP"
