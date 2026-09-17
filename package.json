@@ -3,9 +3,6 @@
 	"version": "8.3.2",
 	"description": "Narrator bot for Discord.",
 	"main": "narrator.js",
-	"scripts": {
-		"run": "./run.sh"
-	},
 	"author": "Rusl",
 	"license": "ISC",
 	"type": "commonjs",
