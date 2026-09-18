@@ -21,6 +21,7 @@ It is not created by the creator of the "Narrator" bot.`,
 	replyGuild: `This command can only be used on servers!`,
 	replyVoiceNotFound: `Failed to find a voice channel with ID "{channelId}". Make sure the bot is on that server.`,
 	replyNotInVoice: `The bot is not currently in a voice channel. Try running the "/voice-join" command first.`,
+	replySnippetsNotAvailable: `Lore snippets are currently unavailable.`,
 	
 	replyWhitelistYes: `This command is not available to you because it might do something to you. Try using another command or try again later.`,
 	replyWhitelistNo: `This command is not available to you. Try using another command or try again later.`,

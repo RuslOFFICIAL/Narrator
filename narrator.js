@@ -80,7 +80,7 @@ function getLocalizedLoreSnippets(interaction) {
 	
 	if (!rawSnippets || rawSnippets.length === 0) {
 		consoleLog(`[WARNING] Lore snippets not found or empty for guild ${guildId} using path ${filePath}`);
-		return ['Lore snippets are currently unavailable.'];
+		return [getLocText(interaction, 'replySnippetsNotAvailable')];
 	}
 	
 	return rawSnippets.map(snippet => 
