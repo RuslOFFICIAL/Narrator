@@ -17,4 +17,4 @@ npm install
 echo
 
 # Startup.
-npx --yes nodemon --watch . --watch .env --ext js,json,env "$FILE_STARTUP"
+npx --yes nodemon --watch . --ignore lores/ --ignore sounds/ --watch .env --ext js,json,env "$FILE_STARTUP"

@@ -4,6 +4,7 @@ module.exports = {
 
 /help - Shows the bot commands.
 /lore - Tells one of the parts of the lore.
+/lore-create - Add a new lore snippet to a server file.
 /info - Information about the lore.
 /lottery-kick - {kickChance}% chance to be kicked from the server. Good luck!
 /voice-join - Joins the selected voice channel.
@@ -11,17 +12,8 @@ module.exports = {
 /soundboard-play - Plays the selected sound in the voice channel.
 /soundboard-stop - Stops the sound in the voice channel.`,
 	
-	infoText: `The original creation of the lore and the Bot was handled by Rusl, and the original bot's avatar was created by Katy.
- 
-The link to the "Server-Lore" file is: "<{loreLink}>". The key to the link is: "{loreLinkKey}".
- 
-The "Server-Lore" file version values are:
-Number of chapters.
-Number of changes for the first version number.
-
-The link to the repository of the original "Narrator" is: "<https://gitlab.com/server-discord/narrator>"
-
-All server members who have ever joined the server automatically consent to the fact that they may be in the lore. This can only be refused if you write to Host Bot with a request for this and if he accepts it.`,	
+	infoText: `This server's lore is written by members with the "Manage Server" permission.
+It is not created by the creator of the "Narrator" bot.`,	
 	
 	// Messages.
 	replyBotLoading: `The bot is still loading. Please wait.`,
@@ -35,6 +27,10 @@ All server members who have ever joined the server automatically consent to the 
 	replyAuthorizedTester: `This command is being tested. Try using another command or try again later.`,
 	
 	replyLore: `Lore? Well, alright...\n\n{loreSnippet}`,
+	
+	replyLoreCreateSuccess: `Successfully added lore snippet to '{guildId}_{lang}.js'!`,
+	replyLoreCreateNoPermission: `You don't have permission to use this command (Requires "Manage Server" or "Administrator").`,
+	replyLoreCreateError: `Failed to add lore snippet.`,
 	
 	replyLotteryKickYes: `<@{userId}>\n\nOh, it seems luck is not on your side today. Too bad... actually, not really.\n\nYour kick is in 30 seconds. Write your last words.`,
 	replyLotteryKickDm: `Hey! You were just kicked from the server, unfortunately. Here is the link to the server:\nhttps://discord.gg/{inviteCode}`,
@@ -61,6 +57,7 @@ All server members who have ever joined the server automatically consent to the 
 	// Commands.
 	descHelp: `Shows the bot commands.`,
     descLore: `Command for the lore.`,
+    descLoreCreate: `Add a new lore snippet to a server file.`,
     descInfo: `Information about the lore.`,
     descLotteryKick: `{kickChance}% chance to be kicked from the server. Good luck!`,
     descVoiceJoin: `Joins the selected voice channel.`,
@@ -71,5 +68,7 @@ All server members who have ever joined the server automatically consent to the 
 
     optionChannel: `Select a voice channel.`,
     optionSound: `Select a sound to play.`,
-	optionVolumeLevel: `Volume level from 0 to 100.`
+	optionVolumeLevel: `Volume level from 0 to 100.`,
+	optionLanguageCode: `Language code (e.g.: en, uk).`,
+	optionSnippet: `The lore snippet text.`
 }

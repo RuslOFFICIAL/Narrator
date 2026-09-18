@@ -44,18 +44,49 @@ function getLocText(interaction, key, variables = {}) {
     return text;
 }
 
-const rawSnippetsUk = loadSafeModule('./locales/uk-lore.js', []);
-const rawSnippetsEn = loadSafeModule('./locales/en-lore.js', []);
-
 function getLocalizedLoreSnippets(interaction) {
-    const langCode = interaction.locale?.startsWith('en') ? 'en' : 'uk';
-    const snippets = langCode === 'en' ? rawSnippetsEn : rawSnippetsUk;
+    const guildId = interaction.guildId || 'default';
+    const loresDir = './lores';
     
-    return snippets.map(snippet => 
+    // Get the user's language code from Discord (e.g.: 'uk', 'en-US', etc.)
+    const userLocale = interaction.locale ? interaction.locale.split('-')[0] : 'en';
+    
+    let filePath = `${loresDir}/${guildId}_${userLocale}.js`;
+    
+    // User's language.
+    if (!fs.existsSync(filePath)) {
+        // Fallback to English ('en') if user language is missing.
+        filePath = `${loresDir}/${guildId}_en.js`;
+        
+        if (!fs.existsSync(filePath)) {
+            // Fallback to a random available language file for this guild.
+            try {
+                if (fs.existsSync(loresDir)) {
+                    const files = fs.readdirSync(loresDir);
+                    const guildFiles = files.filter(file => file.startsWith(`${guildId}_`) && file.endsWith('.js'));
+                    
+                    if (guildFiles.length > 0) {
+                        const randomFile = guildFiles[Math.floor(Math.random() * guildFiles.length)];
+                        filePath = `${loresDir}/${randomFile}`;
+                    }
+                }
+            } catch (err) {
+                consoleLog('[WARNING] Failed to scan lores directory for fallback:', err);
+            }
+        }
+    }
+    
+    const rawSnippets = loadSafeModule(filePath, null);
+    
+    if (!rawSnippets || rawSnippets.length === 0) {
+        consoleLog(`[WARNING] Lore snippets not found or empty for guild ${guildId} using path ${filePath}`);
+        return ['Lore snippets are currently unavailable.'];
+    }
+    
+    return rawSnippets.map(snippet => 
         snippet
-			// Variables for lore snippets.
-            .replace('$loreLink$', CONFIG.loreLink)
-            .replace('$loreLinkKey$', CONFIG.loreLinkKey)
+            .replace(/\$loreLink\$/g, CONFIG.loreLink || '')
+            .replace(/\$loreLinkKey\$/g, CONFIG.loreLinkKey || '')
     );
 }
 
@@ -218,10 +249,10 @@ async function shutdown() {
 // Shared execution context package passed to command modules.
 const executionContext = {
     client, get isBotReady() { return isBotReady; }, CONFIG, locales, defaultLang,
-    rawSnippetsEn, rawSnippetsUk, voiceConnections, guildVolumes, guildPlayers, 
+    voiceConnections, guildVolumes, guildPlayers, 
     get currentVolume() { return currentVolume; }, set currentVolume(v) { currentVolume = v; },
     getCmdText, getLocText, getLocalizedLoreSnippets, consoleLog, getTimestamp, 
-    makeLogMessage, isWhiteListIn, isWhiteListNot, shutdown, rl
+    makeLogMessage, isWhiteListIn, isWhiteListNot, shutdown, rl, loadSafeModule
 };
 
 // Run this code after the client is ready.

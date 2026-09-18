@@ -1,10 +1,10 @@
 # Directories.
-/sounds/*
+sounds/*
+lores/
 
 # Files.
 *.lnk
-/locales/*-lore.js
-!/sounds/README.md
+!sounds/README.md
 
 # Environment variables.
 .env

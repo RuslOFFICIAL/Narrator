@@ -1,6 +1,6 @@
 {
 	"name": "narrator",
-	"version": "8.4.2",
+	"version": "9.0.0",
 	"description": "Narrator bot for Discord.",
 	"main": "narrator.js",
 	"author": "Rusl",

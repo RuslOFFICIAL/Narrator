@@ -7,7 +7,7 @@ async function handleTerminalLine(line, context) {
         client, isBotReady, CONFIG, locales, defaultLang, 
         rawSnippetsEn, rawSnippetsUk, voiceConnections, 
         guildVolumes, guildPlayers, currentVolume, 
-        consoleLog, getTimestamp, shutdown, rl 
+        consoleLog, getTimestamp, shutdown, rl , loadSafeModule
     } = context;
 
     const trimmedLine = line.trim();
@@ -27,7 +27,8 @@ async function handleTerminalLine(line, context) {
 			// Bot.
             case 'help':
                 consoleLog(`[${getTimestamp()}] Commands:\nBOT:\n- help: Show terminal commands.\n- exit/stop/shutdown: Shut down the bot.\n- status: Status of the bot.\n- ping: Check bot latency.\n- clear: Clear the terminal screen.\n\n
-SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by ID.\n- lore: Print a random lore snippet.\n- info: Show bot info and links.\n- voice-join: Connect bot to specified voice channel by ID.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.\n- soundboard-stop: Stop playing the soundboard audio.\n- soundboard-volume: Set playback volume (0-100).`);
+SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by ID.\n- lore: Print a random lore snippet.\n- lore-create: Create lore file for a guild.\n- info: Show bot info and links.\n- voice-join: Connect bot to specified voice channel by ID.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.\n- soundboard-stop: Stop playing the soundboard audio.\n- soundboard-volume: Set playback volume (0-100).\n\n
+Check command formats in file 'formats.md'.`);
                 break;
             
             case 'exit':
@@ -108,17 +109,171 @@ SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by
                 break;
             
             case 'lore':
-                const rawSnippets = defaultLang === 'en' ? rawSnippetsEn : rawSnippetsUk;
-                if (!rawSnippets || rawSnippets.length === 0) {
-                    consoleLog(`[${getTimestamp()}] No lore snippets found.`);
+                if (!fs.existsSync('./lores')) {
+                    consoleLog(`[${getTimestamp()}] Error: './lores' directory not found.`);
                     break;
                 }
-                const randomIndex = Math.floor(Math.random() * rawSnippets.length);
-                const selectedSnippet = rawSnippets[randomIndex]
+                
+                const allLoreFiles = fs.readdirSync('./lores').filter(file => file.endsWith('.js'));
+                if (allLoreFiles.length === 0) {
+                    consoleLog(`[${getTimestamp()}] No guild lore files found in './lores'.`);
+                    break;
+                }
+
+                let targetFile = null;
+                let rawSnippets = [];
+
+                let requestedGuildId = null;
+                let requestedLang = null;
+
+                if (args[1]) {
+                    const isKnownGuild = allLoreFiles.some(file => file.startsWith(args[1] + '_'));
+
+                    if (isKnownGuild) {
+                        // Format: lore [GUILD_ID] or lore [GUILD_ID] [LANG]
+						requestedGuildId = args[1];
+                        if (args[2]) {
+                            requestedLang = args[2];
+                        }
+                    } else {
+                        // Format: lore [LANG]
+                        requestedLang = args[1];
+                    }
+                }
+
+                if (requestedGuildId) {
+                    const languagesToTry = [];
+                    if (requestedLang) languagesToTry.push(requestedLang);
+                    if (defaultLang && !languagesToTry.includes(defaultLang)) languagesToTry.push(defaultLang);
+
+                    // Try specific languages first.
+                    for (const lang of languagesToTry) {
+                        const filePath = `./lores/${requestedGuildId}_${lang}.js`;
+                        const snippets = loadSafeModule(filePath, []);
+                        if (snippets.length > 0) {
+                            rawSnippets = snippets;
+                            targetFile = `${requestedGuildId}_${lang}.js`;
+                            break;
+                        }
+                    }
+
+                    // If requested/default failed for this guild, fallback to any available language file for this guild.
+                    if (rawSnippets.length === 0) {
+                        const guildFiles = allLoreFiles.filter(file => file.startsWith(`${requestedGuildId}_`));
+                        for (const file of guildFiles) {
+                            const snippets = loadSafeModule(`./lores/${file}`, []);
+                            if (snippets.length > 0) {
+                                rawSnippets = snippets;
+                                targetFile = file;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (rawSnippets.length === 0) {
+                        consoleLog(`[${getTimestamp()}] Error: No non-empty lore files found for guild ID '${requestedGuildId}'.`);
+                        break;
+                    }
+                } else {
+                    const uniqueGuilds = [...new Set(allLoreFiles.map(file => file.split('_')[0]))];
+                    let availableGuilds = [...uniqueGuilds];
+
+                    while (availableGuilds.length > 0) {
+                        const randomGuildIndex = Math.floor(Math.random() * availableGuilds.length);
+                        const candidateGuildId = availableGuilds[randomGuildIndex];
+
+                        const languagesToTry = [];
+                        if (requestedLang) languagesToTry.push(requestedLang);
+                        if (defaultLang && !languagesToTry.includes(defaultLang)) languagesToTry.push(defaultLang);
+
+                        let foundForGuild = false;
+
+                        // Try requested/default languages for this candidate guild.
+                        for (const lang of languagesToTry) {
+                            const filePath = `./lores/${candidateGuildId}_${lang}.js`;
+                            const snippets = loadSafeModule(filePath, []);
+                            if (snippets.length > 0) {
+                                rawSnippets = snippets;
+                                targetFile = `${candidateGuildId}_${lang}.js`;
+                                foundForGuild = true;
+                                break;
+                            }
+                        }
+
+                        if (foundForGuild) break;
+
+                        // Fallback to any other language file for this candidate guild.
+                        const guildFiles = allLoreFiles.filter(file => file.startsWith(`${candidateGuildId}_`));
+                        for (const file of guildFiles) {
+                            const snippets = loadSafeModule(`./lores/${file}`, []);
+                            if (snippets.length > 0) {
+                                rawSnippets = snippets;
+                                targetFile = file;
+                                foundForGuild = true;
+                                break;
+                            }
+                        }
+
+                        if (foundForGuild) break;
+
+                        // If no valid snippets anywhere for this guild, drop it and try another.
+                        availableGuilds.splice(randomGuildIndex, 1);
+                    }
+
+                    if (rawSnippets.length === 0) {
+                        consoleLog(`[${getTimestamp()}] Error: All lore files across all guilds in './lores' are empty.`);
+                        break;
+                    }
+                }
+
+                // Pick a random snippet from the chosen file.
+                const randomSnippetIndex = Math.floor(Math.random() * rawSnippets.length);
+                const selectedSnippet = rawSnippets[randomSnippetIndex]
                     .replace(/\$loreLink\$/g, CONFIG.loreLink || '')
                     .replace(/\$loreLinkKey\$/g, CONFIG.loreLinkKey || '');
-                const loreTemplate = locales[defaultLang]?.replyLore || locales['uk']?.replyLore || 'Lore: {loreSnippet}';
-                consoleLog(`[${getTimestamp()}] ${loreTemplate.replace(/\{loreSnippet\}/g, selectedSnippet)}`);
+                
+                // Determine template language with fallback.
+                const templateLang = requestedLang || defaultLang;
+                const loreTemplate = locales[templateLang]?.replyLore || locales[defaultLang]?.replyLore || locales['uk']?.replyLore || 'Lore: {loreSnippet}';
+                
+                consoleLog(`[${getTimestamp()}] [File: ${targetFile}] ${loreTemplate.replace(/\{loreSnippet\}/g, selectedSnippet)}`);
+                break;
+			
+			case 'lore-create':
+				const guildIdArg = args[1];
+                const langArg = args[2];
+                const snippetText = args.slice(3).join(' ');
+
+                if (!guildIdArg || !langArg || !snippetText) {
+                    consoleLog(`[${getTimestamp()}] Error: Usage -> lore-create [GUILD_ID] [LANGUAGE] [LORE_SNIPPET]`);
+                    break;
+                }
+
+                const loresDir = './lores';
+                if (!fs.existsSync(loresDir)) {
+                    fs.mkdirSync(loresDir, { recursive: true });
+                }
+
+                const filePath = `${loresDir}/${guildIdArg}_${langArg}.js`;
+                let existingSnippets = [];
+
+                if (fs.existsSync(filePath)) {
+                    existingSnippets = loadSafeModule(filePath, []);
+                }
+
+                existingSnippets.push(snippetText);
+
+                // Format back out neatly as a CommonJS module array file.
+                const fileContent = `module.exports = [\n` + 
+                    existingSnippets.map(s => `\t\`${s.replace(/`/g, '\\`')}\``).join(',\n') + 
+                    `\n];\n`;
+
+                try {
+                    fs.writeFileSync(filePath, fileContent, 'utf8');
+                    consoleLog(`[${getTimestamp()}] Success: Added snippet to ${filePath}`);
+                } catch (err) {
+                    consoleLog(`[${getTimestamp()}] Error writing lore file:`, err.message);
+                }
                 break;
             
             case 'info':
