@@ -56,18 +56,18 @@ module.exports = {
 	
 	// Commands.
 	descHelp: `Показує команди бота.`,
-    descLore: `Команда для лору.`,
+	descLore: `Команда для лору.`,
 	descLoreCreate: `Додати новий уривок лору до файлу сервера.`,
-    descInfo: `Інформація про лор.`,
-    descLotteryKick: `{kickChance}% на кік з серверу. Удачі!`,
-    descVoiceJoin: `Заходить в обраний голосовий канал.`,
-    descVoiceLeave: `Покидає голосовий канал.`,
-    descSoundboardPlay: `Запускає обраний звук в голосовому каналі.`,
-    descSoundboardStop: `Припиняє звук в голосовому каналі.`,
+	descInfo: `Інформація про лор.`,
+	descLotteryKick: `{kickChance}% на кік з серверу. Удачі!`,
+	descVoiceJoin: `Заходить в обраний голосовий канал.`,
+	descVoiceLeave: `Покидає голосовий канал.`,
+	descSoundboardPlay: `Запускає обраний звук в голосовому каналі.`,
+	descSoundboardStop: `Припиняє звук в голосовому каналі.`,
 	descSoundboardVolume: `Змінити гучність відтворення бота.`,
 
-    optionChannel: `Виберіть голосовий канал.`,
-    optionSound: `Виберіть звук для відтворення.`,
+	optionChannel: `Виберіть голосовий канал.`,
+	optionSound: `Виберіть звук для відтворення.`,
 	optionVolumeLevel: `Рівень гучності від 0 до 100.`,
 	optionLanguageCode: `Код мови (наприклад: en, uk).`,
 	optionSnippet: `Текст уривка лору.`

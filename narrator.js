@@ -13,85 +13,85 @@ const { handleTerminalLine } = require('./commands/terminal.js');
 
 // Localization.
 function loadSafeModule(filePath, fallbackValue) {
-    try {
-        if (fs.existsSync(filePath)) {
-            return require(filePath);
-        }
-    } catch (error) {
-        console.log(`[Warning] Could not load file at ${filePath}:`, error.message);
-    }
-    return fallbackValue;
+	try {
+		if (fs.existsSync(filePath)) {
+			return require(filePath);
+		}
+	} catch (error) {
+		console.log(`[Warning] Could not load file at ${filePath}:`, error.message);
+	}
+	return fallbackValue;
 }
 
 const locales = {
-    en: loadSafeModule('./locales/en.js', {}),
-    uk: loadSafeModule('./locales/uk.js', {})
+	en: loadSafeModule('./locales/en.js', {}),
+	uk: loadSafeModule('./locales/uk.js', {})
 };
 
 const defaultLang = 'en'; 
 
 function getCmdText(key) {
-    return locales[defaultLang]?.[key] || locales['uk'][key] || key;
+	return locales[defaultLang]?.[key] || locales['uk'][key] || key;
 }
 
 function getLocText(interaction, key, variables = {}) {
-    const langCode = interaction.locale?.startsWith('en') ? 'en' : 'uk';
-    let text = locales[langCode]?.[key] || locales['uk'][key] || key;
+	const langCode = interaction.locale?.startsWith('en') ? 'en' : 'uk';
+	let text = locales[langCode]?.[key] || locales['uk'][key] || key;
 	
-    for (const [varName, value] of Object.entries(variables)) {
-        text = text.replace(new RegExp(`\\{${varName}\\}`, 'g'), value);
-    }
-    return text;
+	for (const [varName, value] of Object.entries(variables)) {
+		text = text.replace(new RegExp(`\\{${varName}\\}`, 'g'), value);
+	}
+	return text;
 }
 
 function getLocalizedLoreSnippets(interaction) {
-    const guildId = interaction.guildId || 'default';
-    const loresDir = './lores';
-    
-    // Get the user's language code from Discord (e.g.: 'uk', 'en-US', etc.)
-    const userLocale = interaction.locale ? interaction.locale.split('-')[0] : 'en';
-    
-    let filePath = `${loresDir}/${guildId}_${userLocale}.js`;
-    
-    // User's language.
-    if (!fs.existsSync(filePath)) {
-        // Fallback to English ('en') if user language is missing.
-        filePath = `${loresDir}/${guildId}_en.js`;
-        
-        if (!fs.existsSync(filePath)) {
-            // Fallback to a random available language file for this guild.
-            try {
-                if (fs.existsSync(loresDir)) {
-                    const files = fs.readdirSync(loresDir);
-                    const guildFiles = files.filter(file => file.startsWith(`${guildId}_`) && file.endsWith('.js'));
-                    
-                    if (guildFiles.length > 0) {
-                        const randomFile = guildFiles[Math.floor(Math.random() * guildFiles.length)];
-                        filePath = `${loresDir}/${randomFile}`;
-                    }
-                }
-            } catch (err) {
-                consoleLog('[WARNING] Failed to scan lores directory for fallback:', err);
-            }
-        }
-    }
-    
-    const rawSnippets = loadSafeModule(filePath, null);
-    
-    if (!rawSnippets || rawSnippets.length === 0) {
-        consoleLog(`[WARNING] Lore snippets not found or empty for guild ${guildId} using path ${filePath}`);
-        return ['Lore snippets are currently unavailable.'];
-    }
-    
-    return rawSnippets.map(snippet => 
-        snippet
-            .replace(/\$loreLink\$/g, CONFIG.loreLink || '')
-            .replace(/\$loreLinkKey\$/g, CONFIG.loreLinkKey || '')
-    );
+	const guildId = interaction.guildId || 'default';
+	const loresDir = './lores';
+	
+	// Get the user's language code from Discord (e.g.: 'uk', 'en-US', etc.)
+	const userLocale = interaction.locale ? interaction.locale.split('-')[0] : 'en';
+	
+	let filePath = `${loresDir}/${guildId}_${userLocale}.js`;
+	
+	// User's language.
+	if (!fs.existsSync(filePath)) {
+		// Fallback to English ('en') if user language is missing.
+		filePath = `${loresDir}/${guildId}_en.js`;
+		
+		if (!fs.existsSync(filePath)) {
+			// Fallback to a random available language file for this guild.
+			try {
+				if (fs.existsSync(loresDir)) {
+					const files = fs.readdirSync(loresDir);
+					const guildFiles = files.filter(file => file.startsWith(`${guildId}_`) && file.endsWith('.js'));
+					
+					if (guildFiles.length > 0) {
+						const randomFile = guildFiles[Math.floor(Math.random() * guildFiles.length)];
+						filePath = `${loresDir}/${randomFile}`;
+					}
+				}
+			} catch (err) {
+				consoleLog('[WARNING] Failed to scan lores directory for fallback:', err);
+			}
+		}
+	}
+	
+	const rawSnippets = loadSafeModule(filePath, null);
+	
+	if (!rawSnippets || rawSnippets.length === 0) {
+		consoleLog(`[WARNING] Lore snippets not found or empty for guild ${guildId} using path ${filePath}`);
+		return ['Lore snippets are currently unavailable.'];
+	}
+	
+	return rawSnippets.map(snippet => 
+		snippet
+			.replace(/\$loreLink\$/g, CONFIG.loreLink || '')
+			.replace(/\$loreLinkKey\$/g, CONFIG.loreLinkKey || '')
+	);
 }
 
 process.on('unhandledRejection', error => {
-    consoleLog(`[${getTimestamp()}] Unhandled promise rejection: `, error);
+	consoleLog(`[${getTimestamp()}] Unhandled promise rejection: `, error);
 });
 
 // Create a new client instance with necessary intents.
@@ -114,8 +114,8 @@ const guildVolumes = new Map();
 const guildPlayers = new Map();
 
 const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
+	input: process.stdin,
+	output: process.stdout,
 	prompt: '> '
 });
 
@@ -248,11 +248,11 @@ async function shutdown() {
 
 // Shared execution context package passed to command modules.
 const executionContext = {
-    client, get isBotReady() { return isBotReady; }, CONFIG, locales, defaultLang,
-    voiceConnections, guildVolumes, guildPlayers, 
-    get currentVolume() { return currentVolume; }, set currentVolume(v) { currentVolume = v; },
-    getCmdText, getLocText, getLocalizedLoreSnippets, consoleLog, getTimestamp, 
-    makeLogMessage, isWhiteListIn, isWhiteListNot, shutdown, rl, loadSafeModule
+	client, get isBotReady() { return isBotReady; }, CONFIG, locales, defaultLang,
+	voiceConnections, guildVolumes, guildPlayers, 
+	get currentVolume() { return currentVolume; }, set currentVolume(v) { currentVolume = v; },
+	getCmdText, getLocText, getLocalizedLoreSnippets, consoleLog, getTimestamp, 
+	makeLogMessage, isWhiteListIn, isWhiteListNot, shutdown, rl, loadSafeModule
 };
 
 // Run this code after the client is ready.
@@ -300,14 +300,14 @@ rl.on('line', async (line) => {
 
 // Shut down the bot.
 if (process.stdin.isTTY) {
-    process.stdin.setRawMode(true);
+	process.stdin.setRawMode(true);
 }
 process.stdin.resume();
 process.stdin.on('data', (key) => {
-    // Ctrl+C.
-    if (key.length === 1 && key[0] === 3) {
-        process.emit('SIGINT');
-    }
+	// Ctrl+C.
+	if (key.length === 1 && key[0] === 3) {
+		process.emit('SIGINT');
+	}
 });
 
 process.once('SIGINT', () => shutdown());
