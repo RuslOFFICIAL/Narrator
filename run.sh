@@ -8,11 +8,11 @@ FILE_STARTUP=narrator.js
 FILE_PACKAGE=package.json
 
 # Install dependencies.
-if [ -f "$FILE_PACKAGE" ]; then
-	npm install
-else
+if [ ! -f "$FILE_PACKAGE" ]; then
 	echo "File '$FILE_PACKAGE' not found."
+	npm init -y
 fi
+npm install
 
 echo
 
