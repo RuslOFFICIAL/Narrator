@@ -83,11 +83,7 @@ function getLocalizedLoreSnippets(interaction) {
 		return [getLocText(interaction, 'replyLoreSnippetsUnavailable')];
 	}
 	
-	return rawSnippets.map(snippet => 
-		snippet
-			.replace(/\$loreLink\$/g, CONFIG.loreLink || '')
-			.replace(/\$loreLinkKey\$/g, CONFIG.loreLinkKey || '')
-	);
+	return rawSnippets.map(snippet => snippet);
 }
 
 process.on('unhandledRejection', error => {
@@ -129,8 +125,7 @@ const CONFIG = {
 	whitelist: process.env.WHITELIST ? process.env.WHITELIST.split(',') : [],
 	authorizedTesters: process.env.AUTHORIZED_TESTERS ? process.env.AUTHORIZED_TESTERS.split(',') : [],
 	
-	loreLink: process.env.LORE_LINK,
-	loreLinkKey: process.env.LORE_LINK_KEY
+
 }
 
 const commands = getCommands(CONFIG, getCmdText);

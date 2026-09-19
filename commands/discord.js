@@ -189,7 +189,7 @@ async function commandInfo(interaction, { CONFIG, getLocText, makeLogMessage, co
 	try {
 		makeLogMessage(interaction);
 		
-		const INFO_TEXT = getLocText(interaction, 'infoText', { loreLink: CONFIG.loreLink, loreLinkKey: CONFIG.loreLinkKey });
+		const INFO_TEXT = getLocText(interaction, 'infoText');
 		await interaction.reply(`Narrator | ${packageJson.version}\n\n${INFO_TEXT}`);
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);

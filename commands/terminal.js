@@ -228,9 +228,7 @@ Check command formats in file 'formats.md'.`);
 
 				// Pick a random snippet from the chosen file.
 				const randomSnippetIndex = Math.floor(Math.random() * rawSnippets.length);
-				const selectedSnippet = rawSnippets[randomSnippetIndex]
-					.replace(/\$loreLink\$/g, CONFIG.loreLink || '')
-					.replace(/\$loreLinkKey\$/g, CONFIG.loreLinkKey || '');
+				const selectedSnippet = rawSnippets[randomSnippetIndex];
 				
 				// Determine template language with fallback.
 				const templateLang = requestedLang || defaultLang;
@@ -278,7 +276,7 @@ Check command formats in file 'formats.md'.`);
 			
 			case 'info':
 				const infoText = locales[defaultLang]?.infoText || locales['uk']?.infoText || 'Info text unavailable';
-				consoleLog(`[${getTimestamp()}] Bot Info:\nNarrator | ${packageJson.version}\n\n${infoText.replace(/\{loreLink\}/g, CONFIG.loreLink || '').replace(/\{loreLinkKey\}/g, CONFIG.loreLinkKey || '')}`);
+				consoleLog(`[${getTimestamp()}] Bot Info:\nNarrator | ${packageJson.version}\n\n${infoText}`);
 				break;
 			
 			case 'voice-join':
