@@ -168,12 +168,8 @@ function makeLogMessage(interaction) {
 	consoleLog(logMessage);
 }
 
-// Add "if (await isWhiteListIn(interaction)) return;", if is in whitelist, and "if (await isWhiteListNot(interaction)) return;", if is not in whitelist, at the beggining of command to make it for Authorized Testers. Comment it with "//" to disable the tester check.
-async function isWhiteListIn(interaction) {
-	if(CONFIG.whitelist.includes(interaction.user.id)) {
-		const logMessage = `[${getTimestamp()}] [Whitelist Command Used] '/${interaction.commandName}' was executed by a whitelist user: @${interaction.user.tag} (${interaction.user.id})`;
-		consoleLog(logMessage);
-
+async function isWhitelist(interaction) {
+	if (CONFIG.whitelist.includes(interaction.user.id)) {
 		await interaction.reply({
 			content: getLocText(interaction, 'replyWhitelistYes'),
 			flags: [MessageFlags.Ephemeral]
@@ -183,11 +179,8 @@ async function isWhiteListIn(interaction) {
 	return false;
 }
 
-async function isWhiteListNot(interaction) {
-	if(!CONFIG.whitelist.includes(interaction.user.id)) {
-		const logMessage = `[${getTimestamp()}] [Whitelist Command Failed] '/${interaction.commandName}' was executed by not a whitelist user: @${interaction.user.tag} (${interaction.user.id})`;
-		consoleLog(logMessage);
-
+async function isWhitelistNot(interaction) {
+	if (!CONFIG.whitelist.includes(interaction.user.id)) {
 		await interaction.reply({
 			content: getLocText(interaction, 'replyWhitelistNo'),
 			flags: [MessageFlags.Ephemeral]
@@ -197,12 +190,8 @@ async function isWhiteListNot(interaction) {
 	return false;
 }
 
-// Add "if (!(await isAuthorizedTester(interaction))) return;" at the beggining of command to make it for Authorized Testers. Comment it with "//" to disable the tester check.
 async function isAuthorizedTester(interaction) {
-	if(!CONFIG.authorizedTesters.includes(interaction.user.id)) {
-		const logMessage = `[${getTimestamp()}] [Testing Command Used] '/${interaction.commandName}' was executed by not a tester: @${interaction.user.tag} (${interaction.user.id})`;
-		consoleLog(logMessage);
-
+	if (!CONFIG.authorizedTesters.includes(interaction.user.id)) {
 		await interaction.reply({
 			content: getLocText(interaction, 'replyAuthorizedTester'),
 			flags: [MessageFlags.Ephemeral]
@@ -210,6 +199,23 @@ async function isAuthorizedTester(interaction) {
 		return false;
 	}
 	return true;
+}
+
+async function isGuildNot(interaction) {
+	if (!interaction.inGuild()) {
+		await interaction.reply({ content: getLocText(interaction, 'replyGuild'), flags: [MessageFlags.Ephemeral] });
+		return true;
+	}
+	return false;
+}
+
+async function isVoiceNot(interaction) {
+	const connection = voiceConnections.get(interaction.guildId);
+	if (!connection) {
+		await interaction.reply({ content: getLocText(interaction, 'replyNotInVoice'), flags: [MessageFlags.Ephemeral] });
+		return true;
+	}
+	return false;
 }
 
 async function shutdown() {
@@ -252,7 +258,7 @@ const executionContext = {
 	voiceConnections, guildVolumes, guildPlayers, 
 	get currentVolume() { return currentVolume; }, set currentVolume(v) { currentVolume = v; },
 	getCmdText, getLocText, getLocalizedLoreSnippets, consoleLog, getTimestamp, 
-	makeLogMessage, isWhiteListIn, isWhiteListNot, shutdown, rl, loadSafeModule
+	makeLogMessage, isWhitelist, isWhitelistNot, isGuildNot, isVoiceNot, shutdown, rl, loadSafeModule
 };
 
 // Run this code after the client is ready.
