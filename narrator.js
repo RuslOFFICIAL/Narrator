@@ -123,9 +123,7 @@ const CONFIG = {
 	
 	kickChance: parseInt(process.env.KICK_CHANCE, 10) || 10,
 	whitelist: process.env.WHITELIST ? process.env.WHITELIST.split(',') : [],
-	authorizedTesters: process.env.AUTHORIZED_TESTERS ? process.env.AUTHORIZED_TESTERS.split(',') : [],
-	
-
+	authorizedTesters: process.env.AUTHORIZED_TESTERS ? process.env.AUTHORIZED_TESTERS.split(',') : []
 }
 
 const commands = getCommands(CONFIG, getCmdText);
