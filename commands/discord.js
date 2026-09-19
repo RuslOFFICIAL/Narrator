@@ -178,7 +178,7 @@ async function commandLoreCreate(interaction, { getLocText, makeLogMessage, cons
 		fs.writeFileSync(filePath, fileContent, 'utf8');
 		consoleLog(`[${getTimestamp()}] Success: Added snippet via Discord to ${filePath}`);
 
-		await interaction.reply(getLocText(interaction, 'replyLoreCreateSuccess', { guildId: guildIdArg, lang: langArg }));
+		await interaction.reply({ content: getLocText(interaction, 'replyLoreCreateSuccess', { guildId: guildIdArg, lang: langArg }), flags: [MessageFlags.Ephemeral] });
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
 		await interaction.reply({ content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
