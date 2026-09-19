@@ -4,7 +4,7 @@ const { joinVoiceChannel, createAudioPlayer, createAudioResource, VoiceConnectio
 
 async function handleTerminalLine(line, context) {
 	const { 
-		client, isBotReady, CONFIG, locales, defaultLang, 
+		client, isBotReady, CONFIG, locales, defaultLang, packageJson,
 		rawSnippetsEn, rawSnippetsUk, voiceConnections, 
 		guildVolumes, guildPlayers, currentVolume, 
 		consoleLog, getTimestamp, shutdown, rl , loadSafeModule
@@ -278,7 +278,7 @@ Check command formats in file 'formats.md'.`);
 			
 			case 'info':
 				const infoText = locales[defaultLang]?.infoText || locales['uk']?.infoText || 'Info text unavailable';
-				consoleLog(`[${getTimestamp()}] Bot Info:\n${infoText.replace(/\{loreLink\}/g, CONFIG.loreLink || '').replace(/\{loreLinkKey\}/g, CONFIG.loreLinkKey || '')}`);
+				consoleLog(`[${getTimestamp()}] Bot Info:\nNarrator | ${packageJson.version}\n\n${infoText.replace(/\{loreLink\}/g, CONFIG.loreLink || '').replace(/\{loreLinkKey\}/g, CONFIG.loreLinkKey || '')}`);
 				break;
 			
 			case 'voice-join':

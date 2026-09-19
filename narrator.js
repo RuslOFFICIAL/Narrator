@@ -254,7 +254,7 @@ async function shutdown() {
 
 // Shared execution context package passed to command modules.
 const executionContext = {
-	client, get isBotReady() { return isBotReady; }, CONFIG, locales, defaultLang,
+	client, get isBotReady() { return isBotReady; }, CONFIG, locales, defaultLang, packageJson,
 	voiceConnections, guildVolumes, guildPlayers, 
 	get currentVolume() { return currentVolume; }, set currentVolume(v) { currentVolume = v; },
 	getCmdText, getLocText, getLocalizedLoreSnippets, consoleLog, getTimestamp, 

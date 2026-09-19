@@ -33,7 +33,7 @@ function getCommands(CONFIG, getCmdText) {
 
 async function handleDiscordInteraction(interaction, context) {
 	const { 
-		isBotReady, CONFIG, getLocText, getLocalizedLoreSnippets, 
+		isBotReady, CONFIG, getLocText, getLocalizedLoreSnippets, packageJson,
 		consoleLog, getTimestamp, makeLogMessage, 
 		voiceConnections, guildVolumes, guildPlayers, currentVolume,
 		isWhitelist, isWhitelistNot, isAuthorizedTester, isGuildNot, isVoiceNot
@@ -185,12 +185,12 @@ async function commandLoreCreate(interaction, { getLocText, makeLogMessage, cons
 	}
 }
 
-async function commandInfo(interaction, { CONFIG, getLocText, makeLogMessage, consoleLog, getTimestamp }) {
+async function commandInfo(interaction, { CONFIG, getLocText, makeLogMessage, consoleLog, getTimestamp, packageJson }) {
 	try {
 		makeLogMessage(interaction);
 		
 		const INFO_TEXT = getLocText(interaction, 'infoText', { loreLink: CONFIG.loreLink, loreLinkKey: CONFIG.loreLinkKey });
-		await interaction.reply(INFO_TEXT);
+		await interaction.reply(`Narrator | ${packageJson.version}\n\n${INFO_TEXT}`);
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
 		await interaction.reply({ content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });

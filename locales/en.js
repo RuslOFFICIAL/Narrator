@@ -12,7 +12,7 @@ module.exports = {
 /soundboard-play - Plays the selected sound in the voice channel.
 /soundboard-stop - Stops the sound in the voice channel.`,
 	
-	infoText: `This server's lore is written by members with the "Manage Server" permission.
+	infoText: `This server's lore is written by members with the "Manage Server" or "Administrator" permission.
 It is not created by the creator of the "Narrator" bot.`,	
 	
 	// Messages.
@@ -30,7 +30,7 @@ It is not created by the creator of the "Narrator" bot.`,
 	replyLore: `Lore? Well, alright...\n\n{loreSnippet}`,
 	
 	replyLoreCreateSuccess: `Successfully added lore snippet to '{guildId}_{lang}.js'!`,
-	replyLoreCreateNoPermission: `You don't have permission to use this command (Requires "Manage Server" or "Administrator").`,
+	replyLoreCreateNoPermission: `You don't have permission to use this command (Requires "Manage Server" or "Administrator" permission).`,
 	replyLoreCreateError: `Failed to add lore snippet.`,
 	
 	replyLotteryKickYes: `<@{userId}>\n\nOh, it seems luck is not on your side today. Too bad... actually, not really.\n\nYour kick is in 30 seconds. Write your last words.`,
