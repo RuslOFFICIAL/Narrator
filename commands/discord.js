@@ -115,9 +115,9 @@ async function handleDiscordInteraction(interaction, context) {
 
 // Discord commands.
 async function commandHelp(interaction, { CONFIG, getLocText, makeLogMessage, consoleLog, getTimestamp }) {
-	makeLogMessage(interaction);
-	
 	try {
+		makeLogMessage(interaction);
+		
 		const HELP_TEXT = getLocText(interaction, 'helpText', { kickChance: CONFIG.kickChance });
 		await interaction.reply(HELP_TEXT);
 	} catch (error) {
@@ -127,9 +127,9 @@ async function commandHelp(interaction, { CONFIG, getLocText, makeLogMessage, co
 }
 
 async function commandLore(interaction, { getLocalizedLoreSnippets, getLocText, makeLogMessage, consoleLog, getTimestamp }) {
-	makeLogMessage(interaction);
-	
 	try {
+		makeLogMessage(interaction);
+		
 		const loreSnippets = getLocalizedLoreSnippets(interaction);
 		const randomIndex = Math.floor(Math.random() * loreSnippets.length);
 		const replyText = getLocText(interaction, 'replyLore', { loreSnippet: loreSnippets[randomIndex] });
@@ -140,11 +140,9 @@ async function commandLore(interaction, { getLocalizedLoreSnippets, getLocText, 
 	}
 }
 
-async function commandLoreCreate(interaction, { getLocText, makeLogMessage, consoleLog, getTimestamp, loadSafeModule }) {
-	if (await isGuildNot(interaction)) return;
-	makeLogMessage(interaction);
-	
+async function commandLoreCreate(interaction, { getLocText, makeLogMessage, consoleLog, getTimestamp, loadSafeModule, isGuildNot }) {
 	try {
+		if (await isGuildNot(interaction)) return;
 		// Check if user has Administrator or Manage Server permissions.
 		if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && 
 			!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
@@ -154,6 +152,7 @@ async function commandLoreCreate(interaction, { getLocText, makeLogMessage, cons
 			});
 			return;
 		}
+		makeLogMessage(interaction);
 		
 		const guildIdArg = interaction.guildId || 'default';
 		const langArg = interaction.options.getString('language_code');
@@ -187,9 +186,9 @@ async function commandLoreCreate(interaction, { getLocText, makeLogMessage, cons
 }
 
 async function commandInfo(interaction, { CONFIG, getLocText, makeLogMessage, consoleLog, getTimestamp }) {
-	makeLogMessage(interaction);
-	
 	try {
+		makeLogMessage(interaction);
+		
 		const INFO_TEXT = getLocText(interaction, 'infoText', { loreLink: CONFIG.loreLink, loreLinkKey: CONFIG.loreLinkKey });
 		await interaction.reply(INFO_TEXT);
 	} catch (error) {
@@ -198,12 +197,12 @@ async function commandInfo(interaction, { CONFIG, getLocText, makeLogMessage, co
 	}
 }
 
-async function commandLotteryKick(interaction, { CONFIG, getLocText, makeLogMessage, consoleLog, getTimestamp, isWhitelist }) {
-	if (await isWhitelist(interaction)) return;
-	if (await isGuildNot(interaction)) return;
-	makeLogMessage(interaction);
-	
+async function commandLotteryKick(interaction, { CONFIG, getLocText, makeLogMessage, consoleLog, getTimestamp, isWhitelist, isGuildNot }) {
 	try {
+		if (await isWhitelist(interaction)) return;
+		if (await isGuildNot(interaction)) return;
+		makeLogMessage(interaction);
+		
 		const roll = Math.floor(Math.random() * 100) + 1;
 		if (roll <= CONFIG.kickChance) {
 			const kickMsg = getLocText(interaction, 'replyLotteryKickYes', { userId: interaction.user.id });
@@ -230,12 +229,12 @@ async function commandLotteryKick(interaction, { CONFIG, getLocText, makeLogMess
 	}
 }
 
-async function commandVoiceJoin(interaction, { getLocText, makeLogMessage, consoleLog, getTimestamp, isWhitelistNot, voiceConnections }) {
-	if (await isWhitelistNot(interaction)) return;
-	if (await isGuildNot(interaction)) return;
-	makeLogMessage(interaction);
-	
+async function commandVoiceJoin(interaction, { getLocText, makeLogMessage, consoleLog, getTimestamp, isWhitelistNot, voiceConnections, isGuildNot }) {
 	try {
+		if (await isWhitelistNot(interaction)) return;
+		if (await isGuildNot(interaction)) return;
+		makeLogMessage(interaction);
+		
 		const optionChannel = interaction.options.getChannel('channel');
 		if (!optionChannel) {
 			await interaction.reply({ content: getLocText(interaction, 'replyVoiceNotFound', { channelId: 'unknown' }), flags: [MessageFlags.Ephemeral] });
@@ -261,13 +260,13 @@ async function commandVoiceJoin(interaction, { getLocText, makeLogMessage, conso
 	}
 }
 
-async function commandVoiceLeave(interaction, { getLocText, makeLogMessage, consoleLog, getTimestamp, isWhitelistNot, voiceConnections }) {
-	if (await isWhitelistNot(interaction)) return;
-	if (await isGuildNot(interaction)) return;
-	if (await isVoiceNot(interaction)) return;
-	makeLogMessage(interaction);
-	
+async function commandVoiceLeave(interaction, { getLocText, makeLogMessage, consoleLog, getTimestamp, isWhitelistNot, voiceConnections, isGuildNot, isVoiceNot }) {
 	try {
+		if (await isWhitelistNot(interaction)) return;
+		if (await isGuildNot(interaction)) return;
+		if (await isVoiceNot(interaction)) return;
+		makeLogMessage(interaction);
+		
 		connection.destroy();
 		voiceConnections.delete(interaction.guildId);
 		consoleLog(`[${getTimestamp()}] Successfully left voice channel for guild '${interaction.guildId}' by @${interaction.user.tag} (${interaction.user.id})`);
@@ -278,13 +277,13 @@ async function commandVoiceLeave(interaction, { getLocText, makeLogMessage, cons
 	}
 }
 
-async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, consoleLog, getTimestamp, isWhitelistNot, voiceConnections, guildVolumes, currentVolume, guildPlayers }) {
-	if (await isWhitelistNot(interaction)) return;
-	if (await isGuildNot(interaction)) return;
-	if (await isVoiceNot(interaction)) return;
-	makeLogMessage(interaction);
-	
+async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, consoleLog, getTimestamp, isWhitelistNot, voiceConnections, guildVolumes, currentVolume, guildPlayers, isGuildNot, isVoiceNot }) {
 	try {
+		if (await isWhitelistNot(interaction)) return;
+		if (await isGuildNot(interaction)) return;
+		if (await isVoiceNot(interaction)) return;
+		makeLogMessage(interaction);
+		
 		const soundChoice = interaction.options.getString('sound');
 		const soundPath = `./sounds/${soundChoice}.mp3`;
 		if (!fs.existsSync(soundPath)) {
@@ -306,13 +305,13 @@ async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, 
 	}
 }
 
-async function commandSoundboardStop(interaction, { getLocText, makeLogMessage, consoleLog, getTimestamp, isWhitelistNot, voiceConnections }) {
-	if (await isWhitelistNot(interaction)) return;
-	if (await isGuildNot(interaction)) return;
-	if (await isVoiceNot(interaction)) return;
-	makeLogMessage(interaction);
-	
+async function commandSoundboardStop(interaction, { getLocText, makeLogMessage, consoleLog, getTimestamp, isWhitelistNot, voiceConnections, isGuildNot, isVoiceNot }) {
 	try {
+		if (await isWhitelistNot(interaction)) return;
+		if (await isGuildNot(interaction)) return;
+		if (await isVoiceNot(interaction)) return;
+		makeLogMessage(interaction);
+		
 		const { createAudioPlayer } = require('@discordjs/voice');
 		connection.subscribe(createAudioPlayer());
 		await interaction.reply(getLocText(interaction, 'replySoundboardStopSuccess'));
@@ -322,12 +321,12 @@ async function commandSoundboardStop(interaction, { getLocText, makeLogMessage, 
 	}
 }
 
-async function commandSoundboardVolume(interaction, { getLocText, makeLogMessage, consoleLog, getTimestamp, isWhitelistNot, guildVolumes, guildPlayers }) {
-	if (await isGuildNot(interaction)) return;
-	if (await isWhitelistNot(interaction)) return;
-	makeLogMessage(interaction);
-	
+async function commandSoundboardVolume(interaction, { getLocText, makeLogMessage, consoleLog, getTimestamp, isWhitelistNot, guildVolumes, guildPlayers, isGuildNot }) {
 	try {
+		if (await isGuildNot(interaction)) return;
+		if (await isWhitelistNot(interaction)) return;
+		makeLogMessage(interaction);
+		
 		const volumePercent = interaction.options.getInteger('level');
 		const volume = volumePercent / 100;
 		guildVolumes.set(interaction.guildId, volume);
