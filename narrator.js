@@ -245,13 +245,55 @@ async function shutdown() {
 	}
 }
 
+async function restart() {
+	console.log(`\n[${getTimestamp()}] Restarting the bot safely...`);
+	
+	try {
+		rl.close();
+
+		if (voiceConnections.size > 0) {
+			try {
+				console.log(`[${getTimestamp()}] Leaving voice channels...`);
+				for (const [guildId, connection] of voiceConnections.entries()) {
+					connection.destroy();
+				}
+				voiceConnections.clear();
+				consoleLog(`[${getTimestamp()}] Successfully left all voice channels.`);
+				
+				await new Promise(resolve => setTimeout(resolve, 1000));
+			} catch (error) {
+				consoleLog(`[${getTimestamp()}] Failed to leave voice channels:`, error);
+			}
+		}
+		
+		if (client.ws) {
+			client.ws.destroy();
+		}
+		
+		await client.destroy();
+	} catch (error) {
+		console.log(error);
+	} finally {
+		console.log(`[${getTimestamp()}] Triggering restart...`);
+		
+		// Touch the current script file so nodemon detects a "file change" and restarts cleanly.
+		try {
+			const time = new Date();
+			fs.utimesSync(__filename, time, time);
+		} catch (err) {
+			// Fallback if touching fails.
+		}
+		process.exit(0); 
+	}
+}
+
 // Shared execution context package passed to command modules.
 const executionContext = {
 	client, get isBotReady() { return isBotReady; }, CONFIG, locales, defaultLang, packageJson,
 	voiceConnections, guildVolumes, guildPlayers, 
 	get currentVolume() { return currentVolume; }, set currentVolume(v) { currentVolume = v; },
 	getCmdText, getLocText, getLocalizedLoreSnippets, consoleLog, getTimestamp, 
-	makeLogMessage, isWhitelist, isWhitelistNot, isGuildNot, isVoiceNot, shutdown, rl, loadSafeModule
+	makeLogMessage, isWhitelist, isWhitelistNot, isGuildNot, isVoiceNot, shutdown, restart, rl, loadSafeModule
 };
 
 // Run this code after the client is ready.
