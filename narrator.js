@@ -287,6 +287,22 @@ async function restart() {
 	}
 }
 
+async function loginWithRetry(attempt = 1) {
+	try {
+		await client.login(process.env.DISCORD_TOKEN);
+	} catch (error) {
+		consoleLog(`[${getTimestamp()}] Login failed (attempt ${attempt}): ${error.message}`);
+		if (attempt >= 10) {
+			consoleLog(`[${getTimestamp()}] Giving up after ${attempt} attempts.`);
+			return;
+		}
+		
+		const delayMs = Math.min(60000, 5000 * attempt);
+		consoleLog(`[${getTimestamp()}] Retrying login in ${delayMs / 1000}s...`);
+		setTimeout(() => loginWithRetry(attempt + 1), delayMs);
+	}
+}
+
 // Shared execution context package passed to command modules.
 const executionContext = {
 	client, get isBotReady() { return isBotReady; }, CONFIG, locales, defaultLang, packageJson,
@@ -354,5 +370,4 @@ process.stdin.on('data', (key) => {
 process.once('SIGINT', () => shutdown());
 process.once('SIGTERM', () => shutdown());
 
-// Login.
-client.login(process.env.DISCORD_TOKEN);
+loginWithRetry();
