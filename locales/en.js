@@ -1,7 +1,6 @@
 module.exports = {
 	// Long texts.
-	helpText: `Narrator bot commands:
-
+	helpText: `Narrator bot commands:\n
 /help - Shows the bot commands.
 /lore - Tells one of the parts of the lore.
 /lore-create - Add a new lore snippet to a server file.
