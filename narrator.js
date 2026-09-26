@@ -1,90 +1,45 @@
 // Dependencies.
 require('dotenv').config();
 const fs = require('fs');
+const path = require('path');
 const readline = require('readline');
-const { spawn, exec } = require('child_process');
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActivityType, InteractionContextType, ApplicationIntegrationType, MessageFlags, ChannelType } = require('discord.js');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, StreamType, VoiceConnectionStatus } = require('@discordjs/voice');
+const { Client, GatewayIntentBits, REST, Routes, ActivityType, MessageFlags } = require('discord.js');
 const packageJson = require('./package.json');
 
-// Import modularized commands
+// Import modularized commands and helpers.
 const { getCommands, handleDiscordInteraction } = require('./commands/discord.js');
 const { handleTerminalLine } = require('./commands/terminal.js');
+const {
+	loadSafeModule,	getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets,
+	consoleLog: _consoleLog, getTimestamp, makeLogMessage: _makeLogMessage,
+	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTester: _isAuthorizedTester, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
+	shutdown: _shutdown, restart: _restart, loginWithRetry
+} = require('./commands/helpers.js');
 
-// Localization.
-function loadSafeModule(filePath, fallbackValue) {
-	try {
-		if (fs.existsSync(filePath)) {
-			return require(filePath);
-		}
-	} catch (error) {
-		console.log(`[Warning] Could not load file at ${filePath}:`, error.message);
-	}
-	return fallbackValue;
+const localesDir = path.join(__dirname, 'locales');
+const languages = ['en', 'uk'];
+
+const locales = {};
+for (const lang of languages) {
+	const filePath = `${localesDir}/${lang}.js`;
+	locales[lang] = loadSafeModule(filePath, {});
 }
 
-const locales = {
-	en: loadSafeModule('./locales/en.js', {}),
-	uk: loadSafeModule('./locales/uk.js', {})
-};
+const defaultLang = 'en';
 
-const defaultLang = 'en'; 
-
-function getCmdText(key) {
-	return locales[defaultLang]?.[key] || locales['uk'][key] || key;
-}
-
-function getLocText(interaction, key, variables = {}) {
-	const langCode = interaction.locale?.startsWith('en') ? 'en' : 'uk';
-	let text = locales[langCode]?.[key] || locales['uk'][key] || key;
-	
-	for (const [varName, value] of Object.entries(variables)) {
-		text = text.replace(new RegExp(`\\{${varName}\\}`, 'g'), value);
-	}
-	return text;
-}
-
-function getLocalizedLoreSnippets(interaction) {
-	const guildId = interaction.guildId || 'default';
-	const loresDir = './lores';
-	
-	// Get the user's language code from Discord (e.g.: 'uk', 'en-US', etc.)
-	const userLocale = interaction.locale ? interaction.locale.split('-')[0] : 'en';
-	
-	let filePath = `${loresDir}/${guildId}_${userLocale}.js`;
-	
-	// User's language.
-	if (!fs.existsSync(filePath)) {
-		// Fallback to English ('en') if user language is missing.
-		filePath = `${loresDir}/${guildId}_en.js`;
-		
-		if (!fs.existsSync(filePath)) {
-			// Fallback to a random available language file for this guild.
-			try {
-				if (fs.existsSync(loresDir)) {
-					const files = fs.readdirSync(loresDir);
-					const guildFiles = files.filter(file => file.startsWith(`${guildId}_`) && file.endsWith('.js'));
-					
-					if (guildFiles.length > 0) {
-						const randomFile = guildFiles[Math.floor(Math.random() * guildFiles.length)];
-						filePath = `${loresDir}/${randomFile}`;
-					}
-				}
-			} catch (err) {
-				consoleLog('[WARNING] Failed to scan lores directory for fallback:', err);
-			}
-		}
-	}
-	
-	const rawSnippets = loadSafeModule(filePath, null);
-	
-	if (!rawSnippets || rawSnippets.length === 0) {
-		consoleLog(`[WARNING] Lore snippets not found or empty for guild ${guildId} using path ${filePath}`);
-		return [getLocText(interaction, 'replyLoreSnippetsUnavailable')];
-	}
-	
-	return rawSnippets.map(snippet => snippet);
-}
+// Wrapper functions to keep context clean for "executionContext".
+const consoleLog = (...args) => _consoleLog(rl, ...args);
+const getCmdText = (key) => _getCmdText(key, locales, defaultLang);
+const getLocText = (interaction, key, vars) => _getLocText(interaction, key, vars, locales);
+const getLocalizedLoreSnippets = (interaction) => _getLocalizedLoreSnippets(interaction, locales, defaultLang);
+const makeLogMessage = (interaction) => _makeLogMessage(interaction, rl);
+const isWhitelist = (interaction) => _isWhitelist(interaction, CONFIG, locales);
+const isWhitelistNot = (interaction) => _isWhitelistNot(interaction, CONFIG, locales);
+const isAuthorizedTester = (interaction) => _isAuthorizedTester(interaction, CONFIG, locales);
+const isGuildNot = (interaction) => _isGuildNot(interaction, locales);
+const isVoiceNot = (interaction) => _isVoiceNot(interaction, voiceConnections, locales);
+const shutdown = () => _shutdown(client, voiceConnections, rl);
+const restart = () => _restart(client, voiceConnections, rl, __filename);
 
 process.on('unhandledRejection', error => {
 	consoleLog(`[${getTimestamp()}] Unhandled promise rejection: `, error);
@@ -127,181 +82,6 @@ const CONFIG = {
 }
 
 const commands = getCommands(CONFIG, getCmdText);
-
-// Functions.
-function consoleLog(...args) {
-	readline.clearLine(process.stdout, 0);
-	readline.cursorTo(process.stdout, 0);
-	console.log(...args);
-	
-	try {
-		rl.prompt(true);
-	} catch (err) {
-		// Readline is closed, ignore or handle silently.
-	}
-}
-
-function getTimestamp() {
-	const now = new Date();
-	
-	const hours = String(now.getUTCHours()).padStart(2, '0');
-	const minutes = String(now.getUTCMinutes()).padStart(2, '0');
-	const seconds = String(now.getUTCSeconds()).padStart(2, '0');
-	const timeStr = `${hours}:${minutes}:${seconds}`;
-	
-	const dateStr = String(now.getUTCDate()).padStart(2, '0') + '.' + 
-		String(now.getUTCMonth() + 1).padStart(2, '0') + '.' + 
-		now.getUTCFullYear();
-	
-	return `${timeStr} ${dateStr} UTC`;
-}
-
-function makeLogMessage(interaction) {
-	const logMessage = `[${getTimestamp()}] [Command Used] '/${interaction.commandName}' was executed by @${interaction.user.tag} (${interaction.user.id})`;
-	consoleLog(logMessage);
-}
-
-async function isWhitelist(interaction) {
-	if (CONFIG.whitelist.includes(interaction.user.id)) {
-		await interaction.reply({
-			content: getLocText(interaction, 'replyWhitelistYes'),
-			flags: [MessageFlags.Ephemeral]
-		});
-		return true;
-	}
-	return false;
-}
-
-async function isWhitelistNot(interaction) {
-	if (!CONFIG.whitelist.includes(interaction.user.id)) {
-		await interaction.reply({
-			content: getLocText(interaction, 'replyWhitelistNo'),
-			flags: [MessageFlags.Ephemeral]
-		});
-		return true;
-	}
-	return false;
-}
-
-async function isAuthorizedTester(interaction) {
-	if (!CONFIG.authorizedTesters.includes(interaction.user.id)) {
-		await interaction.reply({
-			content: getLocText(interaction, 'replyAuthorizedTester'),
-			flags: [MessageFlags.Ephemeral]
-		});
-		return false;
-	}
-	return true;
-}
-
-async function isGuildNot(interaction) {
-	if (!interaction.inGuild()) {
-		await interaction.reply({ content: getLocText(interaction, 'replyGuild'), flags: [MessageFlags.Ephemeral] });
-		return true;
-	}
-	return false;
-}
-
-async function isVoiceNot(interaction) {
-	const connection = voiceConnections.get(interaction.guildId);
-	if (!connection) {
-		await interaction.reply({ content: getLocText(interaction, 'replyNotInVoice'), flags: [MessageFlags.Ephemeral] });
-		return true;
-	}
-	return false;
-}
-
-async function shutdown() {
-	console.log(`\n[${getTimestamp()}] Shutting down the bot safely...`);
-	
-	try {
-		rl.close();
-
-		if (voiceConnections.size > 0) {
-			try {
-				console.log(`[${getTimestamp()}] Leaving voice channels...`);
-				for (const [guildId, connection] of voiceConnections.entries()) {
-					connection.destroy();
-				}
-				voiceConnections.clear();
-				consoleLog(`[${getTimestamp()}] Successfully left all voice channels.`);
-				
-				await new Promise(resolve => setTimeout(resolve, 1000));
-			} catch (error) {
-				consoleLog(`[${getTimestamp()}] Failed to leave voice channels:`, error);
-			}
-		}
-		
-		if (client.ws) {
-			client.ws.destroy();
-		}
-		
-		await client.destroy();
-	} catch (error) {
-		console.log(error);
-	} finally {
-		console.log("Press 'Ctrl+C' or close the window to end process, or make some changes in files.");
-		process.exit(0);
-	}
-}
-
-async function restart() {
-	console.log(`\n[${getTimestamp()}] Restarting the bot safely...`);
-	
-	try {
-		rl.close();
-
-		if (voiceConnections.size > 0) {
-			try {
-				console.log(`[${getTimestamp()}] Leaving voice channels...`);
-				for (const [guildId, connection] of voiceConnections.entries()) {
-					connection.destroy();
-				}
-				voiceConnections.clear();
-				consoleLog(`[${getTimestamp()}] Successfully left all voice channels.`);
-				
-				await new Promise(resolve => setTimeout(resolve, 1000));
-			} catch (error) {
-				consoleLog(`[${getTimestamp()}] Failed to leave voice channels:`, error);
-			}
-		}
-		
-		if (client.ws) {
-			client.ws.destroy();
-		}
-		
-		await client.destroy();
-	} catch (error) {
-		console.log(error);
-	} finally {
-		console.log(`[${getTimestamp()}] Triggering restart...`);
-		
-		// Touch the current script file so nodemon detects a "file change" and restarts cleanly.
-		try {
-			const time = new Date();
-			fs.utimesSync(__filename, time, time);
-		} catch (err) {
-			// Fallback if touching fails.
-		}
-		process.exit(0); 
-	}
-}
-
-async function loginWithRetry(attempt = 1) {
-	try {
-		await client.login(process.env.DISCORD_TOKEN);
-	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Login failed (attempt ${attempt}): ${error.message}`);
-		if (attempt >= 10) {
-			consoleLog(`[${getTimestamp()}] Giving up after ${attempt} attempts.`);
-			return;
-		}
-		
-		const delayMs = Math.min(60000, 5000 * attempt);
-		consoleLog(`[${getTimestamp()}] Retrying login in ${delayMs / 1000}s...`);
-		setTimeout(() => loginWithRetry(attempt + 1), delayMs);
-	}
-}
 
 // Shared execution context package passed to command modules.
 const executionContext = {
@@ -370,4 +150,4 @@ process.stdin.on('data', (key) => {
 process.once('SIGINT', () => shutdown());
 process.once('SIGTERM', () => shutdown());
 
-loginWithRetry();
+loginWithRetry(client);

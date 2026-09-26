@@ -1,6 +1,11 @@
+// Dependencies.
 const fs = require('fs');
+const path = require('path');
 const { exec } = require('child_process');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, VoiceConnectionStatus } = require('@discordjs/voice');
+
+// Variables.
+const loresDir = path.join(__dirname, '../lores');
 
 async function handleTerminalLine(line, context) {
 	const { 
@@ -115,14 +120,14 @@ Check command formats in file 'formats.md'.`);
 				break;
 			
 			case 'lore':
-				if (!fs.existsSync('./lores')) {
-					consoleLog(`[${getTimestamp()}] Error: './lores' directory not found.`);
+				if (!fs.existsSync(loresDir)) {
+					consoleLog(`[${getTimestamp()}] Error: '${loresDir}' directory not found.`);
 					break;
 				}
 				
-				const allLoreFiles = fs.readdirSync('./lores').filter(file => file.endsWith('.js'));
+				const allLoreFiles = fs.readdirSync(loresDir).filter(file => file.endsWith('.js'));
 				if (allLoreFiles.length === 0) {
-					consoleLog(`[${getTimestamp()}] No guild lore files found in './lores'.`);
+					consoleLog(`[${getTimestamp()}] No guild lore files found in '${loresDir}'.`);
 					break;
 				}
 
@@ -154,7 +159,7 @@ Check command formats in file 'formats.md'.`);
 
 					// Try specific languages first.
 					for (const lang of languagesToTry) {
-						const filePath = `./lores/${requestedGuildId}_${lang}.js`;
+						const filePath = `${loresDir}/${requestedGuildId}_${lang}.js`;
 						const snippets = loadSafeModule(filePath, []);
 						if (snippets.length > 0) {
 							rawSnippets = snippets;
@@ -167,7 +172,7 @@ Check command formats in file 'formats.md'.`);
 					if (rawSnippets.length === 0) {
 						const guildFiles = allLoreFiles.filter(file => file.startsWith(`${requestedGuildId}_`));
 						for (const file of guildFiles) {
-							const snippets = loadSafeModule(`./lores/${file}`, []);
+							const snippets = loadSafeModule(`${loresDir}/${file}`, []);
 							if (snippets.length > 0) {
 								rawSnippets = snippets;
 								targetFile = file;
@@ -196,7 +201,7 @@ Check command formats in file 'formats.md'.`);
 
 						// Try requested/default languages for this candidate guild.
 						for (const lang of languagesToTry) {
-							const filePath = `./lores/${candidateGuildId}_${lang}.js`;
+							const filePath = `${loresDir}/${candidateGuildId}_${lang}.js`;
 							const snippets = loadSafeModule(filePath, []);
 							if (snippets.length > 0) {
 								rawSnippets = snippets;
@@ -211,7 +216,7 @@ Check command formats in file 'formats.md'.`);
 						// Fallback to any other language file for this candidate guild.
 						const guildFiles = allLoreFiles.filter(file => file.startsWith(`${candidateGuildId}_`));
 						for (const file of guildFiles) {
-							const snippets = loadSafeModule(`./lores/${file}`, []);
+							const snippets = loadSafeModule(`${loresDir}/${file}`, []);
 							if (snippets.length > 0) {
 								rawSnippets = snippets;
 								targetFile = file;
@@ -253,28 +258,31 @@ Check command formats in file 'formats.md'.`);
 					break;
 				}
 
-				const loresDir = './lores';
 				if (!fs.existsSync(loresDir)) {
 					fs.mkdirSync(loresDir, { recursive: true });
 				}
 
-				const filePath = `${loresDir}/${guildIdArg}_${langArg}.js`;
+				const filePath = path.join(loresDir, `${guildIdArg}_${langArg}.js`);
 				let existingSnippets = [];
 
 				if (fs.existsSync(filePath)) {
+					try {
+						delete require.cache[require.resolve(filePath)];
+					} catch (e) {}
 					existingSnippets = loadSafeModule(filePath, []);
 				}
 
 				existingSnippets.push(snippetText);
-
-				// Format back out neatly as a CommonJS module array file.
 				const fileContent = `module.exports = [\n` + 
 					existingSnippets.map(s => `\t\`${s.replace(/`/g, '\\`')}\``).join(',\n') + 
 					`\n];\n`;
 
 				try {
 					fs.writeFileSync(filePath, fileContent, 'utf8');
-					consoleLog(`[${getTimestamp()}] Success: Added snippet to ${filePath}`);
+					try {
+						delete require.cache[require.resolve(filePath)];
+					} catch (e) {}
+					consoleLog(`[${getTimestamp()}] Success: Added snippet to '${filePath}'`);
 				} catch (err) {
 					consoleLog(`[${getTimestamp()}] Error writing lore file:`, err.message);
 				}

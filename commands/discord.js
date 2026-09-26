@@ -1,12 +1,17 @@
+// Dependencies.
 const { SlashCommandBuilder, InteractionContextType, ApplicationIntegrationType, ChannelType, MessageFlags, PermissionFlagsBits } = require('discord.js');
 const fs = require('fs');
+const path = require('path');
 
 function getCommands(CONFIG, getCmdText) {
 	return [
+		// setContexts: 0 (Guild), 1 (Bot DM), 2 (Group DMs and Friend DMs).
+		// setIntegrationTypes: 0 (Guild Install), 1 (User Install).
+		
 		new SlashCommandBuilder().setName('help').setDescription(getCmdText('descHelp'))
 			.setContexts([0, 1, 2]).setIntegrationTypes([0, 1]),
 		new SlashCommandBuilder().setName('lore').setDescription(getCmdText('descLore'))
-			.setContexts([0, 1, 2]).setIntegrationTypes([0, 1]),
+			.setContexts([0]).setIntegrationTypes([0]),
 		new SlashCommandBuilder().setName('lore-create').setDescription(getCmdText('descLoreCreate'))
 			.setContexts([0]).setIntegrationTypes([0])
 			.addStringOption(option => option.setName('language_code').setDescription(getCmdText('optionLanguageCode')).setRequired(true))
@@ -70,7 +75,7 @@ async function handleDiscordInteraction(interaction, context) {
 				}
 			} catch (error) {
 				if (error.code !== 10062) {
-					consoleLog('Error handling soundboard autocomplete: ', error);
+					consoleLog(`Error handling soundboard autocomplete: `, error);
 				}
 			}
 		}
@@ -135,7 +140,7 @@ async function commandLore(interaction, { getLocalizedLoreSnippets, getLocText, 
 		const replyText = getLocText(interaction, 'replyLore', { loreSnippet: loreSnippets[randomIndex] });
 		await interaction.reply(replyText);
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);		
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);		
 		await interaction.reply({ content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
 	}
 }
@@ -158,29 +163,34 @@ async function commandLoreCreate(interaction, { getLocText, makeLogMessage, cons
 		const langArg = interaction.options.getString('language_code');
 		const snippetText = interaction.options.getString('snippet');
 
-		const loresDir = './lores';
+		const loresDir = path.join(__dirname, '../lores');
 		if (!fs.existsSync(loresDir)) {
 			fs.mkdirSync(loresDir, { recursive: true });
 		}
 
-		const filePath = `${loresDir}/${guildIdArg}_${langArg}.js`;
+		const filePath = path.join(loresDir, `${guildIdArg}_${langArg}.js`);
 		let existingSnippets = [];
 
 		if (fs.existsSync(filePath)) {
+			try {
+				delete require.cache[require.resolve(filePath)];
+			} catch (e) {}
 			existingSnippets = loadSafeModule(filePath, []);
 		}
-
+		
 		existingSnippets.push(snippetText);
-
 		const fileContent = `module.exports = [\n` + 
 			existingSnippets.map(s => `\t\`${s.replace(/`/g, '\\`')}\``).join(',\n') + `\n];\n`;
 
 		fs.writeFileSync(filePath, fileContent, 'utf8');
+		try {
+			delete require.cache[require.resolve(filePath)];
+		} catch (e) {}
+		
 		consoleLog(`[${getTimestamp()}] Success: Added snippet via Discord to ${filePath}`);
-
 		await interaction.reply({ content: getLocText(interaction, 'replyLoreCreateSuccess', { guildId: guildIdArg, lang: langArg }), flags: [MessageFlags.Ephemeral] });
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
 		await interaction.reply({ content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
 	}
 }
@@ -192,7 +202,7 @@ async function commandInfo(interaction, { CONFIG, getLocText, makeLogMessage, co
 		const INFO_TEXT = getLocText(interaction, 'infoText');
 		await interaction.reply(`Narrator | ${packageJson.version}\n\n${INFO_TEXT}`);
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
 		await interaction.reply({ content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
 	}
 }
@@ -224,7 +234,7 @@ async function commandLotteryKick(interaction, { CONFIG, getLocText, makeLogMess
 			await interaction.reply(noKickMsg);
 		}
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
 		await interaction.reply({ content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
 	}
 }
@@ -255,7 +265,7 @@ async function commandVoiceJoin(interaction, { getLocText, makeLogMessage, conso
 		consoleLog(`[${getTimestamp()}] Successfully joined the voice channel '${optionChannel.name}' (${optionChannel.id}) by @${interaction.user.tag} (${interaction.user.id})`);
 		await interaction.reply(getLocText(interaction, 'replyVoiceJoinSuccess', { channelName: optionChannel.name }));
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
 		await interaction.reply({ content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
 	}
 }
@@ -272,7 +282,7 @@ async function commandVoiceLeave(interaction, { getLocText, makeLogMessage, cons
 		consoleLog(`[${getTimestamp()}] Successfully left voice channel for guild '${interaction.guildId}' by @${interaction.user.tag} (${interaction.user.id})`);
 		await interaction.reply(getLocText(interaction, 'replyVoiceLeaveSuccess'));
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
 		await interaction.reply({ content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
 	}
 }
@@ -300,7 +310,7 @@ async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, 
 		connection.subscribe(player);
 		player.play(resource);
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
 		await interaction.reply({ content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
 	}
 }
@@ -316,7 +326,7 @@ async function commandSoundboardStop(interaction, { getLocText, makeLogMessage, 
 		connection.subscribe(createAudioPlayer());
 		await interaction.reply(getLocText(interaction, 'replySoundboardStopSuccess'));
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
 		await interaction.reply({ content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
 	}
 }
@@ -336,7 +346,7 @@ async function commandSoundboardVolume(interaction, { getLocText, makeLogMessage
 		}
 		await interaction.reply(getLocText(interaction, 'replySoundboardVolumeSuccess', { volume: volumePercent }));
 	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
 		await interaction.reply({ content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
 	}
 }

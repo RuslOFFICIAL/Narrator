@@ -1,18 +1,20 @@
 module.exports = {
 	// Long texts.
-	helpText: `Narrator bot commands:\n
+	helpText: `Narrator Bot Commands\n
+General Commands:
 /help - Shows the bot commands.
-/lore - Tells one of the parts of the lore.
-/lore-create - Add a new lore snippet to a server file.
 /info - Information about the lore.
+\nGuild Commands:
+/lore - Tells one of the parts of the server lore.
+/lore-create - Add a new lore snippet to a server file.
 /lottery-kick - {kickChance}% chance to be kicked from the server. Good luck!
 /voice-join - Joins the selected voice channel.
 /voice-leave - Leaves the voice channel.
 /soundboard-play - Plays the selected sound in the voice channel.
 /soundboard-stop - Stops the sound in the voice channel.`,
 	
-	infoText: `This server's lore is written by members with the "Manage Server" or "Administrator" permission.
-It is not created by the creator of the "Narrator" bot.`,	
+	infoText: `Servers' lores are written by members on server with the "Manage Server" or "Administrator" permission.
+They are not created by the creator of the "Narrator" bot.`,	
 	
 	// Messages.
 	replyBotLoading: `The bot is still loading. Please wait.`,
