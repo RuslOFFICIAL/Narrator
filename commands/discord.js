@@ -131,7 +131,7 @@ async function commandHelp(interaction, { CONFIG, getLocText, makeLogMessage, co
 	}
 }
 
-async function commandLore(interaction, { getLocalizedLoreSnippets, getLocText, makeLogMessage, consoleLog, getTimestamp }) {
+async function commandLore(interaction, { getLocalizedLoreSnippets, getLocText, makeLogMessage, consoleLog, getTimestamp, isGuildNot }) {
 	try {
 		if (await isGuildNot(interaction)) return;
 
