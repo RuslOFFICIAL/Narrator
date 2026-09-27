@@ -133,6 +133,8 @@ async function commandHelp(interaction, { CONFIG, getLocText, makeLogMessage, co
 
 async function commandLore(interaction, { getLocalizedLoreSnippets, getLocText, makeLogMessage, consoleLog, getTimestamp }) {
 	try {
+		if (await isGuildNot(interaction)) return;
+
 		makeLogMessage(interaction);
 		
 		const loreSnippets = getLocalizedLoreSnippets(interaction);
