@@ -138,6 +138,14 @@ async function commandLore(interaction, { getLocalizedLoreSnippets, getLocText, 
 		makeLogMessage(interaction);
 		
 		const loreSnippets = getLocalizedLoreSnippets(interaction);
+		
+		// Check if snippets are unavailable.
+		const unavailableKey = getLocText(interaction, 'replyLoreSnippetsUnavailable');
+		if (loreSnippets.length === 1 && loreSnippets[0] === unavailableKey) {
+			await interaction.reply({ content: unavailableKey, flags: [MessageFlags.Ephemeral] });
+			return;
+		}
+		
 		const randomIndex = Math.floor(Math.random() * loreSnippets.length);
 		const replyText = getLocText(interaction, 'replyLore', { loreSnippet: loreSnippets[randomIndex] });
 		await interaction.reply(replyText);
