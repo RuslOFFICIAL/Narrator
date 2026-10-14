@@ -33,7 +33,7 @@ npx --yes nodemon \
 	--watch .env \
 	--ext js,json,env \
 	--delay 1 \
-	"$FILE_STARTUP" &
+	"$FILE_STARTUP"
 BOT_PID=$!
 
 sleep 5
