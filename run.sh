@@ -44,7 +44,7 @@ while kill -0 $BOT_PID 2>/dev/null; do
 	sleep 2
 	CURRENT_MTIME=$(get_mtime)
 	if [ "$CURRENT_MTIME" != "$INITIAL_MTIME" ]; then
-		echo -e "\nChanges detected in '$SCRIPT_NAME'. Restarting completely..."
+		echo && echo "Changes detected in '$SCRIPT_NAME'. Restarting completely..."
 		kill -15 $BOT_PID 2>/dev/null
 		wait $BOT_PID 2>/dev/null
 		exec sh "$SCRIPT_PATH"
