@@ -92,6 +92,21 @@ function getTimestamp() {
 	return `${timeStr} ${dateStr} UTC`;
 }
 
+function formatUptime(ms) {
+	const seconds = Math.floor((ms / 1000) % 60);
+	const minutes = Math.floor((ms / (1000 * 60)) % 60);
+	const hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
+	const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+
+	const parts = [];
+	if (days > 0) parts.push(`${days}d`);
+	if (hours > 0 || days > 0) parts.push(`${hours}h`);
+	if (minutes > 0 || hours > 0 || days > 0) parts.push(`${minutes}m`);
+	parts.push(`${seconds}s`);
+
+	return parts.join(' ');
+}
+
 function makeLogMessage(interaction, rl) {
 	const logMessage = `[${getTimestamp()}] [Command Used] '/${interaction.commandName}' was executed by @${interaction.user.tag} (${interaction.user.id})`;
 	consoleLog(rl, logMessage);
@@ -235,7 +250,7 @@ async function loginWithRetry(client, attempt = 1) {
 
 module.exports = {
 	loadSafeModule, getCmdText, getLocText,	getLocalizedLoreSnippets,
-	consoleLog, getTimestamp, makeLogMessage,
+	consoleLog, getTimestamp, formatUptime, makeLogMessage,
 	isWhitelist, isWhitelistNot, isAuthorizedTester, isGuildNot, isVoiceNot,
 	shutdown, restart, loginWithRetry
 };

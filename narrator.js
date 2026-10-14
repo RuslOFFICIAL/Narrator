@@ -56,6 +56,7 @@ const client = new Client({
 });
 
 // Variables.
+const botStartTime = Date.now();
 let isBotReady = false;
 let currentAudioResource = null;
 let currentVolume = 1.0;
@@ -86,7 +87,7 @@ const commands = getCommands(CONFIG, getCmdText);
 // Shared execution context package passed to command modules.
 const executionContext = {
 	client, get isBotReady() { return isBotReady; }, CONFIG, locales, defaultLang, packageJson,
-	voiceConnections, guildVolumes, guildPlayers, 
+	voiceConnections, guildVolumes, guildPlayers, botStartTime, 
 	get currentVolume() { return currentVolume; }, set currentVolume(v) { currentVolume = v; },
 	getCmdText, getLocText, getLocalizedLoreSnippets, consoleLog, getTimestamp, 
 	makeLogMessage, isWhitelist, isWhitelistNot, isGuildNot, isVoiceNot, shutdown, restart, rl, loadSafeModule

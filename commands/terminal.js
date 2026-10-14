@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, VoiceConnectionStatus } = require('@discordjs/voice');
+const { formatUptime } = require('./helpers.js');
 
 // Variables.
 const loresDir = path.join(__dirname, '../lores');
@@ -11,7 +12,7 @@ async function handleTerminalLine(line, context) {
 	const { 
 		client, isBotReady, CONFIG, locales, defaultLang, packageJson,
 		rawSnippetsEn, rawSnippetsUk, voiceConnections, 
-		guildVolumes, guildPlayers, currentVolume, 
+		guildVolumes, guildPlayers, currentVolume, botStartTime, 
 		consoleLog, getTimestamp, shutdown, restart, rl , loadSafeModule
 	} = context;
 
@@ -50,7 +51,9 @@ Check command formats in file 'formats.md'.`);
 				break;
 			
 			case 'status':
-				consoleLog(`[${getTimestamp()}] Status:\n- Bot is ready: ${isBotReady}\n- Logged in as: ${client.user ? client.user.tag : 'Not yet'}\n- Server count: ${client.guilds.cache.size}`);
+				const uptimeMs = Date.now() - botStartTime;
+				const uptimeFormatted = formatUptime(uptimeMs);
+				consoleLog(`[${getTimestamp()}] Status:\n- Bot is ready: ${isBotReady}\n- Logged in as: ${client.user ? client.user.tag : 'Not yet'}\n- Uptime: ${uptimeFormatted}\n- Server count: ${client.guilds.cache.size}`);
 				break;
 			
 			case 'ping':
