@@ -3,7 +3,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-const { Client, GatewayIntentBits, REST, Routes, ActivityType, MessageFlags } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, ActivityType, MessageFlags, TextChannel, DMChannel, ThreadChannel } = require('discord.js');
 const packageJson = require('./package.json');
 
 // Import modularized commands and helpers.
