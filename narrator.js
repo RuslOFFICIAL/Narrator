@@ -13,7 +13,7 @@ const {
 	loadSafeModule,	getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets,
 	consoleLog: _consoleLog, getTimestamp, makeLogMessage: _makeLogMessage,
 	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTester: _isAuthorizedTester, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
-	shutdown: _shutdown, restart: _restart, loginWithRetry
+	shutdown: _shutdown, restart: _restart, loginWithRetry, setupGlobalMessageSanitizer
 } = require('./commands/helpers.js');
 
 const localesDir = path.join(__dirname, 'locales');
@@ -52,8 +52,14 @@ const client = new Client({
 		GatewayIntentBits.GuildMessages,
 		GatewayIntentBits.MessageContent,
 		GatewayIntentBits.GuildVoiceStates
-	]
+	],
+	allowedMentions: {
+		parse: [],
+		repliedUser: false
+	}
 });
+
+setupGlobalMessageSanitizer();
 
 // Variables.
 const botStartTime = Date.now();

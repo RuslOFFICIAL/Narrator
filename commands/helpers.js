@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-const { MessageFlags } = require('discord.js');
+const { MessageFlags, TextChannel, DMChannel, ThreadChannel } = require('discord.js');
 
 // Functions.
 function loadSafeModule(filePath, fallbackValue) {
@@ -65,6 +65,35 @@ function getLocalizedLoreSnippets(interaction, locales, defaultLang) {
 		return [getLocText(interaction, 'replyLoreSnippetsUnavailable', {}, locales)];
 	}
 	return rawSnippets;
+}
+
+function sanitizeMentions(options) {
+	if (typeof options === 'string') {
+		return options.replace(/@everyone/g, '@\u200beveryone').replace(/@here/g, '@\u200bhere');
+	}
+	if (options && typeof options === 'object') {
+		if (typeof options.content === 'string') {
+			options.content = options.content
+				.replace(/@everyone/g, '@\u200beveryone')
+				.replace(/@here/g, '@\u200bhere');
+		}
+		if (!options.allowedMentions) {
+			options.allowedMentions = { parse: [] };
+		} else if (options.allowedMentions.parse) {
+			options.allowedMentions.parse = [];
+		}
+	}
+	return options;
+}
+
+// Global prototype patch for text-based channels and threads.
+function setupGlobalMessageSanitizer() {
+	[TextChannel, ThreadChannel].forEach(channelClass => {
+		const originalSend = channelClass.prototype.send;
+		channelClass.prototype.send = async function (options) {
+			return originalSend.call(this, sanitizeMentions(options));
+		};
+	});
 }
 
 function consoleLog(rl, ...args) {
@@ -252,5 +281,5 @@ module.exports = {
 	loadSafeModule, getCmdText, getLocText,	getLocalizedLoreSnippets,
 	consoleLog, getTimestamp, formatUptime, makeLogMessage,
 	isWhitelist, isWhitelistNot, isAuthorizedTester, isGuildNot, isVoiceNot,
-	shutdown, restart, loginWithRetry
+	shutdown, restart, loginWithRetry, setupGlobalMessageSanitizer
 };
