@@ -121,7 +121,9 @@ client.once('clientReady', async () => {
 		);
 		consoleLog(`[${getTimestamp()}] Waiting for commands...\n`);
 		isBotReady = true;
-		rl.prompt();
+		if (!rl.closed) {
+			rl.prompt();
+		}
 	} catch (error) {
 		consoleLog(error);
 	}
