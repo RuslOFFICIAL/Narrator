@@ -350,7 +350,15 @@ Check command formats in file 'formats.md'.`);
 					consoleLog(`[${getTimestamp()}] Error: Sound file not found.`);
 					break;
 				}
+				
 				const guildsToPlay = playGuildId ? [playGuildId] : Array.from(voiceConnections.keys());
+				if (guildsToPlay.length === 0) {
+					consoleLog(`[${getTimestamp()}] Error: Bot is not connected to any voice channels.`);
+					break;
+				}
+				
+				const { createAudioPlayer, createAudioResource, VoiceConnectionStatus } = require('@discordjs/voice');
+				
 				for (const gId of guildsToPlay) {
 					const conn = voiceConnections.get(gId);
 					if (!conn) continue;
@@ -358,8 +366,20 @@ Check command formats in file 'formats.md'.`);
 					const resource = createAudioResource(soundPath, { inlineVolume: true });
 					resource.volume.setVolume(guildVolumes.get(gId) ?? currentVolume);
 					guildPlayers.set(gId, { player, resource });
-					conn.subscribe(player);
-					player.play(resource);
+					
+					if (conn.state.status === VoiceConnectionStatus.Ready) {
+						conn.subscribe(player);
+						player.play(resource);
+					} else {
+						conn.on(VoiceConnectionStatus.Ready, () => {
+							conn.subscribe(player);
+							player.play(resource);
+						});
+					}
+					
+					player.on('error', error => {
+						consoleLog(`[${getTimestamp()}] Audio player error in guild ${gId}:`, error.message);
+					});
 				}
 				consoleLog(`[${getTimestamp()}] Played sound '${targetSound}'.`);
 				break;

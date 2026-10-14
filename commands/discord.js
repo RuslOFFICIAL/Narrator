@@ -313,6 +313,13 @@ async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, 
 			await interaction.reply({ content: getLocText(interaction, 'replySoundboardPlayNotFound'), flags: [MessageFlags.Ephemeral] });
 			return;
 		}
+		
+		const connection = voiceConnections.get(interaction.guildId);
+		if (!connection) {
+			await interaction.reply({ content: getLocText(interaction, 'replyNotInVoice'), flags: [MessageFlags.Ephemeral] });
+			return;
+		}
+		
 		const { createAudioPlayer, createAudioResource } = require('@discordjs/voice');
 		await interaction.reply({ content: getLocText(interaction, 'replySoundboardPlayPlaying', { soundChoice }), flags: [MessageFlags.Ephemeral] });
 		const player = createAudioPlayer();
@@ -335,8 +342,12 @@ async function commandSoundboardStop(interaction, { getLocText, makeLogMessage, 
 		if (await isVoiceNot(interaction)) return;
 		makeLogMessage(interaction);
 		
-		const { createAudioPlayer } = require('@discordjs/voice');
-		connection.subscribe(createAudioPlayer());
+		const activeEntry = guildPlayers.get(interaction.guildId);
+		if (activeEntry?.player) {
+			activeEntry.player.stop();
+			guildPlayers.delete(interaction.guildId);
+		}
+		
 		await interaction.reply({ content: getLocText(interaction, 'replySoundboardStopSuccess'), flags: [MessageFlags.Ephemeral] });
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
