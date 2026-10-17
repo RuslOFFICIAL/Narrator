@@ -413,7 +413,13 @@ Check command formats in file 'formats.md'.`);
 	}
 	
 	consoleLog();
-	rl.prompt();
+	try {
+		if (!rl.closed) {
+			rl.prompt();
+		}
+	} catch (err) {
+		// Readline is closed, ignore safely.
+	}
 }
 
 module.exports = { handleTerminalLine };
