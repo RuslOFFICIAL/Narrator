@@ -96,6 +96,23 @@ function setupGlobalMessageSanitizer() {
 	});
 }
 
+async function safeReply(interaction, replyOptions) {
+    try {
+		const payload = typeof replyOptions === 'string' ? { content: replyOptions } : replyOptions;
+        if (interaction.replied || interaction.deferred) {
+            await interaction.followUp(replyOptions);
+        } else {
+            await interaction.reply(replyOptions);
+        }
+    } catch (error) {
+        // Ignore "Unknown interaction" (10062) or "Interaction has already been acknowledged" (40060).
+        if (error.code === 10062 || error.code === 40060) {
+            return;
+        }
+        throw error;
+    }
+}
+
 function consoleLog(rl, ...args) {
 	readline.clearLine(process.stdout, 0);
 	readline.cursorTo(process.stdout, 0);
@@ -143,7 +160,7 @@ function makeLogMessage(interaction, rl) {
 
 async function isWhitelist(interaction, CONFIG, locales) {
 	if (CONFIG.whitelist.includes(interaction.user.id)) {
-		await interaction.reply({
+		await safeReply(interaction, {
 			content: getLocText(interaction, 'replyWhitelistYes', {}, locales),
 			flags: [MessageFlags.Ephemeral]
 		});
@@ -154,7 +171,7 @@ async function isWhitelist(interaction, CONFIG, locales) {
 
 async function isWhitelistNot(interaction, CONFIG, locales) {
 	if (!CONFIG.whitelist.includes(interaction.user.id)) {
-		await interaction.reply({
+		await safeReply(interaction, {
 			content: getLocText(interaction, 'replyWhitelistNo', {}, locales),
 			flags: [MessageFlags.Ephemeral]
 		});
@@ -165,7 +182,7 @@ async function isWhitelistNot(interaction, CONFIG, locales) {
 
 async function isAuthorizedTester(interaction, CONFIG, locales) {
 	if (!CONFIG.authorizedTesters.includes(interaction.user.id)) {
-		await interaction.reply({
+		await safeReply(interaction, {
 			content: getLocText(interaction, 'replyAuthorizedTester', {}, locales),
 			flags: [MessageFlags.Ephemeral]
 		});
@@ -176,7 +193,7 @@ async function isAuthorizedTester(interaction, CONFIG, locales) {
 
 async function isGuildNot(interaction, locales) {
 	if (!interaction.inGuild()) {
-		await interaction.reply({ content: getLocText(interaction, 'replyGuild', {}, locales), flags: [MessageFlags.Ephemeral] });
+		await safeReply(interaction, { content: getLocText(interaction, 'replyGuild', {}, locales), flags: [MessageFlags.Ephemeral] });
 		return true;
 	}
 	return false;
@@ -185,7 +202,7 @@ async function isGuildNot(interaction, locales) {
 async function isVoiceNot(interaction, voiceConnections, locales) {
 	const connection = voiceConnections.get(interaction.guildId);
 	if (!connection) {
-		await interaction.reply({ content: getLocText(interaction, 'replyNotInVoice', {}, locales), flags: [MessageFlags.Ephemeral] });
+		await safeReply(interaction, { content: getLocText(interaction, 'replyNotInVoice', {}, locales), flags: [MessageFlags.Ephemeral] });
 		return true;
 	}
 	return false;
@@ -279,7 +296,7 @@ async function loginWithRetry(client, attempt = 1) {
 
 module.exports = {
 	loadSafeModule, getCmdText, getLocText,	getLocalizedLoreSnippets,
-	consoleLog, getTimestamp, formatUptime, makeLogMessage,
+	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply,
 	isWhitelist, isWhitelistNot, isAuthorizedTester, isGuildNot, isVoiceNot,
 	shutdown, restart, loginWithRetry, setupGlobalMessageSanitizer
 };

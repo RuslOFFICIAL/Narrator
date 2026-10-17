@@ -11,7 +11,7 @@ const { getCommands, handleDiscordInteraction } = require('./commands/discord.js
 const { handleTerminalLine } = require('./commands/terminal.js');
 const {
 	loadSafeModule,	getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets,
-	consoleLog: _consoleLog, getTimestamp, makeLogMessage: _makeLogMessage,
+	consoleLog: _consoleLog, getTimestamp, makeLogMessage: _makeLogMessage, safeReply: _safeReply,
 	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTester: _isAuthorizedTester, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
 	shutdown: _shutdown, restart: _restart, loginWithRetry, setupGlobalMessageSanitizer
 } = require('./commands/helpers.js');
@@ -33,6 +33,7 @@ const getCmdText = (key) => _getCmdText(key, locales, defaultLang);
 const getLocText = (interaction, key, vars) => _getLocText(interaction, key, vars, locales);
 const getLocalizedLoreSnippets = (interaction) => _getLocalizedLoreSnippets(interaction, locales, defaultLang);
 const makeLogMessage = (interaction) => _makeLogMessage(interaction, rl);
+const safeReply = (interaction, replyOptions) => _safeReply(interaction, replyOptions);
 const isWhitelist = (interaction) => _isWhitelist(interaction, CONFIG, locales);
 const isWhitelistNot = (interaction) => _isWhitelistNot(interaction, CONFIG, locales);
 const isAuthorizedTester = (interaction) => _isAuthorizedTester(interaction, CONFIG, locales);
@@ -96,7 +97,7 @@ const executionContext = {
 	voiceConnections, guildVolumes, guildPlayers, botStartTime, 
 	get currentVolume() { return currentVolume; }, set currentVolume(v) { currentVolume = v; },
 	getCmdText, getLocText, getLocalizedLoreSnippets, consoleLog, getTimestamp, 
-	makeLogMessage, isWhitelist, isWhitelistNot, isGuildNot, isVoiceNot, shutdown, restart, rl, loadSafeModule
+	makeLogMessage, safeReply, isWhitelist, isWhitelistNot, isGuildNot, isVoiceNot, shutdown, restart, rl, loadSafeModule
 };
 
 // Run this code after the client is ready.
@@ -126,17 +127,26 @@ client.once('clientReady', async () => {
 			{ body: commands },
 		);
 		consoleLog(`[${getTimestamp()}] Waiting for commands...\n`);
-		isBotReady = true;
-		if (!rl.closed) {
-			rl.prompt();
-		}
 	} catch (error) {
 		consoleLog(error);
+	}
+	
+	isBotReady = true;
+	if (!rl.closed) {
+		rl.prompt();
 	}
 });
 
 client.on('interactionCreate', async interaction => {
-	await handleDiscordInteraction(interaction, executionContext);
+	try {
+		await handleDiscordInteraction(interaction, executionContext);
+	} catch (error) {
+		// Ignore "Unknown interaction" (10062) or "Interaction has already been acknowledged" (40060).
+        if (error.code === 10062 || error.code === 40060) {
+            return;
+        }
+        consoleLog(`[${getTimestamp()}] Interaction handling error: `, error);
+    }
 });
 
 // Terminal.
