@@ -127,13 +127,13 @@ client.once('clientReady', async () => {
 			{ body: commands },
 		);
 		consoleLog(`[${getTimestamp()}] Waiting for commands...\n`);
+		
+		isBotReady = true;
+		if (!rl.closed) {
+			rl.prompt();
+		}
 	} catch (error) {
 		consoleLog(error);
-	}
-	
-	isBotReady = true;
-	if (!rl.closed) {
-		rl.prompt();
 	}
 });
 
