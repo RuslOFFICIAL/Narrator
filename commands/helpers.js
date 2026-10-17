@@ -209,14 +209,20 @@ async function isVoiceNot(interaction, voiceConnections, locales) {
 	return false;
 }
 
-function saveVoiceState(voiceConnections) {
+function saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume = 1.0) {
 	try {
 		const activeChannels = {};
 		for (const [guildId, connection] of voiceConnections.entries()) {
-			// Get the channel ID from the connection payload.
 			const channelId = connection.joinConfig.channelId;
 			if (channelId) {
-				activeChannels[guildId] = channelId;
+				const playerEntry = guildPlayers.get(guildId);
+				const vol = guildVolumes.has(guildId) ? guildVolumes.get(guildId) : currentVolume;
+				activeChannels[guildId] = {
+					channelId,
+					playingSound: playerEntry?.soundName || null,
+					positionMs: playerEntry ? Date.now() - playerEntry.startTime : 0,
+					volume: vol
+				};
 			}
 		}
 		
@@ -227,20 +233,27 @@ function saveVoiceState(voiceConnections) {
 	}
 }
 
-async function restoreVoiceState(client, voiceConnections) {
+async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPlayers, currentVolume) {
 	try {
 		if (!fs.existsSync(voiceStateFile)) return;
 		const data = JSON.parse(fs.readFileSync(voiceStateFile, 'utf8'));
 		fs.unlinkSync(voiceStateFile);
 
-		const { joinVoiceChannel, VoiceConnectionStatus } = require('@discordjs/voice');
+		const { joinVoiceChannel, VoiceConnectionStatus, createAudioPlayer, createAudioResource, StreamType } = require('@discordjs/voice');
 
-		for (const [guildId, channelId] of Object.entries(data)) {
+		for (const [guildId, stateData] of Object.entries(data)) {
 			try {
 				const guild = client.guilds.cache.get(guildId);
 				if (!guild) continue;
+				
+				// Support both old string format and new object format.
+				const channelId = typeof stateData === 'string' ? stateData : stateData.channelId;
 				const channel = guild.channels.cache.get(channelId);
 				if (!channel) continue;
+				
+				if (typeof stateData === 'object' && stateData.volume !== null && stateData.volume !== undefined) {
+					guildVolumes.get ? guildVolumes.set(guild.id, stateData.volume) : null;
+				}
 
 				const connection = joinVoiceChannel({
 					channelId: channel.id,
@@ -252,8 +265,60 @@ async function restoreVoiceState(client, voiceConnections) {
 				connection.on('stateChange', (oldState, newState) => {
 					if (newState.status === VoiceConnectionStatus.Disconnected) {
 						voiceConnections.delete(guild.id);
+						guildPlayers.delete(guild.id);
 					}
 				});
+				
+				// Restore playing sound if available.
+				if (typeof stateData === 'object' && stateData.playingSound) {
+					const soundPath = path.join(__dirname, `../sounds/${stateData.playingSound}.mp3`);
+					if (fs.existsSync(soundPath)) {
+						const player = createAudioPlayer();
+						const seekSeconds = Math.max(0, Math.floor((stateData.positionMs || 0) / 1000));
+						
+						const { spawn } = require('child_process');
+						const ffmpegArgs = [];
+						
+						if (seekSeconds > 0) {
+							ffmpegArgs.push('-ss', String(seekSeconds), '-accurate_seek');
+						}
+						
+						ffmpegArgs.push('-i', soundPath, '-analyzeduration', '0', '-loglevel', '0', '-f', 's16le', '-ar', '48000', '-ac', '2', 'pipe:1');
+						const ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
+						
+						// Explicitly specify StreamType.Raw so Discord parses the PCM stream correctly
+						const resource = createAudioResource(ffmpegProcess.stdout, { 
+							inlineVolume: true,
+							inputType: StreamType.Raw,
+							metadata: { title: stateData.playingSound }
+						});
+
+						const volume = guildVolumes.get(guild.id) ?? currentVolume;
+						guildVolumes.set(guild.id, volume);
+						resource.volume.setVolume(volume);
+						
+						guildPlayers.set(guild.id, { 
+							player, 
+							resource, 
+							soundName: stateData.playingSound, 
+							startTime: Date.now() - (stateData.positionMs || 0) 
+						});
+						
+						player.on('error', err => {
+							// Ignore ended resource errors on cleanup
+						});
+
+						if (connection.state.status === VoiceConnectionStatus.Ready) {
+							connection.subscribe(player);
+							try { player.play(resource); } catch (e) {}
+						} else {
+							connection.on(VoiceConnectionStatus.Ready, () => {
+								connection.subscribe(player);
+								try { player.play(resource); } catch (e) {}
+							});
+						}
+					}
+				}
 			} catch (e) {
 				// Skip if unable to rejoin a specific guild/channel.
 			}
@@ -263,15 +328,15 @@ async function restoreVoiceState(client, voiceConnections) {
 	}
 }
 
-async function shutdown(client, voiceConnections, rl) {
+async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume = 1.0) {
 	console.log(`\n[${getTimestamp()}] Shutting down the bot safely...`);
 	
 	try {
 		rl.close();
 		
-		if (voiceConnections.size > 0) {
+		if (voiceConnections.size > 0 || guildPlayers.size > 0) {
 			try {
-				saveVoiceState(voiceConnections);
+				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 				console.log(`[${getTimestamp()}] Leaving voice channels...`);
 				for (const [guildId, connection] of voiceConnections.entries()) {
 					connection.destroy();
@@ -295,15 +360,15 @@ async function shutdown(client, voiceConnections, rl) {
 	}
 }
 
-async function restart(client, voiceConnections, rl, scriptFilename) {
+async function restart(client, voiceConnections, guildPlayers, rl, scriptFilename, guildVolumes, currentVolume = 1.0) {
 	console.log(`\n[${getTimestamp()}] Restarting the bot safely...`);
 	
 	try {
 		rl.close();
 		
-		if (voiceConnections.size > 0) {
+		if (voiceConnections.size > 0 || guildPlayers.size > 0) {
 			try {
-				saveVoiceState(voiceConnections);
+				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 				console.log(`[${getTimestamp()}] Leaving voice channels...`);
 				for (const [guildId, connection] of voiceConnections.entries()) {
 					connection.destroy();

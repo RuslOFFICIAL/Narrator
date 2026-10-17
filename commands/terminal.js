@@ -41,13 +41,13 @@ Check command formats in file 'formats.md'.`);
 			case 'stop':
 			case 'shutdown':
 				consoleLog(`[${getTimestamp()}] Stopping bot via terminal command...`);
-				shutdown();
+				shutdown(client, voiceConnections, guildPlayers, rl, currentVolume);
 				return;
 			
 			case 'restart':
 			case 'reboot':
 				consoleLog(`[${getTimestamp()}] Restarting bot via terminal command...`);
-				restart(); 
+				restart(client, voiceConnections, guildPlayers, rl, __filename, currentVolume); 
 				break;
 			
 			case 'status':
@@ -365,7 +365,13 @@ Check command formats in file 'formats.md'.`);
 					const player = createAudioPlayer();
 					const resource = createAudioResource(soundPath, { inlineVolume: true });
 					resource.volume.setVolume(guildVolumes.get(gId) ?? currentVolume);
-					guildPlayers.set(gId, { player, resource });
+					
+					guildPlayers.set(gId, { 
+						player, 
+						resource, 
+						soundName: targetSound, 
+						startTime: Date.now() 
+					});
 					
 					if (conn.state.status === VoiceConnectionStatus.Ready) {
 						conn.subscribe(player);
@@ -401,7 +407,16 @@ Check command formats in file 'formats.md'.`);
 					guildVolumes.set(args[1], volume);
 					guildPlayers.get(args[1])?.resource?.volume?.setVolume(volume);
 				} else {
-					currentVolume = volume;
+					context.currentVolume = volume;
+					for (const [gId, entry] of guildPlayers.entries()) {
+						guildVolumes.set(gId, volume);
+						if (entry?.resource?.volume) {
+							try { entry.resource.volume.setVolume(volume); } catch (e) {}
+						}
+					}
+					for (const gId of voiceConnections.keys()) {
+						guildVolumes.set(gId, volume);
+					}
 				}
 				consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}%.`);
 				break;

@@ -330,7 +330,14 @@ async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, 
 		const resource = createAudioResource(soundPath, { inlineVolume: true });
 		const volume = guildVolumes.get(interaction.guildId) ?? currentVolume;
 		resource.volume.setVolume(volume);
-		guildPlayers.set(interaction.guildId, { player, resource });
+		
+		guildPlayers.set(interaction.guildId, {
+			player,
+			resource,
+			soundName: soundChoice, 
+			startTime: Date.now()
+		});
+		
 		connection.subscribe(player);
 		player.play(resource);
 	} catch (error) {

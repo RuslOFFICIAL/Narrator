@@ -39,8 +39,8 @@ const isWhitelistNot = (interaction) => _isWhitelistNot(interaction, CONFIG, loc
 const isAuthorizedTester = (interaction) => _isAuthorizedTester(interaction, CONFIG, locales);
 const isGuildNot = (interaction) => _isGuildNot(interaction, locales);
 const isVoiceNot = (interaction) => _isVoiceNot(interaction, voiceConnections, locales);
-const shutdown = () => _shutdown(client, voiceConnections, rl);
-const restart = () => _restart(client, voiceConnections, rl, __filename);
+const shutdown = () => _shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume);
+const restart = () => _restart(client, voiceConnections, guildPlayers, rl, __filename, guildVolumes, currentVolume);
 
 process.on('unhandledRejection', error => {
 	consoleLog(`[${getTimestamp()}] Unhandled promise rejection: `, error);
@@ -126,7 +126,7 @@ client.once('clientReady', async () => {
 			Routes.applicationCommands(client.user.id),
 			{ body: commands },
 		);
-		await restoreVoiceState(client, voiceConnections);
+		await restoreVoiceState(client, voiceConnections, guildVolumes, guildPlayers, currentVolume);
 		
 		consoleLog(`[${getTimestamp()}] Waiting for commands...\n`);
 		
