@@ -12,7 +12,7 @@ const { handleTerminalLine } = require('./commands/terminal.js');
 const {
 	loadSafeModule,	getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets,
 	consoleLog: _consoleLog, getTimestamp, makeLogMessage: _makeLogMessage, safeReply: _safeReply,
-	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTester: _isAuthorizedTester, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
+	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTester: _isAuthorizedTester, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot, restoreVoiceState,
 	shutdown: _shutdown, restart: _restart, loginWithRetry, setupGlobalMessageSanitizer
 } = require('./commands/helpers.js');
 
@@ -126,6 +126,8 @@ client.once('clientReady', async () => {
 			Routes.applicationCommands(client.user.id),
 			{ body: commands },
 		);
+		await restoreVoiceState(client, voiceConnections);
+		
 		consoleLog(`[${getTimestamp()}] Waiting for commands...\n`);
 		
 		isBotReady = true;

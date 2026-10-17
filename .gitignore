@@ -3,6 +3,7 @@ sounds/*
 lores/
 
 # Files.
+voice-state.json
 *.lnk
 !sounds/README.md
 

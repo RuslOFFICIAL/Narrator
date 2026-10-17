@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const { MessageFlags, TextChannel, DMChannel, ThreadChannel } = require('discord.js');
+const voiceStateFile = path.join(__dirname, '../voice-state.json');
 
 // Functions.
 function loadSafeModule(filePath, fallbackValue) {
@@ -208,6 +209,60 @@ async function isVoiceNot(interaction, voiceConnections, locales) {
 	return false;
 }
 
+function saveVoiceState(voiceConnections) {
+	try {
+		const activeChannels = {};
+		for (const [guildId, connection] of voiceConnections.entries()) {
+			// Get the channel ID from the connection payload.
+			const channelId = connection.joinConfig.channelId;
+			if (channelId) {
+				activeChannels[guildId] = channelId;
+			}
+		}
+		
+		const fileContent = `${JSON.stringify(activeChannels, null, 2)}\n`;
+		fs.writeFileSync(voiceStateFile, fileContent, 'utf8');
+	} catch (error) {
+		// Ignore or log error.
+	}
+}
+
+async function restoreVoiceState(client, voiceConnections) {
+	try {
+		if (!fs.existsSync(voiceStateFile)) return;
+		const data = JSON.parse(fs.readFileSync(voiceStateFile, 'utf8'));
+		fs.unlinkSync(voiceStateFile);
+
+		const { joinVoiceChannel, VoiceConnectionStatus } = require('@discordjs/voice');
+
+		for (const [guildId, channelId] of Object.entries(data)) {
+			try {
+				const guild = client.guilds.cache.get(guildId);
+				if (!guild) continue;
+				const channel = guild.channels.cache.get(channelId);
+				if (!channel) continue;
+
+				const connection = joinVoiceChannel({
+					channelId: channel.id,
+					guildId: guild.id,
+					adapterCreator: guild.voiceAdapterCreator,
+				});
+
+				voiceConnections.set(guild.id, connection);
+				connection.on('stateChange', (oldState, newState) => {
+					if (newState.status === VoiceConnectionStatus.Disconnected) {
+						voiceConnections.delete(guild.id);
+					}
+				});
+			} catch (e) {
+				// Skip if unable to rejoin a specific guild/channel.
+			}
+		}
+	} catch (error) {
+		// Ignore.
+	}
+}
+
 async function shutdown(client, voiceConnections, rl) {
 	console.log(`\n[${getTimestamp()}] Shutting down the bot safely...`);
 	
@@ -216,6 +271,7 @@ async function shutdown(client, voiceConnections, rl) {
 		
 		if (voiceConnections.size > 0) {
 			try {
+				saveVoiceState(voiceConnections);
 				console.log(`[${getTimestamp()}] Leaving voice channels...`);
 				for (const [guildId, connection] of voiceConnections.entries()) {
 					connection.destroy();
@@ -247,6 +303,7 @@ async function restart(client, voiceConnections, rl, scriptFilename) {
 		
 		if (voiceConnections.size > 0) {
 			try {
+				saveVoiceState(voiceConnections);
 				console.log(`[${getTimestamp()}] Leaving voice channels...`);
 				for (const [guildId, connection] of voiceConnections.entries()) {
 					connection.destroy();
@@ -297,6 +354,6 @@ async function loginWithRetry(client, attempt = 1) {
 module.exports = {
 	loadSafeModule, getCmdText, getLocText,	getLocalizedLoreSnippets,
 	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply,
-	isWhitelist, isWhitelistNot, isAuthorizedTester, isGuildNot, isVoiceNot,
+	isWhitelist, isWhitelistNot, isAuthorizedTester, isGuildNot, isVoiceNot, restoreVoiceState,
 	shutdown, restart, loginWithRetry, setupGlobalMessageSanitizer
 };

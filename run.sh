@@ -30,6 +30,7 @@ npx --yes nodemon \
 	--ignore sounds/ \
 	--ignore node_modules/ \
 	--ignore package-lock.json \
+	--ignore voice-state.json \
 	--watch .env \
 	--ext js,json,env \
 	--delay 1 \
