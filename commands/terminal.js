@@ -411,17 +411,16 @@ Check command formats in file 'formats.md'.`);
 				break;
 
 			case 'soundboard-volume':
-				const volumePercent = parseInt(args[args.length - 1], 10);
-				if (isNaN(volumePercent) || volumePercent < 0 || volumePercent > 100) {
-					consoleLog(`[${getTimestamp()}] Error: Invalid volume level (0-100).`);
-					break;
-				}
-				const volume = volumePercent / 100;
-				if (args.length >= 3) {
-					guildVolumes.set(args[1], volume);
-					guildPlayers.get(args[1])?.resource?.volume?.setVolume(volume);
-				} else {
+				if (args.length === 2) {
+					// Global: soundboard-volume [VOLUME]
+					const volumePercent = parseInt(args[1], 10);
+					if (isNaN(volumePercent) || volumePercent < 0 || volumePercent > 100) {
+						consoleLog(`[${getTimestamp()}] Error: Invalid volume level (0-100).`);
+						break;
+					}
+					const volume = volumePercent / 100;
 					context.currentVolume = volume;
+					
 					for (const [gId, entry] of guildPlayers.entries()) {
 						guildVolumes.set(gId, volume);
 						if (entry?.resource?.volume) {
@@ -431,8 +430,26 @@ Check command formats in file 'formats.md'.`);
 					for (const gId of voiceConnections.keys()) {
 						guildVolumes.set(gId, volume);
 					}
+					consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}% on all guilds.`);
+				} else if (args.length >= 3) {
+					// Specific Guild: soundboard-volume [GUILD_ID] [VOLUME]
+					const guildId = args[1];
+					const volumePercent = parseInt(args[2], 10);
+					if (isNaN(volumePercent) || volumePercent < 0 || volumePercent > 100) {
+						consoleLog(`[${getTimestamp()}] Error: Invalid volume level (0-100).`);
+						break;
+					}
+					const volume = volumePercent / 100;
+					guildVolumes.set(guildId, volume);
+					
+					const entry = guildPlayers.get(guildId);
+					if (entry?.resource?.volume) {
+						try { entry.resource.volume.setVolume(volume); } catch (e) {}
+					}
+					consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}% for guild ID '${guildId}'.`);
+				} else {
+					consoleLog(`[${getTimestamp()}] Error: Usage -> soundboard-volume [VOLUME] or soundboard-volume [GUILD_ID] [VOLUME]`);
 				}
-				consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}%.`);
 				break;
 			
 			default:

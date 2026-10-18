@@ -296,7 +296,7 @@ async function commandVoiceLeave(interaction, { getLocText, makeLogMessage, safe
 			connection.destroy();
 		}
 		voiceConnections.delete(interaction.guildId);
-		consoleLog(`[${getTimestamp()}] Successfully left voice channel for guild '${interaction.guildId}' by @${interaction.user.tag} (${interaction.user.id})`);
+		consoleLog(`[${getTimestamp()}] Successfully left voice channel for guild ID '${interaction.guildId}' by @${interaction.user.tag} (${interaction.user.id})`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replyVoiceLeaveSuccess'), flags: [MessageFlags.Ephemeral] });
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
@@ -325,7 +325,7 @@ async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, 
 		}
 		
 		const { createAudioPlayer, createAudioResource } = require('@discordjs/voice');
-		consoleLog(`[${getTimestamp()}] Played sound '${soundChoice}'.`);
+		consoleLog(`[${getTimestamp()}] Played sound '${soundChoice}' for guild ID '${interaction.guildId}'.`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardPlayPlaying', { soundChoice }), flags: [MessageFlags.Ephemeral] });
 		const player = createAudioPlayer();
 		const resource = createAudioResource(soundPath, { inlineVolume: true });
@@ -360,7 +360,7 @@ async function commandSoundboardStop(interaction, { getLocText, makeLogMessage, 
 			guildPlayers.delete(interaction.guildId);
 		}
 		
-		consoleLog(`[${getTimestamp()}] Stopped playback.`);
+		consoleLog(`[${getTimestamp()}] Stopped playback for guild ID '${interaction.guildId}'.`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardStopSuccess'), flags: [MessageFlags.Ephemeral] });
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
@@ -382,7 +382,7 @@ async function commandSoundboardVolume(interaction, { getLocText, makeLogMessage
 			try { activeEntry.resource.volume.setVolume(volume); } catch (e) {}
 		}
 		
-		consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}%.`);
+		consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}% for guild ID '${interaction.guildId}'.`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardVolumeSuccess', { volume: volumePercent }), flags: [MessageFlags.Ephemeral] });
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
