@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const { exec } = require('child_process');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, VoiceConnectionStatus } = require('@discordjs/voice');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, VoiceConnectionStatus, entersState } = require('@discordjs/voice');
 const { formatUptime, saveVoiceState } = require('./helpers.js');
 
 // Variables.
@@ -16,9 +16,6 @@ async function handleTerminalLine(line, context) {
 		guildVolumes, guildPlayers, currentVolume, botStartTime, 
 		consoleLog, getTimestamp, shutdown, restart, rl , loadSafeModule
 	} = context;
-	
-	readline.moveCursor(process.stdout, 0, -1);
-	readline.clearLine(process.stdout, 0);
 
 	const trimmedLine = line.trim();
 	if (!trimmedLine) {
@@ -62,12 +59,13 @@ Check command formats in file 'formats.md'.`);
 			
 			case 'ping':
 				consoleLog(`[${getTimestamp()}] Pinging...`);
-				exec('ping -n 1 8.8.8.8', (error, stdout) => {
+				const pingCmd = process.platform === 'win32' ? 'ping -n 1 8.8.8.8' : 'ping -c 1 -W 3 8.8.8.8';
+				exec(pingCmd, (error, stdout) => {
 					if (error) {
 						consoleLog(`[${getTimestamp()}] Failed to execute ping.`);
 					} else {
-						const match = stdout.match(/time[=<](\d+ms)/i) || stdout.match(/рисует.*?(\d+ms)/i);
-						const time = match ? match[1] : 'unknown';
+						const match = stdout.match(/time[=<]\s*([\d.]+)\s*ms/i);
+						const time = match ? `${match[1]}ms` : 'unknown';
 						consoleLog(`[${getTimestamp()}] Pong! Network latency: ${time}`);
 					}
 					rl.prompt(true);
@@ -326,6 +324,17 @@ Check command formats in file 'formats.md'.`);
 					guildId: targetChannel.guild.id,
 					adapterCreator: targetChannel.guild.voiceAdapterCreator,
 				});
+				
+				try {
+					await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
+				} catch (err) {
+					const lastStatus = connection.state.status;
+					if (lastStatus !== VoiceConnectionStatus.Destroyed) connection.destroy();
+					voiceConnections.delete(targetChannel.guild.id);
+					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+					consoleLog(`[${getTimestamp()}] Error: Could not join '${targetChannel.name}' (stuck at '${lastStatus}'). Check the bot's View/Connect permissions.`);
+					break;
+				}
 				voiceConnections.set(targetChannel.guild.id, connection);
 				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 				
@@ -377,9 +386,7 @@ Check command formats in file 'formats.md'.`);
 					consoleLog(`[${getTimestamp()}] Error: Bot is not connected to any voice channels.`);
 					break;
 				}
-				
-				const { createAudioPlayer, createAudioResource, VoiceConnectionStatus } = require('@discordjs/voice');
-				
+								
 				for (const gId of guildsToPlay) {
 					const conn = voiceConnections.get(gId);
 					if (!conn) continue;
@@ -501,4 +508,52 @@ Check command formats in file 'formats.md'.`);
 	}
 }
 
-module.exports = { handleTerminalLine };
+// Tab completion.
+const TERMINAL_COMMANDS = [
+	'help', 'exit', 'stop', 'shutdown', 'restart', 'reboot', 'status', 'ping', 'clear',
+	'echo', 'lore', 'lore-create', 'info',
+	'voice-join', 'voice-leave',
+	'soundboard-play', 'soundboard-stop', 'soundboard-volume'
+];
+ 
+function completeTerminalLine(line, { client, locales, voiceConnections, guildPlayers }) {
+	const [cmd, ...args] = line.slice(line.lastIndexOf('&') + 1).trimStart().split(' ');
+	let partial = args.length ? args.at(-1) : cmd;
+ 
+	const keys = (map) => [...map.keys()];
+	const langs = () => Object.keys(locales);
+	const guilds = () => keys(client.guilds.cache);
+	const channels = (test) => [...client.guilds.cache.values()].flatMap(g => [...g.channels.cache.filter(test).keys()]);
+	const names = (dir, ext) => {
+		try { return fs.readdirSync(dir).filter(f => f.endsWith(ext)).map(f => f.slice(0, -ext.length)); }
+		catch { return []; }
+	};
+	const lores = () => names(loresDir, '.js');
+	const sounds = () => names(path.join(__dirname, '../sounds'), '.mp3');
+ 
+	const slots = (...fns) => (a) => fns[a.length - 1]?.(a) ?? [];
+ 
+	const completers = {
+		__proto__: null,
+		'echo': slots(() => ['-e', ...channels(c => c.isTextBased())]),
+		'lore': slots(
+			() => [...lores().map(f => f.split('_')[0]), ...langs()],
+			([guild]) => lores().filter(f => f.startsWith(`${guild}_`)).map(f => f.slice(guild.length + 1)),
+		),
+		'lore-create': slots(guilds, langs),
+		'voice-join': slots(() => channels(c => c.isVoiceBased() && c.joinable)), // Only channels the bot can actually join.
+		'voice-leave': slots(() => keys(voiceConnections)),
+		'soundboard-stop': slots(() => keys(guildPlayers)),
+		'soundboard-volume': slots(guilds, ([g]) => client.guilds.cache.has(g) ? ['0', '25', '50', '75', '100'] : []),
+		'soundboard-play': (a) => {
+			partial = a.slice(a.length > 1 && voiceConnections.has(a[0]) ? 1 : 0).join(' ');
+			return a.length === 1 ? [...keys(voiceConnections), ...sounds()] : sounds();
+		},
+	};
+ 
+	const candidates = args.length ? completers[cmd.toLowerCase()]?.(args) ?? [] : TERMINAL_COMMANDS.map(c => `${c} `); // Trailing space ready for arguments.
+	const needle = partial.toLowerCase();
+	return [[...new Set(candidates)].filter(c => c.toLowerCase().startsWith(needle)), partial];
+}
+
+module.exports = { handleTerminalLine, completeTerminalLine };

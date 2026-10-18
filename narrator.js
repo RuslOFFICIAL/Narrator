@@ -5,11 +5,11 @@ const path = require('path');
 const readline = require('readline');
 const { Client, GatewayIntentBits, REST, Routes, ActivityType, MessageFlags, TextChannel, DMChannel, ThreadChannel } = require('discord.js');
 const packageJson = require('./package.json');
-const { saveVoiceState } = require('./commands/helpers.js');
+const { saveVoiceState } = require('./commands/helpers.js');	
 
 // Import modularized commands and helpers.
 const { getCommands, handleDiscordInteraction } = require('./commands/discord.js');
-const { handleTerminalLine } = require('./commands/terminal.js');
+const { handleTerminalLine, completeTerminalLine  } = require('./commands/terminal.js');
 const {
 	loadSafeModule,	getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets, setupGlobalMessageSanitizer,
 	consoleLog: _consoleLog, getTimestamp, makeLogMessage: _makeLogMessage, safeReply: _safeReply,
@@ -77,7 +77,8 @@ const guildPlayers = new Map();
 const rl = readline.createInterface({
 	input: process.stdin,
 	output: process.stdout,
-	prompt: '> '
+	prompt: '> ',
+	completer: (line) => completeTerminalLine(line, executionContext)
 });
 
 const CONFIG = {
@@ -170,7 +171,7 @@ process.stdin.on('data', (key) => {
 	}
 });
 
-process.once('SIGINT', () => shutdown());
-process.once('SIGTERM', () => shutdown());
+process.once('SIGINT', () => shutdown(client, voiceConnections, guildPlayers, rl, currentVolume));
+process.once('SIGTERM', () => shutdown(client, voiceConnections, guildPlayers, rl, currentVolume));
 
 loginWithRetry(client);

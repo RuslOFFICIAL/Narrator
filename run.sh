@@ -24,6 +24,7 @@ echo
 
 # Startup.
 npx --yes nodemon \
+	--no-stdin \
 	--watch . \
 	--watch "$SCRIPT_NAME" \
 	--ignore lores/ \
