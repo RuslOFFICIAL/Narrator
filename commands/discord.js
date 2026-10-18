@@ -2,6 +2,7 @@
 const { SlashCommandBuilder, InteractionContextType, ApplicationIntegrationType, ChannelType, MessageFlags, PermissionFlagsBits } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const { saveVoiceState } = require('./helpers');
 
 function getCommands(CONFIG, getCmdText) {
 	return [
@@ -253,7 +254,7 @@ async function commandLotteryKick(interaction, { CONFIG, getLocText, makeLogMess
 	}
 }
 
-async function commandVoiceJoin(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, voiceConnections, isGuildNot }) {
+async function commandVoiceJoin(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, voiceConnections, guildPlayers, guildVolumes, currentVolume }) {
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
@@ -276,6 +277,8 @@ async function commandVoiceJoin(interaction, { getLocText, makeLogMessage, safeR
 				voiceConnections.delete(optionChannel.guild.id);
 			}
 		});
+		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+		
 		consoleLog(`[${getTimestamp()}] Successfully joined the voice channel '${optionChannel.name}' (${optionChannel.id}) by @${interaction.user.tag} (${interaction.user.id})`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replyVoiceJoinSuccess', { channelName: optionChannel.name }), flags: [MessageFlags.Ephemeral] });
 	} catch (error) {
@@ -284,7 +287,7 @@ async function commandVoiceJoin(interaction, { getLocText, makeLogMessage, safeR
 	}
 }
 
-async function commandVoiceLeave(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, voiceConnections, isGuildNot, isVoiceNot }) {
+async function commandVoiceLeave(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume }) {
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
@@ -296,6 +299,9 @@ async function commandVoiceLeave(interaction, { getLocText, makeLogMessage, safe
 			connection.destroy();
 		}
 		voiceConnections.delete(interaction.guildId);
+		guildPlayers.delete(interaction.guildId);
+		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+		
 		consoleLog(`[${getTimestamp()}] Successfully left voice channel for guild ID '${interaction.guildId}' by @${interaction.user.tag} (${interaction.user.id})`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replyVoiceLeaveSuccess'), flags: [MessageFlags.Ephemeral] });
 	} catch (error) {
@@ -304,7 +310,7 @@ async function commandVoiceLeave(interaction, { getLocText, makeLogMessage, safe
 	}
 }
 
-async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, voiceConnections, guildVolumes, currentVolume, guildPlayers, isGuildNot, isVoiceNot }) {
+async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildVolumes, guildPlayers, currentVolume }) {
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
@@ -338,6 +344,7 @@ async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, 
 			soundName: soundChoice, 
 			startTime: Date.now()
 		});
+		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 		
 		connection.subscribe(player);
 		player.play(resource);
@@ -347,7 +354,7 @@ async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, 
 	}
 }
 
-async function commandSoundboardStop(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, voiceConnections, guildPlayers, isGuildNot, isVoiceNot }) {
+async function commandSoundboardStop(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume }) {
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
@@ -359,6 +366,7 @@ async function commandSoundboardStop(interaction, { getLocText, makeLogMessage, 
 			activeEntry.player.stop();
 			guildPlayers.delete(interaction.guildId);
 		}
+		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 		
 		consoleLog(`[${getTimestamp()}] Stopped playback for guild ID '${interaction.guildId}'.`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardStopSuccess'), flags: [MessageFlags.Ephemeral] });
@@ -368,7 +376,7 @@ async function commandSoundboardStop(interaction, { getLocText, makeLogMessage, 
 	}
 }
 
-async function commandSoundboardVolume(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, guildVolumes, guildPlayers, isGuildNot }) {
+async function commandSoundboardVolume(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, guildVolumes, guildPlayers, currentVolume }) {
 	try {
 		if (await isGuildNot(interaction)) return;
 		if (await isWhitelistNot(interaction)) return;
@@ -381,6 +389,7 @@ async function commandSoundboardVolume(interaction, { getLocText, makeLogMessage
 		if (activeEntry?.resource?.volume) {
 			try { activeEntry.resource.volume.setVolume(volume); } catch (e) {}
 		}
+		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 		
 		consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}% for guild ID '${interaction.guildId}'.`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardVolumeSuccess', { volume: volumePercent }), flags: [MessageFlags.Ephemeral] });

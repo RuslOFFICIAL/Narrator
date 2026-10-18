@@ -226,7 +226,7 @@ function saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVol
 			}
 		}
 		
-		const fileContent = `${JSON.stringify(activeChannels, null, 2)}\n`;
+		const fileContent = `${JSON.stringify(activeChannels, null, '\t')}\n`;
 		fs.writeFileSync(voiceStateFile, fileContent, 'utf8');
 	} catch (error) {
 		// Ignore or log error.
@@ -336,6 +336,10 @@ async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes
 		
 		if (voiceConnections.size > 0 || guildPlayers.size > 0) {
 			try {
+				if (fs.existsSync(voiceStateFile)) {
+					try { fs.unlinkSync(voiceStateFile); } catch (e) {}
+				}
+
 				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 				console.log(`[${getTimestamp()}] Leaving voice channels...`);
 				for (const [guildId, connection] of voiceConnections.entries()) {
@@ -368,6 +372,10 @@ async function restart(client, voiceConnections, guildPlayers, rl, scriptFilenam
 		
 		if (voiceConnections.size > 0 || guildPlayers.size > 0) {
 			try {
+				if (fs.existsSync(voiceStateFile)) {
+					try { fs.unlinkSync(voiceStateFile); } catch (e) {}
+				}
+
 				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 				console.log(`[${getTimestamp()}] Leaving voice channels...`);
 				for (const [guildId, connection] of voiceConnections.entries()) {
@@ -417,8 +425,9 @@ async function loginWithRetry(client, attempt = 1) {
 }
 
 module.exports = {
-	loadSafeModule, getCmdText, getLocText,	getLocalizedLoreSnippets,
+	loadSafeModule, getCmdText, getLocText,	getLocalizedLoreSnippets, setupGlobalMessageSanitizer,
 	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply,
-	isWhitelist, isWhitelistNot, isAuthorizedTester, isGuildNot, isVoiceNot, restoreVoiceState,
-	shutdown, restart, loginWithRetry, setupGlobalMessageSanitizer
+	isWhitelist, isWhitelistNot, isAuthorizedTester, isGuildNot, isVoiceNot,
+	saveVoiceState, restoreVoiceState,
+	shutdown, restart, loginWithRetry
 };

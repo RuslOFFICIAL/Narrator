@@ -5,15 +5,17 @@ const path = require('path');
 const readline = require('readline');
 const { Client, GatewayIntentBits, REST, Routes, ActivityType, MessageFlags, TextChannel, DMChannel, ThreadChannel } = require('discord.js');
 const packageJson = require('./package.json');
+const { saveVoiceState } = require('./commands/helpers.js');
 
 // Import modularized commands and helpers.
 const { getCommands, handleDiscordInteraction } = require('./commands/discord.js');
 const { handleTerminalLine } = require('./commands/terminal.js');
 const {
-	loadSafeModule,	getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets,
+	loadSafeModule,	getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets, setupGlobalMessageSanitizer,
 	consoleLog: _consoleLog, getTimestamp, makeLogMessage: _makeLogMessage, safeReply: _safeReply,
-	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTester: _isAuthorizedTester, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot, restoreVoiceState,
-	shutdown: _shutdown, restart: _restart, loginWithRetry, setupGlobalMessageSanitizer
+	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTester: _isAuthorizedTester, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
+	restoreVoiceState,
+	shutdown: _shutdown, restart: _restart, loginWithRetry
 } = require('./commands/helpers.js');
 
 const localesDir = path.join(__dirname, 'locales');

@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, VoiceConnectionStatus } = require('@discordjs/voice');
-const { formatUptime } = require('./helpers.js');
+const { formatUptime, saveVoiceState } = require('./helpers.js');
 
 // Variables.
 const loresDir = path.join(__dirname, '../lores');
@@ -323,6 +323,8 @@ Check command formats in file 'formats.md'.`);
 					adapterCreator: targetChannel.guild.voiceAdapterCreator,
 				});
 				voiceConnections.set(targetChannel.guild.id, connection);
+				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+				
 				consoleLog(`[${getTimestamp()}] Successfully joined voice channel: '${targetChannel.name}'`);
 				break;
 
@@ -332,6 +334,8 @@ Check command formats in file 'formats.md'.`);
 					// Global: voice-leave
 					for (const [gId, conn] of voiceConnections.entries()) conn.destroy();
 					voiceConnections.clear();
+					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+					
 					consoleLog(`[${getTimestamp()}] Left all voice channels.\n`);
 					break;
 				}
@@ -341,6 +345,8 @@ Check command formats in file 'formats.md'.`);
 					// Specific Guild: voice-leave [GUILD_ID]
 					connToLeave.destroy();
 					voiceConnections.delete(leaveGuildId);
+					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+					
 					consoleLog(`[${getTimestamp()}] Left voice channel for guild ID '${leaveGuildId}'.`);
 				}
 				break;
@@ -398,6 +404,8 @@ Check command formats in file 'formats.md'.`);
 						consoleLog(`[${getTimestamp()}] Audio player error in guild ${gId}:`, error.message);
 					});
 				}
+				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+				
 				consoleLog(`[${getTimestamp()}] Played sound '${targetSound}'.`);
 				break;
 
@@ -409,6 +417,8 @@ Check command formats in file 'formats.md'.`);
 					if (entry) {
 						entry.player.stop();
 						guildPlayers.delete(stopGuildId);
+						saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+						
 						consoleLog(`[${getTimestamp()}] Stopped playback for guild ID '${stopGuildId}'.`);
 					} else {
 						consoleLog(`[${getTimestamp()}] Error: No active playback found for guild ID '${stopGuildId}'.`);
@@ -419,6 +429,8 @@ Check command formats in file 'formats.md'.`);
 						entry?.player?.stop();
 					}
 					guildPlayers.clear();
+					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+					
 					consoleLog(`[${getTimestamp()}] Stopped playback on all guilds.`);
 				}
 				break;
@@ -443,6 +455,8 @@ Check command formats in file 'formats.md'.`);
 					for (const gId of voiceConnections.keys()) {
 						guildVolumes.set(gId, volume);
 					}
+					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+					
 					consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}% on all guilds.`);
 				} else if (args.length >= 3) {
 					// Specific Guild: soundboard-volume [GUILD_ID] [VOLUME]
@@ -459,6 +473,8 @@ Check command formats in file 'formats.md'.`);
 					if (entry?.resource?.volume) {
 						try { entry.resource.volume.setVolume(volume); } catch (e) {}
 					}
+					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+					
 					consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}% for guild ID '${guildId}'.`);
 				} else {
 					consoleLog(`[${getTimestamp()}] Error: Usage -> soundboard-volume [VOLUME] or soundboard-volume [GUILD_ID] [VOLUME]`);
