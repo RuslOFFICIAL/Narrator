@@ -9,21 +9,18 @@ Terminal commands formats:
 - To get specific language lore: lore [LANGUAGE]
 - To get specific guild and specific language lore: lore [GUILD_LORE] [LANGUAGE]
 
-3: lore-create:
-- To add lore snippet to server file: lore-create [GUILD_ID] [LANGUAGE] [SNIPPET]
-
-4. voice-leave:
+3. voice-leave:
 - To leave all voice channels: voice-leave
 - To leave specific guild voice channel: voice-leave [GUILD_ID]
 
-5. soundboard-play:
+4. soundboard-play:
 - To play on all guilds: soundboard-play [SOUND_NAME]
 - To play on specific guild: soundboard-play [GUILD_ID] [SOUND_NAME]
 
-6. soundboard-stop:
+5. soundboard-stop:
 - To stop playback on all guilds: soundboard-stop
 - To stop playback on specific guild: soundboard-stop [GUILD_ID]
 
-7. soundboard-volume:
+6. soundboard-volume:
 - To change volume on all guilds: soundboard-volume [VOLUME]
 - To change volume on specific guild: soundboard-volume [GUILD_ID] [VOLUME]

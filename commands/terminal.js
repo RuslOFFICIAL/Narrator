@@ -77,6 +77,7 @@ Check command formats in file 'formats.md'.`);
 			// Server.
 			case 'echo':
 				if (args[1] === '-e') {
+					// Edit Message: echo -e [CHANNEL_ID] [EDITED_TEXT]
 					const messageId = args[2];
 					const newText = args.slice(3).join(' ').replace(/\\n/g, '\n');
 					if (!messageId || !newText) {
@@ -102,6 +103,7 @@ Check command formats in file 'formats.md'.`);
 					await targetMessage.edit(newText);
 					consoleLog(`[${getTimestamp()}] Message successfully edited in channel #${targetChannel.name}.`);
 				} else {
+					// Send Message: echo [CHANNEL_ID] [MESSAGE]
 					const channelId = args[1];
 					const messageText = args.slice(2).join(' ').replace(/\\n/g, '\n');
 					if (!channelId || !messageText) {
@@ -144,15 +146,17 @@ Check command formats in file 'formats.md'.`);
 					const isKnownGuild = allLoreFiles.some(file => file.startsWith(args[1] + '_'));
 
 					if (isKnownGuild) {
-						// Format: lore [GUILD_ID] or lore [GUILD_ID] [LANG]
+						// Specific Guild: lore [GUILD_ID]
 						requestedGuildId = args[1];
 						if (args[2]) {
+							// Specific Guild with Language: lore [GUILD_ID] [LANGUAGE]
 							requestedLang = args[2];
 						}
 					} else {
-						// Format: lore [LANG]
+						// Specific Language: lore [LANGUAGE]
 						requestedLang = args[1];
 					}
+					// Random: lore
 				}
 
 				if (requestedGuildId) {
@@ -252,6 +256,7 @@ Check command formats in file 'formats.md'.`);
 				break;
 			
 			case 'lore-create':
+				// Usage: lore-create [GUILD_ID] [LANGUAGE] [LORE_SNIPPET]
 				const guildIdArg = args[1];
 				const langArg = args[2];
 				const snippetText = args.slice(3).join(' ');
@@ -297,6 +302,7 @@ Check command formats in file 'formats.md'.`);
 				break;
 			
 			case 'voice-join':
+				// Usage: voice-join [CHANNEL_ID]
 				const targetChannelId = args[1];
 				if (!targetChannelId) {
 					consoleLog(`[${getTimestamp()}] Error: Please provide a voice channel ID.`);
@@ -323,13 +329,16 @@ Check command formats in file 'formats.md'.`);
 			case 'voice-leave':
 				const leaveGuildId = args[1];
 				if (!leaveGuildId) {
+					// Global: voice-leave
 					for (const [gId, conn] of voiceConnections.entries()) conn.destroy();
 					voiceConnections.clear();
 					consoleLog(`[${getTimestamp()}] Left all voice channels.\n`);
 					break;
 				}
+				
 				const connToLeave = voiceConnections.get(leaveGuildId);
 				if (connToLeave) {
+					// Specific Guild: voice-leave [GUILD_ID]
 					connToLeave.destroy();
 					voiceConnections.delete(leaveGuildId);
 					consoleLog(`[${getTimestamp()}] Left voice channel for guild ID '${leaveGuildId}'.`);
@@ -339,9 +348,11 @@ Check command formats in file 'formats.md'.`);
 			case 'soundboard-play':
 				let playGuildId = null, rawTargetSound = '';
 				if (args[1] && voiceConnections.has(args[1])) {
+					// Global: soundboard-play [SOUND_NAME]
 					playGuildId = args[1];
 					rawTargetSound = args.slice(2).join(' ');
 				} else {
+					// Specific Guild: soundboard-play [GUILD_ID] [SOUND_NAME]
 					rawTargetSound = args.slice(1).join(' ');
 				}
 				const targetSound = rawTargetSound.replace('.mp3', '');
@@ -393,6 +404,7 @@ Check command formats in file 'formats.md'.`);
 			case 'soundboard-stop':
 				const stopGuildId = args[1];
 				if (stopGuildId) {
+					// Specific Guild: soundboard-stop [GUILD_ID]
 					const entry = guildPlayers.get(stopGuildId);
 					if (entry) {
 						entry.player.stop();
@@ -402,6 +414,7 @@ Check command formats in file 'formats.md'.`);
 						consoleLog(`[${getTimestamp()}] Error: No active playback found for guild ID '${stopGuildId}'.`);
 					}
 				} else {
+					// Global: soundboard-stop
 					for (const [gId, entry] of guildPlayers.entries()) {
 						entry?.player?.stop();
 					}
