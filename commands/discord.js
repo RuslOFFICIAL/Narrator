@@ -325,6 +325,7 @@ async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, 
 		}
 		
 		const { createAudioPlayer, createAudioResource } = require('@discordjs/voice');
+		consoleLog(`[${getTimestamp()}] Played sound '${soundChoice}'.`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardPlayPlaying', { soundChoice }), flags: [MessageFlags.Ephemeral] });
 		const player = createAudioPlayer();
 		const resource = createAudioResource(soundPath, { inlineVolume: true });
@@ -346,7 +347,7 @@ async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, 
 	}
 }
 
-async function commandSoundboardStop(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, voiceConnections, isGuildNot, isVoiceNot }) {
+async function commandSoundboardStop(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, voiceConnections, guildPlayers, isGuildNot, isVoiceNot }) {
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
@@ -359,6 +360,7 @@ async function commandSoundboardStop(interaction, { getLocText, makeLogMessage, 
 			guildPlayers.delete(interaction.guildId);
 		}
 		
+		consoleLog(`[${getTimestamp()}] Stopped playback.`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardStopSuccess'), flags: [MessageFlags.Ephemeral] });
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
@@ -379,6 +381,8 @@ async function commandSoundboardVolume(interaction, { getLocText, makeLogMessage
 		if (activeEntry?.resource?.volume) {
 			try { activeEntry.resource.volume.setVolume(volume); } catch (e) {}
 		}
+		
+		consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}%.`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardVolumeSuccess', { volume: volumePercent }), flags: [MessageFlags.Ephemeral] });
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
