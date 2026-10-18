@@ -391,9 +391,23 @@ Check command formats in file 'formats.md'.`);
 				break;
 
 			case 'soundboard-stop':
-				for (const [gId, entry] of guildPlayers.entries()) entry?.player?.stop();
-				guildPlayers.clear();
-				consoleLog(`[${getTimestamp()}] Stopped playback.`);
+				const stopGuildId = args[1];
+				if (stopGuildId) {
+					const entry = guildPlayers.get(stopGuildId);
+					if (entry) {
+						entry.player.stop();
+						guildPlayers.delete(stopGuildId);
+						consoleLog(`[${getTimestamp()}] Stopped playback for guild ID '${stopGuildId}'.`);
+					} else {
+						consoleLog(`[${getTimestamp()}] Error: No active playback found for guild ID '${stopGuildId}'.`);
+					}
+				} else {
+					for (const [gId, entry] of guildPlayers.entries()) {
+						entry?.player?.stop();
+					}
+					guildPlayers.clear();
+					consoleLog(`[${getTimestamp()}] Stopped playback on all guilds.`);
+				}
 				break;
 
 			case 'soundboard-volume':
