@@ -1,6 +1,7 @@
 // Dependencies.
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
 const { exec } = require('child_process');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, VoiceConnectionStatus } = require('@discordjs/voice');
 const { formatUptime, saveVoiceState } = require('./helpers.js');
@@ -15,6 +16,9 @@ async function handleTerminalLine(line, context) {
 		guildVolumes, guildPlayers, currentVolume, botStartTime, 
 		consoleLog, getTimestamp, shutdown, restart, rl , loadSafeModule
 	} = context;
+	
+	readline.moveCursor(process.stdout, 0, -1);
+	readline.clearLine(process.stdout, 0);
 
 	const trimmedLine = line.trim();
 	if (!trimmedLine) {
