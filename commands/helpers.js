@@ -228,6 +228,10 @@ function saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVol
 		
 		const fileContent = `${JSON.stringify(activeChannels, null, '\t')}\n`;
 		fs.writeFileSync(voiceStateFile, fileContent, 'utf8');
+		
+		if (Object.keys(activeChannels).length > 0) {
+			consoleog(`[${getTimestamp()}] Voice state saved successfully (${Object.keys(activeChannels).length} active connection(s)).`);
+		}
 	} catch (error) {
 		// Ignore or log error.
 	}
@@ -238,6 +242,8 @@ async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPl
 		if (!fs.existsSync(voiceStateFile)) return;
 		const data = JSON.parse(fs.readFileSync(voiceStateFile, 'utf8'));
 		fs.unlinkSync(voiceStateFile);
+		
+		consoleLog(`[${getTimestamp()}] Restoring previous voice states...`);
 
 		const { joinVoiceChannel, VoiceConnectionStatus, createAudioPlayer, createAudioResource, StreamType } = require('@discordjs/voice');
 
@@ -262,6 +268,8 @@ async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPl
 				});
 
 				voiceConnections.set(guild.id, connection);
+				consoleLog(`[${getTimestamp()}] Rejoined voice channel '${channel.name}' in guild ID '${guildId}'.`);
+				
 				connection.on('stateChange', (oldState, newState) => {
 					if (newState.status === VoiceConnectionStatus.Disconnected) {
 						voiceConnections.delete(guild.id);
@@ -317,10 +325,11 @@ async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPl
 								try { player.play(resource); } catch (e) {}
 							});
 						}
+						consoleLog(`[${getTimestamp()}] Resumed audio playback for '${stateData.playingSound}'.`);
 					}
 				}
 			} catch (e) {
-				// Skip if unable to rejoin a specific guild/channel.
+				consoleLog(`[${getTimestamp()}] Failed to restore voice state for guild ID '${guildId}': `, e.message);
 			}
 		}
 	} catch (error) {
@@ -329,7 +338,7 @@ async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPl
 }
 
 async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume = 1.0) {
-	console.log(`\n[${getTimestamp()}] Shutting down the bot safely...`);
+	consoleLog(`\n[${getTimestamp()}] Shutting down the bot safely...`);
 	
 	try {
 		rl.close();
@@ -341,7 +350,7 @@ async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes
 				}
 
 				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
-				console.log(`[${getTimestamp()}] Leaving voice channels...`);
+				consoleLog(`[${getTimestamp()}] Leaving voice channels...`);
 				for (const [guildId, connection] of voiceConnections.entries()) {
 					connection.destroy();
 				}
@@ -357,15 +366,15 @@ async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes
 		if (client.ws) client.ws.destroy();
 		await client.destroy();
 	} catch (error) {
-		console.log(error);
+		consoleLog(error);
 	} finally {
-		console.log("Press 'Ctrl+C' or close the window to end process.");
+		consoleLog("Press 'Ctrl+C' or close the window to end process.");
 		process.exit(0);
 	}
 }
 
 async function restart(client, voiceConnections, guildPlayers, rl, scriptFilename, guildVolumes, currentVolume = 1.0) {
-	console.log(`\n[${getTimestamp()}] Restarting the bot safely...`);
+	consoleLog(`\n[${getTimestamp()}] Restarting the bot safely...`);
 	
 	try {
 		rl.close();
@@ -377,7 +386,7 @@ async function restart(client, voiceConnections, guildPlayers, rl, scriptFilenam
 				}
 
 				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
-				console.log(`[${getTimestamp()}] Leaving voice channels...`);
+				consoleLog(`[${getTimestamp()}] Leaving voice channels...`);
 				for (const [guildId, connection] of voiceConnections.entries()) {
 					connection.destroy();
 				}
@@ -393,9 +402,9 @@ async function restart(client, voiceConnections, guildPlayers, rl, scriptFilenam
 		if (client.ws) client.ws.destroy();
 		await client.destroy();
 	} catch (error) {
-		console.log(error);
+		consoleLog(error);
 	} finally {
-		console.log(`[${getTimestamp()}] Triggering restart...`);
+		consoleLog(`[${getTimestamp()}] Triggering restart...`);
 		
 		// Touch the current script file so nodemon detects a "file change" and restarts cleanly.
 		try {
