@@ -1,0 +1,19 @@
+{
+	"restartable": "rs",
+	"ignore": [
+		"lores/",
+		"sounds/",
+		"node_modules/",
+		"package-lock.json",
+		"voice-state.json"
+	],
+	"watch": [
+		".",
+		"run.sh",
+		"nodemon.json",
+		".env"
+	],
+	"ext": "js,json,env",
+	"delay": 1,
+	"exec": "node --dns-result-order=ipv4first narrator.js"
+}

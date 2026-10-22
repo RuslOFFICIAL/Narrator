@@ -230,7 +230,7 @@ function saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVol
 		fs.writeFileSync(voiceStateFile, fileContent, 'utf8');
 		
 		if (Object.keys(activeChannels).length > 0) {
-			consoleog(`[${getTimestamp()}] Voice state saved successfully (${Object.keys(activeChannels).length} active connection(s)).`);
+			consoleLog(`[${getTimestamp()}] Voice state saved successfully (${Object.keys(activeChannels).length} active connection(s)).`);
 		}
 	} catch (error) {
 		// Ignore or log error.
