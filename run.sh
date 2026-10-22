@@ -35,6 +35,7 @@ npx --yes nodemon \
 	--watch .env \
 	--ext js,json,env \
 	--delay 1 \
+	--dns-result-order=ipv4first \
 	"$FILE_STARTUP"
 BOT_PID=$!
 

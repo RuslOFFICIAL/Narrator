@@ -271,6 +271,10 @@ async function commandVoiceJoin(interaction, { getLocText, makeLogMessage, safeR
 			guildId: optionChannel.guild.id,
 			adapterCreator: optionChannel.guild.voiceAdapterCreator,
 		});
+		connection.on('error', (error) => {
+			consoleLog(`[${getTimestamp()}] Voice connection error:`, error.message);
+		});
+		
 		voiceConnections.set(optionChannel.guild.id, connection);
 		connection.on('stateChange', (oldState, newState) => {
 			if (newState.status === VoiceConnectionStatus.Disconnected) {

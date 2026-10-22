@@ -325,6 +325,10 @@ Check command formats in file 'formats.md'.`);
 					adapterCreator: targetChannel.guild.voiceAdapterCreator,
 				});
 				
+				connection.on('error', (error) => {
+					consoleLog(`[${getTimestamp()}] Voice connection error: `, error.message);
+				});
+				
 				try {
 					await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
 				} catch (err) {
