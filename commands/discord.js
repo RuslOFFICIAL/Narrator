@@ -334,7 +334,7 @@ async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, 
 			return;
 		}
 		
-		const { createAudioPlayer, createAudioResource } = require('@discordjs/voice');
+		const { createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
 		consoleLog(`[${getTimestamp()}] Played sound '${soundChoice}' for guild ID '${interaction.guildId}'.`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardPlayPlaying', { soundChoice }), flags: [MessageFlags.Ephemeral] });
 		const player = createAudioPlayer();
@@ -348,8 +348,19 @@ async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, 
 			soundName: soundChoice, 
 			startTime: Date.now()
 		});
-		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 		
+		player.on(AudioPlayerStatus.Idle, () => {
+			guildPlayers.delete(interaction.guildId);
+			saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+		});
+		
+		player.on('error', (error) => {
+			consoleLog(`[${getTimestamp()}] Audio player error in guild '${interaction.guildId}': `, error.message);
+			guildPlayers.delete(interaction.guildId);
+			saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+		});
+		
+		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 		connection.subscribe(player);
 		player.play(resource);
 	} catch (error) {

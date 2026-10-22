@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const { exec } = require('child_process');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, VoiceConnectionStatus, entersState } = require('@discordjs/voice');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus, entersState } = require('@discordjs/voice');
 const { formatUptime, saveVoiceState } = require('./helpers.js');
 
 // Variables.
@@ -403,6 +403,16 @@ Check command formats in file 'formats.md'.`);
 						resource, 
 						soundName: targetSound, 
 						startTime: Date.now() 
+					});
+					
+					player.on(AudioPlayerStatus.Idle, () => {
+						guildPlayers.delete(gId);
+						saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+					});
+
+					player.on('error', error => {
+						guildPlayers.delete(gId);
+						saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 					});
 					
 					if (conn.state.status === VoiceConnectionStatus.Ready) {
