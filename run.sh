@@ -23,7 +23,7 @@ npm install
 echo
 
 # Startup.
-npx --yes nodemon --no-stdin &
+exec npx --yes nodemon --no-stdin
 BOT_PID=$!
 
 sleep 5
