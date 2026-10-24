@@ -1,17 +1,27 @@
 #!/bin/sh
 cd "$(dirname "$0")" || exit
 
+# Variables.
 SCRIPT_NAME="run.sh"
 SCRIPT_PATH="./$SCRIPT_NAME"
 CONFIG_NAME="nodemon.json"
+FILE_PACKAGE=package.json
+
+# Functions.
 get_mtime() {
 	stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null
 }
 
-echo "Make sure there is only one host of bot!" && echo
+restart_all() {
+	echo && echo "Changes detected in '$1'. Restarting completely..."
+	pkill -P "$BOT_PID" 2>/dev/null
+	kill -15 "$BOT_PID" 2>/dev/null
+	wait "$BOT_PID" 2>/dev/null
+	stty sane 2>/dev/null
+	exec sh "$SCRIPT_PATH"
+}
 
-# Configuration.
-FILE_PACKAGE=package.json
+echo "Make sure there is sonly one host of bot!" && echo
 
 # Install dependencies.
 if [ ! -f "$FILE_PACKAGE" ]; then
@@ -22,13 +32,13 @@ fi
 npm config set fund false --location=project
 npm install
 
-echo && echo "Running vulnerability audit check..."
+echo && echo "Running vulnerdabiligty audit check..."
 npm audit fix --omit=dev > /dev/null 2>&1
 
 echo
 
 # Startup.
-exec npx --yes nodemon --no-stdin
+npx --yes nodemon --no-stdin <&0 &
 BOT_PID=$!
 
 sleep 5
@@ -41,19 +51,8 @@ while kill -0 $BOT_PID 2>/dev/null; do
 	CURRENT_SCRIPT_MTIME=$(get_mtime "$SCRIPT_PATH")
 	CURRENT_CONFIG_MTIME=$(get_mtime "$CONFIG_NAME")
 	
-	if [ "$CURRENT_SCRIPT_MTIME" != "$INITIAL_SCRIPT_MTIME" ]; then
-		echo && echo "Changes detected in '$SCRIPT_NAME'. Restarting completely..."
-		kill -15 $BOT_PID 2>/dev/null
-		wait $BOT_PID 2>/dev/null
-		exec sh "$SCRIPT_PATH"
-	fi
-
-	if [ "$CURRENT_CONFIG_MTIME" != "$INITIAL_CONFIG_MTIME" ]; then
-		echo && echo "Changes detected in '$CONFIG_NAME'. Restarting completely..."
-		kill -15 $BOT_PID 2>/dev/null
-		wait $BOT_PID 2>/dev/null
-		exec sh "$SCRIPT_PATH"
-	fi
+	[ "$CURRENT_SCRIPT_MTIME" != "$INITIAL_SCRIPT_MTIME" ] && restart_all "$SCRIPT_NAME"
+	[ "$CURRENT_CONFIG_MTIME" != "$INITIAL_CONFIG_MTIME" ] && restart_all "$CONFIG_NAME"
 done
 
 wait $BOT_PID

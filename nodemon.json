@@ -4,13 +4,13 @@
 		"lores/",
 		"sounds/",
 		"node_modules/",
+		"run.sh",
+		"nodemon.json",
 		"package-lock.json",
 		"voice-state.json"
 	],
 	"watch": [
 		".",
-		"run.sh",
-		"nodemon.json",
 		".env"
 	],
 	"ext": "js,json,env",
