@@ -6,6 +6,7 @@ General Commands:
 /info - Information about the lore.
 \nGuild Commands:
 /lore - Tells one of the parts of the server lore.
+/lore-list - Lists lore snippets.
 /lore-create - Add a new lore snippet to a server file.
 /lottery-kick - {kickChance}% chance to be kicked from the server. Good luck!
 /voice-join - Joins the selected voice channel.

@@ -35,7 +35,7 @@ async function handleTerminalLine(line, context) {
 			// Bot.
 			case 'help':
 				consoleLog(`[${getTimestamp()}] Commands:\nBOT:\n- help: Show terminal commands.\n- exit/stop/shutdown: Shut down the bot.\n- restart/reboot: Restart the bot.\n- status: Status of the bot.\n- ping: Check bot latency.\n- clear: Clear the terminal screen.\n\n
-SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by ID.\n- lore: Print a random lore snippet.\n- lore-create: Create lore file for a guild.\n- info: Show bot info and links.\n- voice-join: Connect bot to specified voice channel by ID.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.\n- soundboard-stop: Stop playing the soundboard audio.\n- soundboard-volume: Set playback volume (0-100).\n\n
+SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by ID.\n- lore: Print a random lore snippet.\n- lore-list: Lists lore snippets.\n- lore-create: Create lore file for a guild.\n- info: Show bot info and links.\n- voice-join: Connect bot to specified voice channel by ID.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.\n- soundboard-stop: Stop playing the soundboard audio.\n- soundboard-volume: Set playback volume (0-100).\n\n
 Check command formats in file 'formats.md'.`);
 				break;
 			
