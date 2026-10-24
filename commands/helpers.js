@@ -10,7 +10,12 @@ function loadSafeModule(filePath, fallbackValue) {
 	try {
 		const absolutePath = require.resolve(filePath);
 		delete require.cache[absolutePath];
-		return require(absolutePath);
+		const mod = require(absolutePath);
+		
+		if (Array.isArray(mod)) {
+			return mod.map(s => String(s));
+		}
+		return mod;
 	} catch (e) {
 		return fallbackValue;
 	}
@@ -26,7 +31,7 @@ function getLocText(interaction, key, variables = {}, locales) {
 	let text = locales[langCode]?.[key] || locales['uk'][key] || key;
 	
 	for (const [varName, value] of Object.entries(variables)) {
-		text = text.replace(new RegExp(`\\{${varName}\\}`, 'g'), value);
+		text = text.replace(new RegExp(`\\{${varName}\\}`, 'g'), () => String(value));
 	}
 	return text;
 }

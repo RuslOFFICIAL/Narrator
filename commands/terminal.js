@@ -267,13 +267,13 @@ async function handleTerminalLine(line, context) {
 
 				// Pick a random snippet from the chosen file.
 				const randomSnippetIndex = Math.floor(Math.random() * rawSnippets.length);
-				const selectedSnippet = rawSnippets[randomSnippetIndex];
+				const selectedSnippet = String(rawSnippets[randomSnippetIndex]);
 				
 				// Determine template language with fallback.
 				const templateLang = requestedLang || defaultLang;
 				const loreTemplate = locales[templateLang]?.replyLore || locales[defaultLang]?.replyLore || locales['uk']?.replyLore || 'Lore: {loreSnippet}';
 				
-				consoleLog(`[${getTimestamp()}] [File: ${targetFile}] ${loreTemplate.replace(/\{loreSnippet\}/g, selectedSnippet)}`);
+				consoleLog(`[${getTimestamp()}] [File: '${targetFile}'] ${loreTemplate.replace(/\{loreSnippet\}/g, () => selectedSnippet)}`);
 				break;
 			
 			case 'lore-list':
@@ -327,7 +327,7 @@ async function handleTerminalLine(line, context) {
 					if (snippets.length > 0) {
 						hasEntries = true;
 						consoleLog(`\n--- File: '${file}' ---`);
-						snippets.forEach((s, idx) => consoleLog(`	${idx + 1}: ${s}`));
+						snippets.forEach((s, idx) => consoleLog(`	${idx + 1}: ${String(s)}`));
 					}
 				}
 				
@@ -361,11 +361,10 @@ async function handleTerminalLine(line, context) {
 					} catch (e) {}
 					existingSnippets = loadSafeModule(filePath, []);
 				}
-
+				
+				//const sanitizedSnippet = snippetText.replace(/"/g, '\\"');
 				existingSnippets.push(snippetText);
-				const fileContent = `module.exports = [\n` + 
-					existingSnippets.map(s => `\t\`${s.replace(/`/g, '\\`')}\``).join(',\n') + 
-					`\n];\n`;
+				const fileContent = `module.exports = ${JSON.stringify(existingSnippets, null, '\t')};\n`;
 
 				try {
 					fs.writeFileSync(filePath, fileContent, 'utf8');

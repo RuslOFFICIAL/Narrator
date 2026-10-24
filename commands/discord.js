@@ -161,7 +161,9 @@ async function commandLore(interaction, { getLocalizedLoreSnippets, getLocText, 
 		}
 		
 		const randomIndex = Math.floor(Math.random() * loreSnippets.length);
-		const replyText = getLocText(interaction, 'replyLore', { loreSnippet: loreSnippets[randomIndex] });
+		const safeSnippet = String(loreSnippets[randomIndex]);
+		
+		const replyText = getLocText(interaction, 'replyLore', { loreSnippet: safeSnippet });
 		await safeReply(interaction, replyText);
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);		
@@ -201,7 +203,7 @@ async function commandLoreList(interaction, { getLocText, makeLogMessage, safeRe
 			const snippets = loadSafeModule(path.join(loresDir, file), []);
 			if (snippets.length > 0) {
 				outputLines.push(getLocText(interaction, 'replyLoreListLanguage', { lang }));
-				snippets.forEach((s, idx) => outputLines.push(`> ${idx + 1}. ${s}`));
+				snippets.forEach((s, idx) => outputLines.push(`> ${idx + 1}. ${String(s)}`));
 			}
 		}
 		
@@ -230,17 +232,23 @@ async function commandLoreCreate(interaction, { getLocText, makeLogMessage, safe
 
 		const filePath = path.join(loresDir, `${guildIdArg}_${langArg}.js`);
 		let existingSnippets = [];
-
+		
 		if (fs.existsSync(filePath)) {
 			try {
-				delete require.cache[require.resolve(filePath)];
-			} catch (e) {}
-			existingSnippets = loadSafeModule(filePath, []);
+				const fileData = fs.readFileSync(filePath, 'utf8');
+				// Extract array portion from "module.exports = [...]"
+				const match = fileData.match(/\[([\s\S]*)\]/);
+				if (match) {
+					// Evaluate or parse safely
+					existingSnippets = eval(`[${match[1]}]`);
+				}
+			} catch (e) {
+				existingSnippets = [];
+			}
 		}
 		
 		existingSnippets.push(snippetText);
-		const fileContent = `module.exports = [\n` + 
-			existingSnippets.map(s => `\t\`${s.replace(/`/g, '\\`')}\``).join(',\n') + `\n];\n`;
+		const fileContent = `module.exports = ${JSON.stringify(existingSnippets, null, '\t')};\n`;
 
 		fs.writeFileSync(filePath, fileContent, 'utf8');
 		try {
