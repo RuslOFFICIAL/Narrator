@@ -18,7 +18,10 @@ if [ ! -f "$FILE_PACKAGE" ]; then
 	echo "File '$FILE_PACKAGE' not found."
 	npm init -y
 fi
+
+npm config set fund false --location=project
 npm install
+npm audit fix --omit=dev
 
 echo
 
