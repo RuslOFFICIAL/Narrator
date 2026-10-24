@@ -21,7 +21,9 @@ fi
 
 npm config set fund false --location=project
 npm install
-npm audit fix --omit=dev
+
+echo && echo "Running vulnerability audit check..."
+npm audit fix --omit=dev > /dev/null 2>&1
 
 echo
 

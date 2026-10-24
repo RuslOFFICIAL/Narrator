@@ -7,6 +7,27 @@ const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerSta
 const { formatUptime, saveVoiceState } = require('./helpers.js');
 
 // Variables.
+const HELP_TEXT = `Commands:\n
+BOT:
+- help: Show terminal commands.
+- exit/stop/shutdown: Shut down the bot.
+- restart/reboot: Restart the bot.
+- status: Status of the bot.
+- ping: Check bot latency.
+- clear: Clear the terminal screen.
+\nSERVER:
+- echo: Send a message to a specific channel by ID or edit a message by ID.
+- lore: Print a random lore snippet.
+- lore-list: Lists lore snippets.
+- lore-create: Create lore file for a guild.
+- info: Show bot info and links.
+- voice-join: Connect bot to specified voice channel by ID.
+- voice-leave: Disconnect bot from voice channel.
+- soundboard-play: Play the specified soundboard audio.
+- soundboard-stop: Stop playing the soundboard audio.
+- soundboard-volume: Set playback volume (0-100).
+\nCheck command formats in file 'formats.md'.`;
+
 const loresDir = path.join(__dirname, '../lores');
 const allLoreFiles = fs.readdirSync(loresDir).filter(file => file.endsWith('.js'));
 
@@ -34,9 +55,7 @@ async function handleTerminalLine(line, context) {
 		switch (command) {
 			// Bot.
 			case 'help':
-				consoleLog(`[${getTimestamp()}] Commands:\nBOT:\n- help: Show terminal commands.\n- exit/stop/shutdown: Shut down the bot.\n- restart/reboot: Restart the bot.\n- status: Status of the bot.\n- ping: Check bot latency.\n- clear: Clear the terminal screen.\n\n
-SERVER:\n- echo: Send a message to a specific channel by ID or edit a message by ID.\n- lore: Print a random lore snippet.\n- lore-list: Lists lore snippets.\n- lore-create: Create lore file for a guild.\n- info: Show bot info and links.\n- voice-join: Connect bot to specified voice channel by ID.\n- voice-leave: Disconnect bot from voice channel.\n- soundboard-play: Play the specified soundboard audio.\n- soundboard-stop: Stop playing the soundboard audio.\n- soundboard-volume: Set playback volume (0-100).\n\n
-Check command formats in file 'formats.md'.`);
+				consoleLog(`[${getTimestamp()}] ${HELP_TEXT}`);
 				break;
 			
 			case 'exit':
