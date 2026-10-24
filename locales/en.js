@@ -30,6 +30,8 @@ They are not created by the creator of the "Narrator" bot.`,
 	
 	replyLore: `Lore? Well, alright...\n\n{loreSnippet}`,
 	
+	replyLoreListLanguage: '**Language: `{lang}`**',
+	
 	replyLoreCreateSuccess: `Successfully added lore snippet to '{guildId}_{lang}.js'!`,
 	replyLoreCreateNoPermission: `You don't have permission to use this command (Requires "Manage Server" or "Administrator" permission).`,
 	replyLoreCreateError: `Failed to add lore snippet.`,
@@ -59,6 +61,7 @@ They are not created by the creator of the "Narrator" bot.`,
 	// Commands.
 	descHelp: `Shows the bot commands.`,
 	descLore: `Command for the lore.`,
+	descLoreList: `Lists lore snippets.`,
 	descLoreCreate: `Add a new lore snippet to a server file.`,
 	descInfo: `Information about the lore.`,
 	descLotteryKick: `{kickChance}% chance to be kicked from the server. Good luck!`,

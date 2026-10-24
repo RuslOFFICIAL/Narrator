@@ -8,6 +8,7 @@ const { formatUptime, saveVoiceState } = require('./helpers.js');
 
 // Variables.
 const loresDir = path.join(__dirname, '../lores');
+const allLoreFiles = fs.readdirSync(loresDir).filter(file => file.endsWith('.js'));
 
 async function handleTerminalLine(line, context) {
 	const { 
@@ -132,7 +133,6 @@ Check command formats in file 'formats.md'.`);
 					break;
 				}
 				
-				const allLoreFiles = fs.readdirSync(loresDir).filter(file => file.endsWith('.js'));
 				if (allLoreFiles.length === 0) {
 					consoleLog(`[${getTimestamp()}] No guild lore files found in '${loresDir}'.`);
 					break;
@@ -255,6 +255,67 @@ Check command formats in file 'formats.md'.`);
 				const loreTemplate = locales[templateLang]?.replyLore || locales[defaultLang]?.replyLore || locales['uk']?.replyLore || 'Lore: {loreSnippet}';
 				
 				consoleLog(`[${getTimestamp()}] [File: ${targetFile}] ${loreTemplate.replace(/\{loreSnippet\}/g, selectedSnippet)}`);
+				break;
+			
+			case 'lore-list':
+				if (!fs.existsSync(loresDir)) {
+					consoleLog(`[${getTimestamp()}] Error: '${loresDir}' directory not found.`);
+					break;
+				}
+				
+				if (allLoreFiles.length === 0) {
+					consoleLog(`[${getTimestamp()}] No lore files found.`);
+					break;
+				}
+
+				let targetGuildId = args[1];
+				let targetLang = args[2];
+				
+				let selectedFiles = [];
+
+				if (!targetGuildId) {
+					// Show all lores: lore-list
+					selectedFiles = allLoreFiles;
+				} else {
+					const isGuild = allLoreFiles.some(f => f.startsWith(targetGuildId + '_'));
+					if (!isGuild) {
+						// Specific language: lore-list [LANGUAGE]
+						targetLang = targetGuildId;
+						targetGuildId = null;
+						selectedFiles = allLoreFiles.filter(f => f.endsWith(`_${targetLang}.js`));
+					} else {
+						if (targetLang) {
+							// Specific guild and language: lore-list [GUILD_ID] [LANGUAGE]
+							selectedFiles = [`${targetGuildId}_${targetLang}.js`];
+						} else {
+							// Specific guild: lore-list [GUILD_ID]
+							selectedFiles = allLoreFiles.filter(f => f.startsWith(`${targetGuildId}_`));
+						}
+					}
+				}
+
+				if (selectedFiles.length === 0) {
+					consoleLog(`[${getTimestamp()}] No lore files matched the criteria.`);
+					break;
+				}
+				
+				let hasEntries = false;
+				consoleLog(`[${getTimestamp()}] Lore Listing:`);
+				for (const file of selectedFiles) {
+					const filePath = path.join(loresDir, file);
+					if (!fs.existsSync(filePath)) continue;
+					const snippets = loadSafeModule(filePath, []);
+					if (snippets.length > 0) {
+						hasEntries = true;
+						consoleLog(`\n--- File: '${file}' ---`);
+						snippets.forEach((s, idx) => consoleLog(`	${idx + 1}: ${s}`));
+					}
+				}
+				
+				if (!hasEntries) {
+					consoleLog(`[${getTimestamp()}] Error: No lores found.`);
+				}
+				
 				break;
 			
 			case 'lore-create':
@@ -525,7 +586,7 @@ Check command formats in file 'formats.md'.`);
 // Tab completion.
 const TERMINAL_COMMANDS = [
 	'help', 'exit', 'stop', 'shutdown', 'restart', 'reboot', 'status', 'ping', 'clear',
-	'echo', 'lore', 'lore-create', 'info',
+	'echo', 'lore', 'lore-list', 'lore-create', 'info',
 	'voice-join', 'voice-leave',
 	'soundboard-play', 'soundboard-stop', 'soundboard-volume'
 ];
@@ -553,6 +614,16 @@ function completeTerminalLine(line, { client, locales, voiceConnections, guildPl
 		'lore': slots(
 			() => [...lores().map(f => f.split('_')[0]), ...langs()],
 			([guild]) => lores().filter(f => f.startsWith(`${guild}_`)).map(f => f.slice(guild.length + 1)),
+		),
+		'lore-list': slots(
+			() => [...lores().map(f => f.split('_')[0]), ...langs()],
+			([guildOrLang]) => {
+				const isGuild = lores().some(f => f.startsWith(guildOrLang + '_'));
+				if (isGuild) {
+					return lores().filter(f => f.startsWith(`${guildOrLang}_`)).map(f => f.slice(guildOrLang.length + 1));
+				}
+				return [];
+			}
 		),
 		'lore-create': slots(guilds, langs),
 		'voice-join': slots(() => channels(c => c.isVoiceBased() && c.joinable)), // Only channels the bot can actually join.

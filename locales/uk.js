@@ -30,6 +30,8 @@ module.exports = {
 	
 	replyLore: `Лор? Ну добре...\n\n{loreSnippet}`,
 	
+	replyLoreListLanguage: '**Мова: `{lang}`**',
+	
 	replyLoreCreateSuccess: `Успішно додано уривок лору до '{guildId}_{lang}.js'!`,
 	replyLoreCreateNoPermission: `У вас немає прав для використання цієї команди (Потрібні права "Керування сервером" або "Адміністратор").`,
 	replyLoreCreateError: `Не вдалося додати уривок лору.`,
@@ -59,6 +61,7 @@ module.exports = {
 	// Commands.
 	descHelp: `Показує команди бота.`,
 	descLore: `Команда для лору.`,
+	descLoreList: `Перелік уривків лору.`,
 	descLoreCreate: `Додати новий уривок лору до файлу сервера.`,
 	descInfo: `Інформація про лор.`,
 	descLotteryKick: `{kickChance}% на кік з серверу. Удачі!`,

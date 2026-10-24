@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-const { MessageFlags, TextChannel, DMChannel, ThreadChannel } = require('discord.js');
+const { MessageFlags, TextChannel, DMChannel, ThreadChannel, PermissionFlagsBits } = require('discord.js');
 const voiceStateFile = path.join(__dirname, '../voice-state.json');
 
 // Functions.
@@ -210,6 +210,18 @@ async function isAuthorizedTester(interaction, CONFIG, locales) {
 		return false;
 	}
 	return true;
+}
+
+async function isAdminManageServer(interaction, locales) {
+	if (!interaction.member?.permissions.has(PermissionFlagsBits.Administrator) && 
+		!interaction.member?.permissions.has(PermissionFlagsBits.ManageGuild)) {
+		await safeReply(interaction, { 
+			content: getLocText(interaction, 'replyLoreCreateNoPermission', {}, locales), 
+			flags: [MessageFlags.Ephemeral] 
+		});
+		return true;
+	}
+	return false;
 }
 
 async function isGuildNot(interaction, locales) {
@@ -456,7 +468,7 @@ async function loginWithRetry(client, attempt = 1) {
 module.exports = {
 	loadSafeModule, getCmdText, getLocText,	getLocalizedLoreSnippets, setupGlobalMessageSanitizer,
 	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply,
-	isWhitelist, isWhitelistNot, isAuthorizedTester, isGuildNot, isVoiceNot,
+	isWhitelist, isWhitelistNot, isAuthorizedTester, isAdminManageServer, isGuildNot, isVoiceNot,
 	saveVoiceState, restoreVoiceState,
 	shutdown, restart, loginWithRetry
 };

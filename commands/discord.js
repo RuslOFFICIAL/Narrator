@@ -4,6 +4,9 @@ const fs = require('fs');
 const path = require('path');
 const { saveVoiceState } = require('./helpers');
 
+// Variables.
+const loresDir = path.join(__dirname, '../lores');
+
 function getCommands(CONFIG, getCmdText) {
 	return [
 		// setContexts: 0 (Guild), 1 (Bot DM), 2 (Group DMs and Friend DMs).
@@ -13,6 +16,9 @@ function getCommands(CONFIG, getCmdText) {
 			.setContexts([0, 1, 2]).setIntegrationTypes([0, 1]),
 		new SlashCommandBuilder().setName('lore').setDescription(getCmdText('descLore'))
 			.setContexts([0]).setIntegrationTypes([0]),
+		new SlashCommandBuilder().setName('lore-list').setDescription(getCmdText('descLoreList'))
+			.setContexts([0]).setIntegrationTypes([0])
+			.addStringOption(option => option.setName('language_code').setDescription(getCmdText('optionLanguageCode')).setRequired(false)),
 		new SlashCommandBuilder().setName('lore-create').setDescription(getCmdText('descLoreCreate'))
 			.setContexts([0]).setIntegrationTypes([0])
 			.addStringOption(option => option.setName('language_code').setDescription(getCmdText('optionLanguageCode')).setRequired(true))
@@ -93,6 +99,9 @@ async function handleDiscordInteraction(interaction, context) {
 			case 'lore':
 				await commandLore(interaction, context);
 				break;
+			case 'lore-list':
+				await commandLoreList(interaction, context);
+				break;
 			case 'lore-create':
 				await commandLoreCreate(interaction, context);
 				break;
@@ -160,25 +169,61 @@ async function commandLore(interaction, { getLocalizedLoreSnippets, getLocText, 
 	}
 }
 
-async function commandLoreCreate(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, loadSafeModule, isGuildNot }) {
+async function commandLoreList(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, loadSafeModule, isGuildNot, isAdminManageServer }) {
 	try {
 		if (await isGuildNot(interaction)) return;
-		// Check if user has Administrator or Manage Server permissions.
-		if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && 
-			!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
-			await safeReply(interaction, { 
-				content: getLocText(interaction, 'replyLoreCreateNoPermission'), 
-				flags: [MessageFlags.Ephemeral] 
-			});
+		if (await isAdminManageServer(interaction)) return;
+		makeLogMessage(interaction);
+		
+		const guildId = interaction.guildId;
+		const langArg = interaction.options.getString('language_code');
+		
+		if (!fs.existsSync(loresDir)) {
+			await safeReply(interaction, { content: getLocText(interaction, 'replyLoreSnippetsUnavailable'), flags: [MessageFlags.Ephemeral] });
 			return;
 		}
+		
+		const files = fs.readdirSync(loresDir).filter(file => file.endsWith('.js'));
+		let matchingFiles = files.filter(file => file.startsWith(`${guildId}_`));
+		
+		if (langArg) {
+			matchingFiles = matchingFiles.filter(file => file === `${guildId}_${langArg}.js`);
+		}
+		
+		if (matchingFiles.length === 0) {
+			await safeReply(interaction, { content: getLocText(interaction, 'replyLoreSnippetsUnavailable'), flags: [MessageFlags.Ephemeral] });
+			return;
+		}
+		
+		let outputLines = [];
+		for (const file of matchingFiles) {
+			const lang = file.replace(`${guildId}_`, '').replace('.js', '');
+			const snippets = loadSafeModule(path.join(loresDir, file), []);
+			if (snippets.length > 0) {
+				outputLines.push(getLocText(interaction, 'replyLoreListLanguage', { lang }));
+				snippets.forEach((s, idx) => outputLines.push(`> ${idx + 1}. ${s}`));
+			}
+		}
+		
+		const responseText = outputLines.length > 0 ? outputLines.join('\n') : getLocText(interaction, 'replyLoreSnippetsUnavailable');
+		await safeReply(interaction, { content: responseText, flags: [MessageFlags.Ephemeral] });
+	} catch (error) {
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
+		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+	}
+}
+
+async function commandLoreCreate(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, loadSafeModule, isGuildNot, isAdminManageServer }) {
+	try {
+		if (await isGuildNot(interaction)) return;
+		if (await isAdminManageServer(interaction)) return;
+		
 		makeLogMessage(interaction);
 		
 		const guildIdArg = interaction.guildId || 'default';
 		const langArg = interaction.options.getString('language_code');
 		const snippetText = interaction.options.getString('snippet');
-
-		const loresDir = path.join(__dirname, '../lores');
+		
 		if (!fs.existsSync(loresDir)) {
 			fs.mkdirSync(loresDir, { recursive: true });
 		}
@@ -202,7 +247,7 @@ async function commandLoreCreate(interaction, { getLocText, makeLogMessage, safe
 			delete require.cache[require.resolve(filePath)];
 		} catch (e) {}
 		
-		consoleLog(`[${getTimestamp()}] Success: Added snippet via Discord to ${filePath}`);
+		consoleLog(`[${getTimestamp()}] Success: Added snippet via Discord to '${filePath}'`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replyLoreCreateSuccess', { guildId: guildIdArg, lang: langArg }), flags: [MessageFlags.Ephemeral] });
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);

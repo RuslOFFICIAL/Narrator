@@ -13,7 +13,7 @@ const { handleTerminalLine, completeTerminalLine  } = require('./commands/termin
 const {
 	loadSafeModule,	getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets, setupGlobalMessageSanitizer,
 	consoleLog: _consoleLog, getTimestamp, makeLogMessage: _makeLogMessage, safeReply: _safeReply,
-	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTester: _isAuthorizedTester, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
+	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTester: _isAuthorizedTester, isAdminManageServer: _isAdminManageServer, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
 	restoreVoiceState,
 	shutdown: _shutdown, restart: _restart, loginWithRetry
 } = require('./commands/helpers.js');
@@ -39,6 +39,7 @@ const safeReply = (interaction, replyOptions) => _safeReply(interaction, replyOp
 const isWhitelist = (interaction) => _isWhitelist(interaction, CONFIG, locales);
 const isWhitelistNot = (interaction) => _isWhitelistNot(interaction, CONFIG, locales);
 const isAuthorizedTester = (interaction) => _isAuthorizedTester(interaction, CONFIG, locales);
+const isAdminManageServer = (interaction) => _isAdminManageServer(interaction, locales);
 const isGuildNot = (interaction) => _isGuildNot(interaction, locales);
 const isVoiceNot = (interaction) => _isVoiceNot(interaction, voiceConnections, locales);
 const shutdown = () => _shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume);
@@ -100,7 +101,9 @@ const executionContext = {
 	voiceConnections, guildVolumes, guildPlayers, botStartTime, 
 	get currentVolume() { return currentVolume; }, set currentVolume(v) { currentVolume = v; },
 	getCmdText, getLocText, getLocalizedLoreSnippets, consoleLog, getTimestamp, 
-	makeLogMessage, safeReply, isWhitelist, isWhitelistNot, isGuildNot, isVoiceNot, shutdown, restart, rl, loadSafeModule
+	makeLogMessage, safeReply,
+	isWhitelist, isWhitelistNot, isAuthorizedTester, isAdminManageServer, isGuildNot, isVoiceNot,
+	shutdown, restart, rl, loadSafeModule
 };
 
 // Run this code after the client is ready.
