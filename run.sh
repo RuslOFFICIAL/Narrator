@@ -29,11 +29,14 @@ if [ ! -f "$FILE_PACKAGE" ]; then
 	npm init -y
 fi
 
+echo && echo "Configuring npm..."
 npm config set fund false --location=project
+
+echo && echo "Installing dependencies..."
 npm install
 
 echo && echo "Running vulnerdabiligty audit check..."
-npm audit fix --omit=dev > /dev/null 2>&1
+npm audit fix --omit=dev
 
 echo
 
