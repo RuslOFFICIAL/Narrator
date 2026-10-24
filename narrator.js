@@ -116,12 +116,23 @@ client.once('clientReady', async () => {
 	try {
 		consoleLog(`[${getTimestamp()}] Setting bot status up... `);
 		const statusText = `${CONFIG.statusName} | ${packageJson.version}`;
-		client.user.setPresence({
-			activities: [{ name: statusText, type: ActivityType[CONFIG.statusType], url: CONFIG.statusUrl }],
+		
+		const activityConfig = {
+			name: statusText,
+			type: ActivityType[CONFIG.statusType]
+		};
+
+		if (CONFIG.statusType === 'Streaming' && CONFIG.statusUrl && CONFIG.statusUrl.trim() !== '') {
+			activityConfig.url = CONFIG.statusUrl;
+		}
+
+		await client.user.setPresence({
+			activities: [activityConfig],
 			status: CONFIG.statusBot,
 		});
+		consoleLog(`[${getTimestamp()}] Status set successfully!`);
 	} catch (error) {
-		consoleLog(error);
+		consoleLog(`[${getTimestamp()}] Failed to set status: `, error);
 	}
 	
 	// Register slash (/).
