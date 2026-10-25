@@ -387,7 +387,6 @@ async function handleTerminalLine(line, context) {
 					existingSnippets = loadSafeModule(filePath, []);
 				}
 				
-				//const sanitizedSnippet = snippetText.replace(/"/g, '\\"');
 				existingSnippets.push(snippetText);
 				const fileContent = `module.exports = ${JSON.stringify(existingSnippets, null, '\t')};\n`;
 
