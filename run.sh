@@ -21,6 +21,18 @@ restart_all() {
 	exec sh "$SCRIPT_PATH"
 }
 
+# Stop any other running instances.
+echo "Checking for other running instances of '$SCRIPT_NAME'..."
+for OTHER_PID in $(pgrep -f "$SCRIPT_NAME"); do
+	if [ "$OTHER_PID" != "$$" ]; then
+		echo "Stopping old instance (PID: $OTHER_PID)..."
+		kill -15 "$OTHER_PID" 2>/dev/null
+		sleep 1
+		# Force kill if it's still hanging around
+		kill -9 "$OTHER_PID" 2>/dev/null
+	fi
+done
+
 echo "Make sure there is sonly one host of bot!"
 
 # Install dependencies.
