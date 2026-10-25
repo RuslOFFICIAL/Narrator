@@ -8,6 +8,7 @@ General Commands:
 /lore - Tells one of the parts of the server lore.
 /lore-list - Lists lore snippets.
 /lore-create - Add a new lore snippet to a server file.
+/lore-remove: Remove a specific lore snippet.
 /lottery-kick - {kickChance}% chance to be kicked from the server. Good luck!
 /voice-join - Joins the selected voice channel.
 /voice-leave - Leaves the voice channel.
@@ -24,24 +25,27 @@ They are not created by the creator of the "Narrator" bot.`,
 	replyVoiceNotFound: `Failed to find a voice channel with ID "{channelId}". Make sure the bot is on that server.`,
 	replyNotInVoice: `The bot is not currently in a voice channel. Try running the "/voice-join" command first.`,
 	replyLoreSnippetsUnavailable: `Lore snippets are currently unavailable.`,
+	replyNoPermissionAdminManageServer: `You don't have permission to use this command (Requires "Manage Server" or "Administrator" permission).`,
 	
-	replyWhitelistYes: `This command is not available to you because it might do something to you. Try using another command or try again later.`,
-	replyWhitelistNo: `This command is not available to you. Try using another command or try again later.`,
+	replyWhitelistYes: `This command is not available to You because it might do something to You. Try using another command or try again later.`,
+	replyWhitelistNo: `This command is not available to You. Try using another command or try again later.`,
 	replyAuthorizedTester: `This command is being tested. Try using another command or try again later.`,
 	
 	replyLore: `Lore? Well, alright...\n\n{loreSnippet}`,
 	
 	replyLoreListLanguage: '**Language: `{lang}`**',
 	
-	replyLoreCreateSuccess: `Successfully added lore snippet to '{guildId}_{lang}.js'!`,
-	replyLoreCreateNoPermission: `You don't have permission to use this command (Requires "Manage Server" or "Administrator" permission).`,
+	replyLoreCreateSuccess: `Successfully added lore snippet to '{guildId}_{lang}.js'.`,
 	replyLoreCreateError: `Failed to add lore snippet.`,
 	
-	replyLotteryKickYes: `<@{userId}>\n\nOh, it seems luck is not on your side today. Too bad... actually, not really.\n\nYour kick is in 30 seconds. Write your last words.`,
+	replyLoreRemoveSuccess: `Successfully removed lore snippet #{number}.`,
+	replyLoreRemoveNotFound: `Could not find a lore snippet with number #{number}.`,
+	
+	replyLotteryKickYes: `<@{userId}>\n\nOh, it seems luck is not on Your side today. Too bad... actually, not really.\n\nYour kick is in 30 seconds. Write Your last words.`,
 	replyLotteryKickDm: `Hey! You were just kicked from the server, unfortunately. Here is the link to the server:\nhttps://discord.gg/{inviteCode}`,
-	replyLotteryKickReason: `Unfortunately, luck was not on your side that time. Try again next time, if you're not afraid.`,
-	replyLotteryKickError: `<@{userId}>\n\nFailed to kick you. Try again.`,
-	replyLotteryKickNo: `<@{userId}>\n\nWell, your kick isn't today... Try again, if you aren't afraid.\n\nWill you try again? After all, a kick is a win here.`,
+	replyLotteryKickReason: `Unfortunately, luck was not on Your side that time. Try again next time, if You're not afraid.`,
+	replyLotteryKickError: `<@{userId}>\n\nFailed to kick You. Try again.`,
+	replyLotteryKickNo: `<@{userId}>\n\nWell, Your kick isn't today... Try again, if You aren't afraid.\n\nWill You try again? After all, a kick is a win here.`,
 	
 	replyVoiceJoinSuccess: `The bot has successfully joined: "{channelName}".`,
 	replyVoiceJoinError: `The bot failed to join the voice channel. Try again.`,
@@ -64,6 +68,7 @@ They are not created by the creator of the "Narrator" bot.`,
 	descLore: `Command for the lore.`,
 	descLoreList: `Lists lore snippets.`,
 	descLoreCreate: `Add a new lore snippet to a server file.`,
+	descLoreRemove: `Remove a specific lore snippet`,
 	descInfo: `Information about the lore.`,
 	descLotteryKick: `{kickChance}% chance to be kicked from the server. Good luck!`,
 	descVoiceJoin: `Joins the selected voice channel.`,
@@ -76,5 +81,6 @@ They are not created by the creator of the "Narrator" bot.`,
 	optionSound: `Select a sound to play.`,
 	optionVolumeLevel: `Volume level from 0 to 100.`,
 	optionLanguageCode: `Language code (e.g.: en, uk).`,
-	optionSnippet: `The lore snippet text.`
+	optionSnippet: `The lore snippet text.`,
+	optionSnippetNumber: `The number of the snippet to remove (see /lore-list).`
 }

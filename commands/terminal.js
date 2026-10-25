@@ -16,10 +16,11 @@ BOT:
 - clear: Clear the terminal screen.
 \nSERVER:
 - echo: Send a message to a specific channel by ID or edit a message by ID.
+- info: Show bot info and links.
 - lore: Print a random lore snippet.
 - lore-list: Lists lore snippets.
 - lore-create: Create lore file for a guild.
-- info: Show bot info and links.
+- lore-remove: Remove a specific lore snippet.
 - voice-join: Connect bot to specified voice channel by ID.
 - voice-leave: Disconnect bot from voice channel.
 - soundboard-play: Play the specified soundboard audio.
@@ -53,31 +54,40 @@ async function handleTerminalLine(line, context) {
 		
 		// Terminal commands.
 		switch (command) {
+			default: {
+				consoleLog(`[${getTimestamp()}] Unknown terminal command: "${command}".`);
+				break;
+			}
+			
 			// Bot.
-			case 'help':
+			case 'help': {
 				consoleLog(`[${getTimestamp()}] ${HELP_TEXT}`);
 				break;
+			}
 			
 			case 'exit':
 			case 'stop':
-			case 'shutdown':
+			case 'shutdown': {
 				consoleLog(`[${getTimestamp()}] Stopping bot via terminal command...`);
 				shutdown(client, voiceConnections, guildPlayers, rl, currentVolume);
 				return;
+			}
 			
 			case 'restart':
-			case 'reboot':
+			case 'reboot': {
 				consoleLog(`[${getTimestamp()}] Restarting bot via terminal command...`);
 				restart(client, voiceConnections, guildPlayers, rl, __filename, currentVolume); 
 				break;
+			}
 			
-			case 'status':
+			case 'status': {
 				const uptimeMs = Date.now() - botStartTime;
 				const uptimeFormatted = formatUptime(uptimeMs);
 				consoleLog(`[${getTimestamp()}] Status:\n- Bot is ready: ${isBotReady}\n- Logged in as: ${client.user ? client.user.tag : 'Not yet'}\n- Uptime: ${uptimeFormatted}\n- Server count: ${client.guilds.cache.size}`);
 				break;
+			}
 			
-			case 'ping':
+			case 'ping': {
 				consoleLog(`[${getTimestamp()}] Pinging...`);
 				const pingCmd = process.platform === 'win32' ? 'ping -n 1 8.8.8.8' : 'ping -c 1 -W 3 8.8.8.8';
 				exec(pingCmd, (error, stdout) => {
@@ -91,13 +101,15 @@ async function handleTerminalLine(line, context) {
 					rl.prompt(true);
 				});
 				break;
+			}
 			
-			case 'clear':
+			case 'clear': {
 				console.clear();
 				break;
+			}
 			
 			// Server.
-			case 'echo':
+			case 'echo': {
 				if (args[1] === '-e') {
 					// Edit Message: echo -e [CHANNEL_ID] [EDITED_TEXT]
 					const messageId = args[2];
@@ -145,8 +157,15 @@ async function handleTerminalLine(line, context) {
 					consoleLog(`[${getTimestamp()}] Message successfully sent to channel #${targetEchoChannel.name}.`);
 				}
 				break;
+			}
 			
-			case 'lore':
+			case 'info': {
+				const infoText = locales[defaultLang]?.infoText || locales['uk']?.infoText || 'Info text unavailable';
+				consoleLog(`[${getTimestamp()}] Bot Info:\nNarrator | ${packageJson.version}\n\n${infoText}`);
+				break;
+			}
+			
+			case 'lore': {
 				if (!fs.existsSync(loresDir)) {
 					consoleLog(`[${getTimestamp()}] Error: '${loresDir}' directory not found.`);
 					break;
@@ -277,8 +296,9 @@ async function handleTerminalLine(line, context) {
 				
 				consoleLog(`[${getTimestamp()}] [File: '${targetFile}'] ${loreTemplate.replace(/\{loreSnippet\}/g, () => selectedSnippet)}`);
 				break;
+			}
 			
-			case 'lore-list':
+			case 'lore-list': {
 				if (!fs.existsSync(loresDir)) {
 					consoleLog(`[${getTimestamp()}] Error: '${loresDir}' directory not found.`);
 					break;
@@ -340,8 +360,9 @@ async function handleTerminalLine(line, context) {
 				}
 				
 				break;
+			}
 			
-			case 'lore-create':
+			case 'lore-create': {
 				// Usage: lore-create [GUILD_ID] [LANGUAGE] [LORE_SNIPPET]
 				const guildIdArg = args[1];
 				const langArg = args[2];
@@ -382,13 +403,53 @@ async function handleTerminalLine(line, context) {
 					consoleLog(`[${getTimestamp()}] Error writing lore file:`, err.message);
 				}
 				break;
+			}
 			
-			case 'info':
-				const infoText = locales[defaultLang]?.infoText || locales['uk']?.infoText || 'Info text unavailable';
-				consoleLog(`[${getTimestamp()}] Bot Info:\nNarrator | ${packageJson.version}\n\n${infoText}`);
+			case 'lore-remove': {
+				// Usage: lore-remove [GUILD_ID] [LANGUAGE] [SNIPPET_NUMBER]
+				const removeGuildId = args[1];
+				const removeLang = args[2];
+				const removeIndex = parseInt(args[3], 10);
+
+				if (!removeGuildId || !removeLang || isNaN(removeIndex)) {
+					consoleLog(`[${getTimestamp()}] Error: Usage -> lore-remove [GUILD_ID] [LANGUAGE] [SNIPPET_NUMBER]`);
+					break;
+				}
+
+				if (!fs.existsSync(loresDir)) {
+					consoleLog(`[${getTimestamp()}] Error: '${loresDir}' directory not found.`);
+					break;
+				}
+
+				const filePath = path.join(loresDir, `${removeGuildId}_${removeLang}.js`);
+				if (!fs.existsSync(filePath)) {
+					consoleLog(`[${getTimestamp()}] Error: Lore file for guild ID '${removeGuildId}' and language '${removeLang}' not found.`);
+					break;
+				}
+
+				let snippets = loadSafeModule(filePath, []);
+				
+				if (removeIndex > 0 && removeIndex <= snippets.length) {
+					snippets.splice(removeIndex - 1, 1);
+
+					if (snippets.length === 0) {
+						fs.unlinkSync(filePath);
+					} else {
+						const fileContent = `module.exports = ${JSON.stringify(snippets, null, '\t')};\n`;
+						fs.writeFileSync(filePath, fileContent, 'utf8');
+					}
+
+					try { delete require.cache[require.resolve(filePath)]; } catch (e) {}
+					removeDuplicateLoreInFiles(loresDir);
+
+					consoleLog(`[${getTimestamp()}] Success: Removed snippet #${removeIndex} from '${removeGuildId}_${removeLang}.js' via terminal.`);
+				} else {
+					consoleLog(`[${getTimestamp()}] Error: Snippet number #${removeIndex} not found in '${removeGuildId}_${removeLang}.js'.`);
+				}
 				break;
+			}
 			
-			case 'voice-join':
+			case 'voice-join': {
 				// Usage: voice-join [CHANNEL_ID]
 				const targetChannelId = args[1];
 				if (!targetChannelId) {
@@ -429,8 +490,9 @@ async function handleTerminalLine(line, context) {
 				
 				consoleLog(`[${getTimestamp()}] Successfully joined voice channel: '${targetChannel.name}'`);
 				break;
+			}
 
-			case 'voice-leave':
+			case 'voice-leave': {
 				const leaveGuildId = args[1];
 				if (!leaveGuildId) {
 					// Global: voice-leave
@@ -452,8 +514,9 @@ async function handleTerminalLine(line, context) {
 					consoleLog(`[${getTimestamp()}] Left voice channel for guild ID '${leaveGuildId}'.`);
 				}
 				break;
+			}
 
-			case 'soundboard-play':
+			case 'soundboard-play': {
 				let playGuildId = null, rawTargetSound = '';
 				if (args[1] && voiceConnections.has(args[1])) {
 					// Global: soundboard-play [SOUND_NAME]
@@ -518,8 +581,9 @@ async function handleTerminalLine(line, context) {
 				
 				consoleLog(`[${getTimestamp()}] Played sound '${targetSound}'.`);
 				break;
+			}
 
-			case 'soundboard-stop':
+			case 'soundboard-stop': {
 				const stopGuildId = args[1];
 				if (stopGuildId) {
 					// Specific Guild: soundboard-stop [GUILD_ID]
@@ -544,8 +608,9 @@ async function handleTerminalLine(line, context) {
 					consoleLog(`[${getTimestamp()}] Stopped playback on all guilds.`);
 				}
 				break;
+			}
 
-			case 'soundboard-volume':
+			case 'soundboard-volume': {
 				if (args.length === 2) {
 					// Global: soundboard-volume [VOLUME]
 					const volumePercent = parseInt(args[1], 10);
@@ -590,10 +655,7 @@ async function handleTerminalLine(line, context) {
 					consoleLog(`[${getTimestamp()}] Error: Usage -> soundboard-volume [VOLUME] or soundboard-volume [GUILD_ID] [VOLUME]`);
 				}
 				break;
-			
-			default:
-				consoleLog(`[${getTimestamp()}] Unknown terminal command: "${command}".`);
-				break;
+			}
 		}
 	}
 	
@@ -610,12 +672,13 @@ async function handleTerminalLine(line, context) {
 // Tab completion.
 const TERMINAL_COMMANDS = [
 	'help', 'exit', 'stop', 'shutdown', 'restart', 'reboot', 'status', 'ping', 'clear',
-	'echo', 'lore', 'lore-list', 'lore-create', 'info',
+	'echo', 'info',
+	'lore', 'lore-list', 'lore-create', 'lore-remove',
 	'voice-join', 'voice-leave',
 	'soundboard-play', 'soundboard-stop', 'soundboard-volume'
 ];
  
-function completeTerminalLine(line, { client, locales, voiceConnections, guildPlayers }) {
+function completeTerminalLine(line, { client, locales, voiceConnections, guildPlayers, loadSafeModule }) {
 	const [cmd, ...args] = line.slice(line.lastIndexOf('&') + 1).trimStart().split(' ');
 	let partial = args.length ? args.at(-1) : cmd;
  
@@ -650,6 +713,15 @@ function completeTerminalLine(line, { client, locales, voiceConnections, guildPl
 			}
 		),
 		'lore-create': slots(guilds, langs),
+		'lore-remove': slots(
+			() => [...new Set(lores().map(f => f.split('_')[0]))],
+			([guild]) => lores().filter(f => f.startsWith(`${guild}_`)).map(f => f.slice(guild.length + 1)),
+			([guild, lang]) => {
+				const filePath = path.join(loresDir, `${guild}_${lang}.js`);
+				const snippets = loadSafeModule(filePath, []);
+				return Array.from({ length: snippets.length }, (_, i) => String(i + 1));
+			}
+		),
 		'voice-join': slots(() => channels(c => c.isVoiceBased() && c.joinable)), // Only channels the bot can actually join.
 		'voice-leave': slots(() => keys(voiceConnections)),
 		'soundboard-stop': slots(() => keys(guildPlayers)),

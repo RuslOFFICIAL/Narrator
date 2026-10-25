@@ -261,7 +261,7 @@ async function isAdminManageServer(interaction, locales) {
 	if (!interaction.member?.permissions.has(PermissionFlagsBits.Administrator) && 
 		!interaction.member?.permissions.has(PermissionFlagsBits.ManageGuild)) {
 		await safeReply(interaction, { 
-			content: getLocText(interaction, 'replyLoreCreateNoPermission', {}, locales), 
+			content: getLocText(interaction, 'replyNoPermissionAdminManageServer', {}, locales), 
 			flags: [MessageFlags.Ephemeral] 
 		});
 		return true;

@@ -22,6 +22,10 @@ function getCommands(CONFIG, getCmdText) {
 			.setContexts([0]).setIntegrationTypes([0])
 			.addStringOption(option => option.setName('language_code').setDescription(getCmdText('optionLanguageCode')).setRequired(true))
 			.addStringOption(option => option.setName('snippet').setDescription(getCmdText('optionSnippet')).setRequired(true)),
+		new SlashCommandBuilder().setName('lore-remove').setDescription(getCmdText('descLoreRemove'))
+			.setContexts([0]).setIntegrationTypes([0])
+			.addStringOption(option => option.setName('language_code').setDescription(getCmdText('optionLanguageCode')).setRequired(true))
+			.addIntegerOption(option => option.setName('snippet_number').setDescription(getCmdText('optionSnippetNumber')).setRequired(true)),
 		new SlashCommandBuilder().setName('info').setDescription(getCmdText('descInfo'))
 			.setContexts([0, 1, 2]).setIntegrationTypes([0, 1]),
 		new SlashCommandBuilder().setName('lottery-kick').setDescription(getCmdText('descLotteryKick').replace('{kickChance}', CONFIG.kickChance))
@@ -92,39 +96,66 @@ async function handleDiscordInteraction(interaction, context) {
 	
 	try {
 		switch (interaction.commandName) {
-			case 'help':
+			case 'help': {
 				await commandHelp(interaction, context);
 				break;
-			case 'lore':
-				await commandLore(interaction, context);
-				break;
-			case 'lore-list':
-				await commandLoreList(interaction, context);
-				break;
-			case 'lore-create':
-				await commandLoreCreate(interaction, context);
-				break;
-			case 'info':
+			}
+			
+			case 'info': {
 				await commandInfo(interaction, context);
 				break;
-			case 'lottery-kick':
+			}
+			
+			case 'lore': {
+				await commandLore(interaction, context);
+				break;
+			}
+			
+			case 'lore-list': {
+				await commandLoreList(interaction, context);
+				break;
+			}
+			
+			case 'lore-create': {
+				await commandLoreCreate(interaction, context);
+				break;
+			}
+			
+			case 'lore-remove': {
+				await commandLoreRemove(interaction, context);
+				break;
+			}
+			
+			case 'lottery-kick': {
 				await commandLotteryKick(interaction, context);
 				break;
-			case 'voice-join':
+			}
+			
+			case 'voice-join': {
 				await commandVoiceJoin(interaction, context);
 				break;
-			case 'voice-leave':
+			}
+			
+			case 'voice-leave': {
 				await commandVoiceLeave(interaction, context);
 				break;
-			case 'soundboard-play':
+			}
+			
+			case 'soundboard-play': {
 				await commandSoundboardPlay(interaction, context);
 				break;
-			case 'soundboard-stop':
+			}
+			
+			case 'soundboard-stop': {
 				await commandSoundboardStop(interaction, context);
 				break;
-			case 'soundboard-volume':
+			}
+			
+			case 'soundboard-volume': {
 				await commandSoundboardVolume(interaction, context);
 				break;
+			}
+			
 		}
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Interaction handling error: `, error);
@@ -140,6 +171,18 @@ async function commandHelp(interaction, { CONFIG, getLocText, makeLogMessage, sa
 		await safeReply(interaction, HELP_TEXT);
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, error);
+		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+	}
+}
+
+async function commandInfo(interaction, { CONFIG, getLocText, removeDuplicateLoreInFiles, makeLogMessage, safeReply, consoleLog, getTimestamp, packageJson }) {
+	try {
+		makeLogMessage(interaction);
+		
+		const INFO_TEXT = getLocText(interaction, 'infoText');
+		await safeReply(interaction, { content: `Narrator | ${packageJson.version}\n\n${INFO_TEXT}`, flags: [MessageFlags.Ephemeral] });
+	} catch (error) {
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
 		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
 	}
 }
@@ -265,12 +308,42 @@ async function commandLoreCreate(interaction, { getLocText, removeDuplicateLoreI
 	}
 }
 
-async function commandInfo(interaction, { CONFIG, getLocText, removeDuplicateLoreInFiles, makeLogMessage, safeReply, consoleLog, getTimestamp, packageJson }) {
+async function commandLoreRemove(interaction, { getLocText, removeDuplicateLoreInFiles, makeLogMessage, safeReply, consoleLog, getTimestamp, loadSafeModule, isGuildNot, isAdminManageServer }) {
 	try {
+		if (await isGuildNot(interaction)) return;
+		if (await isAdminManageServer(interaction)) return;
 		makeLogMessage(interaction);
 		
-		const INFO_TEXT = getLocText(interaction, 'infoText');
-		await safeReply(interaction, { content: `Narrator | ${packageJson.version}\n\n${INFO_TEXT}`, flags: [MessageFlags.Ephemeral] });
+		const guildId = interaction.guildId;
+		const langArg = interaction.options.getString('language_code');
+		const snippetNumber = interaction.options.getInteger('snippet_number');
+		
+		const filePath = path.join(loresDir, `${guildId}_${langArg}.js`);
+		if (!fs.existsSync(filePath)) {
+			await safeReply(interaction, { content: getLocText(interaction, 'replyLoreSnippetsUnavailable'), flags: [MessageFlags.Ephemeral] });
+			return;
+		}
+		
+		let snippets = loadSafeModule(filePath, []);
+		
+		if (snippetNumber > 0 && snippetNumber <= snippets.length) {
+			snippets.splice(snippetNumber - 1, 1);
+			
+			if (snippets.length === 0) {
+				fs.unlinkSync(filePath);
+			} else {
+				const fileContent = `module.exports = ${JSON.stringify(snippets, null, '\t')};\n`;
+				fs.writeFileSync(filePath, fileContent, 'utf8');
+			}
+			
+			try { delete require.cache[require.resolve(filePath)]; } catch (e) {}
+			removeDuplicateLoreInFiles(loresDir);
+			
+			consoleLog(`[${getTimestamp()}] Success: Removed snippet #${snippetNumber} from '${guildId}_${langArg}.js' via Discord`);
+			await safeReply(interaction, { content: getLocText(interaction, 'replyLoreRemoveSuccess', { number: snippetNumber }), flags: [MessageFlags.Ephemeral] });
+		} else {
+			await safeReply(interaction, { content: getLocText(interaction, 'replyLoreRemoveNotFound', { number: snippetNumber }), flags: [MessageFlags.Ephemeral] });
+		}
 	} catch (error) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, error);
 		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
