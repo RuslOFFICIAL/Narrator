@@ -65,21 +65,6 @@ async function handleTerminalLine(line, context) {
 				break;
 			}
 			
-			case 'exit':
-			case 'stop':
-			case 'shutdown': {
-				consoleLog(`[${getTimestamp()}] Stopping bot via terminal command...`);
-				shutdown(client, voiceConnections, guildPlayers, rl, currentVolume);
-				return;
-			}
-			
-			case 'restart':
-			case 'reboot': {
-				consoleLog(`[${getTimestamp()}] Restarting bot via terminal command...`);
-				restart(client, voiceConnections, guildPlayers, rl, __filename, currentVolume); 
-				break;
-			}
-			
 			case 'status': {
 				const uptimeMs = Date.now() - botStartTime;
 				const uptimeFormatted = formatUptime(uptimeMs);
@@ -105,6 +90,21 @@ async function handleTerminalLine(line, context) {
 			
 			case 'clear': {
 				console.clear();
+				break;
+			}
+			
+			case 'exit':
+			case 'stop':
+			case 'shutdown': {
+				consoleLog(`[${getTimestamp()}] Stopping bot via terminal command...`);
+				shutdown(client, voiceConnections, guildPlayers, rl, currentVolume);
+				return;
+			}
+			
+			case 'restart':
+			case 'reboot': {
+				consoleLog(`[${getTimestamp()}] Restarting bot via terminal command...`);
+				restart(client, voiceConnections, guildPlayers, rl, __filename, currentVolume); 
 				break;
 			}
 			
@@ -671,7 +671,8 @@ async function handleTerminalLine(line, context) {
 
 // Tab completion.
 const TERMINAL_COMMANDS = [
-	'help', 'exit', 'stop', 'shutdown', 'restart', 'reboot', 'status', 'ping', 'clear',
+	'help', 'status', 'ping', 'clear',
+	'exit', 'stop', 'shutdown', 'restart', 'reboot',
 	'echo', 'info',
 	'lore', 'lore-list', 'lore-create', 'lore-remove',
 	'voice-join', 'voice-leave',

@@ -13,33 +13,44 @@ function getCommands(CONFIG, getCmdText) {
 		
 		new SlashCommandBuilder().setName('help').setDescription(getCmdText('descHelp'))
 			.setContexts([0, 1, 2]).setIntegrationTypes([0, 1]),
+		
+		new SlashCommandBuilder().setName('info').setDescription(getCmdText('descInfo'))
+			.setContexts([0, 1, 2]).setIntegrationTypes([0, 1]),
+		
 		new SlashCommandBuilder().setName('lore').setDescription(getCmdText('descLore'))
 			.setContexts([0]).setIntegrationTypes([0]),
+		
 		new SlashCommandBuilder().setName('lore-list').setDescription(getCmdText('descLoreList'))
 			.setContexts([0]).setIntegrationTypes([0])
 			.addStringOption(option => option.setName('language_code').setDescription(getCmdText('optionLanguageCode')).setRequired(false)),
+		
 		new SlashCommandBuilder().setName('lore-create').setDescription(getCmdText('descLoreCreate'))
 			.setContexts([0]).setIntegrationTypes([0])
 			.addStringOption(option => option.setName('language_code').setDescription(getCmdText('optionLanguageCode')).setRequired(true))
 			.addStringOption(option => option.setName('snippet').setDescription(getCmdText('optionSnippet')).setRequired(true)),
+		
 		new SlashCommandBuilder().setName('lore-remove').setDescription(getCmdText('descLoreRemove'))
 			.setContexts([0]).setIntegrationTypes([0])
 			.addStringOption(option => option.setName('language_code').setDescription(getCmdText('optionLanguageCode')).setRequired(true))
 			.addIntegerOption(option => option.setName('snippet_number').setDescription(getCmdText('optionSnippetNumber')).setRequired(true)),
-		new SlashCommandBuilder().setName('info').setDescription(getCmdText('descInfo'))
-			.setContexts([0, 1, 2]).setIntegrationTypes([0, 1]),
+		
 		new SlashCommandBuilder().setName('lottery-kick').setDescription(getCmdText('descLotteryKick').replace('{kickChance}', CONFIG.kickChance))
 			.setContexts([0]).setIntegrationTypes([0]),
+		
 		new SlashCommandBuilder().setName('voice-join').setDescription(getCmdText('descVoiceJoin'))
 			.setContexts([0]).setIntegrationTypes([0])
 			.addChannelOption(option => option.setName('channel').setDescription(getCmdText('optionChannel')).addChannelTypes(ChannelType.GuildVoice).setRequired(true)),
+		
 		new SlashCommandBuilder().setName('voice-leave').setDescription(getCmdText('descVoiceLeave'))
 			.setContexts([0]).setIntegrationTypes([0]),
+		
 		new SlashCommandBuilder().setName('soundboard-play').setDescription(getCmdText('descSoundboardPlay'))
 			.setContexts([0]).setIntegrationTypes([0])
 			.addStringOption(option => option.setName('sound').setDescription(getCmdText('optionSound')).setRequired(true).setAutocomplete(true)),
+		
 		new SlashCommandBuilder().setName('soundboard-stop').setDescription(getCmdText('descSoundboardStop'))
 			.setContexts([0]).setIntegrationTypes([0]),
+		
 		new SlashCommandBuilder().setName('soundboard-volume').setDescription(getCmdText('descSoundboardVolume'))
 			.setContexts([0]).setIntegrationTypes([0])
 			.addIntegerOption(option => option.setName('level').setDescription(getCmdText('optionVolumeLevel')).setMinValue(0).setMaxValue(100).setRequired(true))
