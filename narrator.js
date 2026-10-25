@@ -11,7 +11,7 @@ const { saveVoiceState } = require('./commands/helpers.js');
 const { getCommands, handleDiscordInteraction } = require('./commands/discord.js');
 const { handleTerminalLine, completeTerminalLine  } = require('./commands/terminal.js');
 const {
-	loadSafeModule,	getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets, setupGlobalMessageSanitizer,
+	loadSafeModule,	getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
 	consoleLog: _consoleLog, getTimestamp, makeLogMessage: _makeLogMessage, safeReply: _safeReply,
 	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTester: _isAuthorizedTester, isAdminManageServer: _isAdminManageServer, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
 	restoreVoiceState,
@@ -100,8 +100,8 @@ const executionContext = {
 	client, get isBotReady() { return isBotReady; }, CONFIG, locales, defaultLang, packageJson,
 	voiceConnections, guildVolumes, guildPlayers, botStartTime, 
 	get currentVolume() { return currentVolume; }, set currentVolume(v) { currentVolume = v; },
-	getCmdText, getLocText, getLocalizedLoreSnippets, consoleLog, getTimestamp, 
-	makeLogMessage, safeReply,
+	getCmdText, getLocText, getLocalizedLoreSnippets, removeDuplicateLoreInFiles,
+	consoleLog, getTimestamp, makeLogMessage, safeReply,
 	isWhitelist, isWhitelistNot, isAuthorizedTester, isAdminManageServer, isGuildNot, isVoiceNot,
 	shutdown, restart, rl, loadSafeModule
 };

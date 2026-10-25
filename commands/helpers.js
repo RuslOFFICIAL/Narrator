@@ -73,6 +73,46 @@ function getLocalizedLoreSnippets(interaction, locales, defaultLang) {
 	return rawSnippets;
 }
 
+function removeDuplicateLoreInFiles(loresDir) {
+	if (!fs.existsSync(loresDir)) {
+		consoleLog(`[${getTimestamp()}] Lores directory not found: '${loresDir}'`);
+		return { success: false, modifiedFilesCount: 0 };
+	}
+	
+	const files = fs.readdirSync(loresDir).filter(file => file.endsWith('.js'));
+	let modifiedFilesCount = 0;
+	
+	for (const file of files) {
+		const filePath = path.join(loresDir, file);
+		try {
+			const snippets = loadSafeModule(filePath, []);
+			if (!Array.isArray(snippets) || snippets.length === 0) continue;
+			
+			const uniqueSnippets = [...new Set(snippets)];
+			
+			if (uniqueSnippets.length !== snippets.length) {
+				const fileContent = `module.exports = ${JSON.stringify(uniqueSnippets, null, '\t')};\n`;
+				fs.writeFileSync(filePath, fileContent, 'utf8');
+				
+				try {
+					delete require.cache[require.resolve(filePath)];
+				} catch (e) {}
+				
+				modifiedFilesCount++;
+				consoleLog(`[${getTimestamp()}] [Lore Cleanup] Removed ${snippets.length - uniqueSnippets.length} duplicate(s) from file '${file}'.`);
+			}
+		} catch (error) {
+			consoleLog(`[${getTimestamp()}] Failed to process lore file '${file}':`, error);
+		}
+	}
+	
+	if (modifiedFilesCount > 0) {
+		consoleLog(`[${getTimestamp()}] [Lore Cleanup] Successfully cleaned duplicates across ${modifiedFilesCount} file(s).`);
+	}
+	
+	return { success: true, modifiedFilesCount };
+}
+
 function sanitizeMentions(options) {
 	if (typeof options === 'string') {
 		return options.replace(/@everyone/g, '@\u200beveryone').replace(/@here/g, '@\u200bhere');
@@ -103,20 +143,20 @@ function setupGlobalMessageSanitizer() {
 }
 
 async function safeReply(interaction, replyOptions) {
-    try {
+	try {
 		const payload = typeof replyOptions === 'string' ? { content: replyOptions } : replyOptions;
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp(replyOptions);
-        } else {
-            await interaction.reply(replyOptions);
-        }
-    } catch (error) {
-        // Ignore "Unknown interaction" (10062) or "Interaction has already been acknowledged" (40060).
-        if (error.code === 10062 || error.code === 40060) {
-            return;
-        }
-        throw error;
-    }
+		if (interaction.replied || interaction.deferred) {
+			await interaction.followUp(replyOptions);
+		} else {
+			await interaction.reply(replyOptions);
+		}
+	} catch (error) {
+		// Ignore "Unknown interaction" (10062) or "Interaction has already been acknowledged" (40060).
+		if (error.code === 10062 || error.code === 40060) {
+			return;
+		}
+		throw error;
+	}
 }
 
 function consoleLog(rl, ...args) {
@@ -405,7 +445,7 @@ async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes
 	} catch (error) {
 		consoleLog(error);
 	} finally {
-		consoleLog("Press 'Ctrl+C' or close the window to end process.");
+		consoleLog(`Press 'Ctrl+C' or close the window to end process.`);
 		process.exit(0);
 	}
 }
@@ -471,7 +511,7 @@ async function loginWithRetry(client, attempt = 1) {
 }
 
 module.exports = {
-	loadSafeModule, getCmdText, getLocText,	getLocalizedLoreSnippets, setupGlobalMessageSanitizer,
+	loadSafeModule, getCmdText, getLocText,	getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
 	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply,
 	isWhitelist, isWhitelistNot, isAuthorizedTester, isAdminManageServer, isGuildNot, isVoiceNot,
 	saveVoiceState, restoreVoiceState,

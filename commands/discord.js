@@ -2,7 +2,6 @@
 const { SlashCommandBuilder, InteractionContextType, ApplicationIntegrationType, ChannelType, MessageFlags, PermissionFlagsBits } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { saveVoiceState } = require('./helpers');
 
 // Variables.
 const loresDir = path.join(__dirname, '../lores');
@@ -145,12 +144,13 @@ async function commandHelp(interaction, { CONFIG, getLocText, makeLogMessage, sa
 	}
 }
 
-async function commandLore(interaction, { getLocalizedLoreSnippets, getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isGuildNot }) {
+async function commandLore(interaction, { getLocalizedLoreSnippets, getLocText, removeDuplicateLoreInFiles, makeLogMessage, safeReply, consoleLog, getTimestamp, isGuildNot }) {
 	try {
 		if (await isGuildNot(interaction)) return;
 
 		makeLogMessage(interaction);
 		
+		removeDuplicateLoreInFiles(loresDir);
 		const loreSnippets = getLocalizedLoreSnippets(interaction);
 		
 		// Check if snippets are unavailable.
@@ -171,12 +171,13 @@ async function commandLore(interaction, { getLocalizedLoreSnippets, getLocText, 
 	}
 }
 
-async function commandLoreList(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, loadSafeModule, isGuildNot, isAdminManageServer }) {
+async function commandLoreList(interaction, { getLocText, removeDuplicateLoreInFiles, makeLogMessage, safeReply, consoleLog, getTimestamp, loadSafeModule, isGuildNot, isAdminManageServer }) {
 	try {
 		if (await isGuildNot(interaction)) return;
 		if (await isAdminManageServer(interaction)) return;
 		makeLogMessage(interaction);
 		
+		removeDuplicateLoreInFiles(loresDir);
 		const guildId = interaction.guildId;
 		const langArg = interaction.options.getString('language_code');
 		
@@ -215,7 +216,7 @@ async function commandLoreList(interaction, { getLocText, makeLogMessage, safeRe
 	}
 }
 
-async function commandLoreCreate(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, loadSafeModule, isGuildNot, isAdminManageServer }) {
+async function commandLoreCreate(interaction, { getLocText, removeDuplicateLoreInFiles, makeLogMessage, safeReply, consoleLog, getTimestamp, loadSafeModule, isGuildNot, isAdminManageServer }) {
 	try {
 		if (await isGuildNot(interaction)) return;
 		if (await isAdminManageServer(interaction)) return;
@@ -254,6 +255,7 @@ async function commandLoreCreate(interaction, { getLocText, makeLogMessage, safe
 		try {
 			delete require.cache[require.resolve(filePath)];
 		} catch (e) {}
+		removeDuplicateLoreInFiles(loresDir);
 		
 		consoleLog(`[${getTimestamp()}] Success: Added snippet via Discord to '${filePath}'`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replyLoreCreateSuccess', { guildId: guildIdArg, lang: langArg }), flags: [MessageFlags.Ephemeral] });
@@ -263,7 +265,7 @@ async function commandLoreCreate(interaction, { getLocText, makeLogMessage, safe
 	}
 }
 
-async function commandInfo(interaction, { CONFIG, getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, packageJson }) {
+async function commandInfo(interaction, { CONFIG, getLocText, removeDuplicateLoreInFiles, makeLogMessage, safeReply, consoleLog, getTimestamp, packageJson }) {
 	try {
 		makeLogMessage(interaction);
 		

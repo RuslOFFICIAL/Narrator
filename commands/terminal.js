@@ -4,7 +4,6 @@ const path = require('path');
 const readline = require('readline');
 const { exec } = require('child_process');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus, entersState } = require('@discordjs/voice');
-const { formatUptime, saveVoiceState } = require('./helpers.js');
 
 // Variables.
 const HELP_TEXT = `Commands:\n
@@ -36,7 +35,8 @@ async function handleTerminalLine(line, context) {
 		client, isBotReady, CONFIG, locales, defaultLang, packageJson,
 		rawSnippetsEn, rawSnippetsUk, voiceConnections, 
 		guildVolumes, guildPlayers, currentVolume, botStartTime, 
-		consoleLog, getTimestamp, shutdown, restart, rl , loadSafeModule
+		consoleLog, getTimestamp, shutdown, restart, rl , loadSafeModule,
+		formatUptime, saveVoiceState, removeDuplicateLoreInFiles
 	} = context;
 
 	const trimmedLine = line.trim();
@@ -151,6 +151,8 @@ async function handleTerminalLine(line, context) {
 					consoleLog(`[${getTimestamp()}] Error: '${loresDir}' directory not found.`);
 					break;
 				}
+				
+				removeDuplicateLoreInFiles(loresDir);
 				
 				if (allLoreFiles.length === 0) {
 					consoleLog(`[${getTimestamp()}] No guild lore files found in '${loresDir}'.`);
@@ -282,6 +284,8 @@ async function handleTerminalLine(line, context) {
 					break;
 				}
 				
+				removeDuplicateLoreInFiles(loresDir);
+				
 				if (allLoreFiles.length === 0) {
 					consoleLog(`[${getTimestamp()}] No lore files found.`);
 					break;
@@ -371,6 +375,8 @@ async function handleTerminalLine(line, context) {
 					try {
 						delete require.cache[require.resolve(filePath)];
 					} catch (e) {}
+					removeDuplicateLoreInFiles(loresDir);
+					
 					consoleLog(`[${getTimestamp()}] Success: Added snippet to '${filePath}'`);
 				} catch (err) {
 					consoleLog(`[${getTimestamp()}] Error writing lore file:`, err.message);
