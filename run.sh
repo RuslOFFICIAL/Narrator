@@ -5,7 +5,8 @@ cd "$(dirname "$0")" || exit
 SCRIPT_NAME="run.sh"
 SCRIPT_PATH="./$SCRIPT_NAME"
 CONFIG_NAME="nodemon.json"
-FILE_PACKAGE=package.json
+FILE_PACKAGE="package.json"
+PID_FILE="run.pid"
 
 # Functions.
 get_mtime() {
@@ -22,16 +23,19 @@ restart_all() {
 }
 
 # Stop any other running instances.
-echo "Checking for other running instances of '$SCRIPT_NAME'..."
-for OTHER_PID in $(pgrep -f "$SCRIPT_NAME"); do
-	if [ "$OTHER_PID" != "$$" ]; then
-		echo "Stopping old instance (PID: $OTHER_PID)..."
-		kill -15 "$OTHER_PID" 2>/dev/null
+if [ -f "$PID_FILE" ]; then
+	OLD_PID=$(cat "$PID_FILE")
+	if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+		echo "Stopping previous instance (PID: $OLD_PID)..."
+		kill -15 "$OLD_PID" 2>/dev/null
 		sleep 1
-		# Force kill if it's still hanging around
-		kill -9 "$OTHER_PID" 2>/dev/null
+		kill -9 "$OLD_PID" 2>/dev/null
 	fi
-done
+	rm -f "$PID_FILE"
+fi
+
+echo "$$" > "$PID_FILE"
+trap "rm -f '$PID_FILE'" EXIT
 
 echo "Make sure there is sonly one host of bot!"
 
@@ -56,13 +60,13 @@ echo
 npx --yes nodemon --no-stdin <&0 &
 BOT_PID=$!
 
-sleep 5
+sleep 1
 INITIAL_SCRIPT_MTIME=$(get_mtime "$SCRIPT_PATH")
 INITIAL_CONFIG_MTIME=$(get_mtime "$CONFIG_NAME")
 
 # Monitor loop.
 while kill -0 $BOT_PID 2>/dev/null; do
-	sleep 2
+	sleep 1
 	CURRENT_SCRIPT_MTIME=$(get_mtime "$SCRIPT_PATH")
 	CURRENT_CONFIG_MTIME=$(get_mtime "$CONFIG_NAME")
 	
@@ -70,4 +74,5 @@ while kill -0 $BOT_PID 2>/dev/null; do
 	[ "$CURRENT_CONFIG_MTIME" != "$INITIAL_CONFIG_MTIME" ] && restart_all "$CONFIG_NAME"
 done
 
+rm -f "$PID_FILE"
 wait $BOT_PID

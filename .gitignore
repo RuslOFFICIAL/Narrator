@@ -3,9 +3,11 @@ sounds/*
 lores/
 
 # Files.
+run.pid
 voice-state.json
-*.lnk
 !sounds/README.md
+
+*.lnk
 
 # Environment variables.
 *.env
