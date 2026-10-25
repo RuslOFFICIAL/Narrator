@@ -21,11 +21,11 @@ restart_all() {
 	exec sh "$SCRIPT_PATH"
 }
 
-echo "Make sure there is sonly one host of bot!" && echo
+echo "Make sure there is sonly one host of bot!"
 
 # Install dependencies.
 if [ ! -f "$FILE_PACKAGE" ]; then
-	echo "File '$FILE_PACKAGE' not found."
+	echo && echo "File '$FILE_PACKAGE' not found."
 	npm init -y
 fi
 
