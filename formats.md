@@ -26,6 +26,9 @@
 ### lore-create:
 - To Create Lore Snippet of current Guild: lore-create lore-create [LANGUAGE] [LORE_SNIPPET]
 
+### lore-remove:
+- To Remove Lore Snippet of current Guild: lore-remove [GUILD_ID] [LANGUAGE] [SNIPPET_NUMBER]
+
 ### voice-join:
 - To Join particular Voice Channel of current Guild: voice-join [CHANNEL]
 
