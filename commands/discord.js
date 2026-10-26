@@ -394,7 +394,7 @@ async function commandLotteryKick(interaction, { CONFIG, getLocText, makeLogMess
 	}
 }
 
-async function commandVoiceJoin(interaction, { getLocText, saveVoiceState, makeLogMessage, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, voiceConnections, guildPlayers, guildVolumes, currentVolume }) {
+async function commandVoiceJoin(interaction, { getLocText, saveVoiceState, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, voiceConnections, guildPlayers, guildVolumes, currentVolume }) {
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
