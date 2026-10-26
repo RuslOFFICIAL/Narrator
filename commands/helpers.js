@@ -165,9 +165,16 @@ function consoleLog(rl, ...args) {
 		rl = null;
 	}
 	
-	readline.clearLine(process.stdout, 0);
-	readline.cursorTo(process.stdout, 0);
+	if (process.stdout.isTTY) {
+		readline.clearLine(process.stdout, 0);
+		readline.cursorTo(process.stdout, 0);
+	}
+	
 	console.log(...args);
+	
+	if (typeof process.stdout.write === 'function') {
+		process.stdout.write('');
+	}
 	
 	try {
 		if (rl && typeof rl.prompt === 'function') {

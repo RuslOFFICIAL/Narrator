@@ -174,8 +174,10 @@ rl.on('line', async (line) => {
 });
 
 // Shut down the bot.
-if (process.stdin.isTTY) {
-	process.stdin.setRawMode(true);
+if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
+	try {
+		process.stdin.setRawMode(true);
+	} catch (err) {}
 }
 process.stdin.resume();
 process.stdin.on('data', (key) => {
