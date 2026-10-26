@@ -345,7 +345,9 @@ async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPl
 				});
 				connection.on('error', (error) => {
 					consoleLog(`[${getTimestamp()}] Voice connection error: `, error.message);
-					try { connection.destroy(); } catch (e) {}
+					try {
+						connection.destroy();
+					} catch (e) {}
 				});
 
 				voiceConnections.set(guild.id, connection);

@@ -472,7 +472,9 @@ async function handleTerminalLine(line, context) {
 				});
 				connection.on('error', (error) => {
 					consoleLog(`[${getTimestamp()}] Voice connection error: `, error.message);
-					try { connection.destroy(); } catch (e) {}
+					try {
+						connection.destroy();
+					} catch (e) {}
 				});
 				
 				try {

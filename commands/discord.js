@@ -413,7 +413,9 @@ async function commandVoiceJoin(interaction, { getLocText, makeLogMessage, safeR
 		});
 		connection.on('error', (error) => {
 			consoleLog(`[${getTimestamp()}] Voice connection error: `, error.message);
-			try { connection.destroy(); } catch (e) {}
+			try {
+				connection.destroy();
+			} catch (e) {}
 		});
 		
 		voiceConnections.set(optionChannel.guild.id, connection);
