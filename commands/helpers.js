@@ -343,6 +343,10 @@ async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPl
 					guildId: guild.id,
 					adapterCreator: guild.voiceAdapterCreator,
 				});
+				connection.on('error', (error) => {
+					consoleLog(`[${getTimestamp()}] Voice connection error: `, error.message);
+					try { connection.destroy(); } catch (e) {}
+				});
 
 				voiceConnections.set(guild.id, connection);
 				consoleLog(`[${getTimestamp()}] [Voice] Rejoined voice channel '${channel.name}' in guild ID '${guildId}'.`);
@@ -429,7 +433,9 @@ async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes
 				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 				consoleLog(`[${getTimestamp()}] Leaving voice channels...`);
 				for (const [guildId, connection] of voiceConnections.entries()) {
-					connection.destroy();
+					try {
+						connection.destroy();
+					} catch (e) {}
 				}
 				voiceConnections.clear();
 				consoleLog(`[${getTimestamp()}] Successfully left all voice channels.`);
@@ -465,7 +471,9 @@ async function restart(client, voiceConnections, guildPlayers, rl, scriptFilenam
 				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 				consoleLog(`[${getTimestamp()}] Leaving voice channels...`);
 				for (const [guildId, connection] of voiceConnections.entries()) {
-					connection.destroy();
+					try {
+						connection.destroy();
+					} catch (e) {}
 				}
 				voiceConnections.clear();
 				consoleLog(`[${getTimestamp()}] Successfully left all voice channels.`);

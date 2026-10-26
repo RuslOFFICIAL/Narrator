@@ -464,14 +464,15 @@ async function handleTerminalLine(line, context) {
 					consoleLog(`[${getTimestamp()}] Error: Voice channel not found.`);
 					break;
 				}
+				
 				const connection = joinVoiceChannel({
 					channelId: targetChannel.id,
 					guildId: targetChannel.guild.id,
 					adapterCreator: targetChannel.guild.voiceAdapterCreator,
 				});
-				
 				connection.on('error', (error) => {
 					consoleLog(`[${getTimestamp()}] Voice connection error: `, error.message);
+					try { connection.destroy(); } catch (e) {}
 				});
 				
 				try {
@@ -495,7 +496,11 @@ async function handleTerminalLine(line, context) {
 				const leaveGuildId = args[1];
 				if (!leaveGuildId) {
 					// Global: voice-leave
-					for (const [gId, conn] of voiceConnections.entries()) conn.destroy();
+					for (const [gId, conn] of voiceConnections.entries()) {
+						try {
+							conn.destroy();
+						} catch (e) {}
+					}
 					voiceConnections.clear();
 					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 					
@@ -506,7 +511,9 @@ async function handleTerminalLine(line, context) {
 				const connToLeave = voiceConnections.get(leaveGuildId);
 				if (connToLeave) {
 					// Specific Guild: voice-leave [GUILD_ID]
-					connToLeave.destroy();
+					try {
+						connToLeave.destroy();
+					} catch (e) {}
 					voiceConnections.delete(leaveGuildId);
 					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 					

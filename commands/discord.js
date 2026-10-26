@@ -405,13 +405,15 @@ async function commandVoiceJoin(interaction, { getLocText, makeLogMessage, safeR
 			return;
 		}
 		const { joinVoiceChannel, VoiceConnectionStatus } = require('@discordjs/voice');
+		
 		const connection = joinVoiceChannel({
 			channelId: optionChannel.id,
 			guildId: optionChannel.guild.id,
 			adapterCreator: optionChannel.guild.voiceAdapterCreator,
 		});
 		connection.on('error', (error) => {
-			consoleLog(`[${getTimestamp()}] Voice connection error:`, error.message);
+			consoleLog(`[${getTimestamp()}] Voice connection error: `, error.message);
+			try { connection.destroy(); } catch (e) {}
 		});
 		
 		voiceConnections.set(optionChannel.guild.id, connection);
