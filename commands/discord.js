@@ -17,6 +17,9 @@ function getCommands(CONFIG, getCmdText) {
 		new SlashCommandBuilder().setName('info').setDescription(getCmdText('descInfo'))
 			.setContexts([0, 1, 2]).setIntegrationTypes([0, 1]),
 		
+		new SlashCommandBuilder().setName('lottery-kick').setDescription(getCmdText('descLotteryKick').replace('{kickChance}', CONFIG.kickChance))
+			.setContexts([0]).setIntegrationTypes([0]),
+		
 		new SlashCommandBuilder().setName('lore').setDescription(getCmdText('descLore'))
 			.setContexts([0]).setIntegrationTypes([0]),
 		
@@ -33,9 +36,6 @@ function getCommands(CONFIG, getCmdText) {
 			.setContexts([0]).setIntegrationTypes([0])
 			.addStringOption(option => option.setName('language_code').setDescription(getCmdText('optionLanguageCode')).setRequired(true))
 			.addIntegerOption(option => option.setName('snippet_number').setDescription(getCmdText('optionSnippetNumber')).setRequired(true)),
-		
-		new SlashCommandBuilder().setName('lottery-kick').setDescription(getCmdText('descLotteryKick').replace('{kickChance}', CONFIG.kickChance))
-			.setContexts([0]).setIntegrationTypes([0]),
 		
 		new SlashCommandBuilder().setName('voice-join').setDescription(getCmdText('descVoiceJoin'))
 			.setContexts([0]).setIntegrationTypes([0])
@@ -118,6 +118,11 @@ async function handleDiscordInteraction(interaction, context) {
 				break;
 			}
 			
+			case 'lottery-kick': {
+				await commandLotteryKick(interaction, context);
+				break;
+			}
+			
 			case 'lore': {
 				await commandLore(interaction, context);
 				break;
@@ -135,11 +140,6 @@ async function handleDiscordInteraction(interaction, context) {
 			
 			case 'lore-remove': {
 				await commandLoreRemove(interaction, context);
-				break;
-			}
-			
-			case 'lottery-kick': {
-				await commandLotteryKick(interaction, context);
 				break;
 			}
 			

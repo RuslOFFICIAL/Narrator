@@ -5,11 +5,11 @@ General Commands:
 /help - Shows the bot commands.
 /info - Information about the lore.
 \nGuild Commands:
+/lottery-kick - {kickChance}% chance to be kicked from the server. Good luck!
 /lore - Tells one of the parts of the server lore.
 /lore-list - Lists lore snippets.
 /lore-create - Add a new lore snippet to a server file.
 /lore-remove: Remove a specific lore snippet.
-/lottery-kick - {kickChance}% chance to be kicked from the server. Good luck!
 /voice-join - Joins the selected voice channel.
 /voice-leave - Leaves the voice channel.
 /soundboard-play - Plays the selected sound in the voice channel.

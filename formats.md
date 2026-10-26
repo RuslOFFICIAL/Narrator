@@ -6,11 +6,11 @@
 
 ### help
 
-### lore
-
 ### info
 
 ### lottery-kick
+
+### lore
 
 ### voice-leave
 
