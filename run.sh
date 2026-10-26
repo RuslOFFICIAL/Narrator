@@ -25,7 +25,7 @@ restart_all() {
 # Stop any other running instances.
 if [ -f "$PID_FILE" ]; then
 	OLD_PID=$(cat "$PID_FILE")
-	if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+	if [ -n "$OLD_PID" ] && [ "$OLD_PID" != "$$" ] && kill -0 "$OLD_PID" 2>/dev/null; then
 		echo "Stopping previous instance (PID: $OLD_PID)..."
 		kill -15 "$OLD_PID" 2>/dev/null
 		sleep 1
