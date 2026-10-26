@@ -172,12 +172,8 @@ function consoleLog(rl, ...args) {
 	
 	console.log(...args);
 	
-	if (typeof process.stdout.write === 'function') {
-		process.stdout.write('');
-	}
-	
 	try {
-		if (rl && typeof rl.prompt === 'function') {
+		if (rl && typeof rl.prompt === 'function' && !rl.closed) {
 			rl.prompt(true);
 		}
 	} catch (err) {

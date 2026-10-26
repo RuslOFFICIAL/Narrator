@@ -74,12 +74,20 @@ const voiceConnections = new Map();
 const guildVolumes = new Map();
 const guildPlayers = new Map();
 
-const rl = readline.createInterface({
+const isInteractive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+
+const rl = isInteractive ? readline.createInterface({
 	input: process.stdin,
 	output: process.stdout,
 	prompt: '> ',
 	completer: (line) => completeTerminalLine(line, executionContext)
-});
+}) : {
+	prompt: () => {},
+	close: () => {},
+	closed: true,
+	on: () => {},
+	once: () => {}
+};
 
 const CONFIG = {
 	statusBot: process.env.STATUS,
@@ -177,6 +185,12 @@ rl.on('line', async (line) => {
 if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
 	try {
 		process.stdin.setRawMode(true);
+		process.stdin.resume();
+		process.stdin.on('data', (key) => {
+			if (key.length === 1 && key[0] === 3) {
+				process.emit('SIGINT');
+			}
+		});
 	} catch (err) {}
 }
 process.stdin.resume();
