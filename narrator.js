@@ -11,7 +11,7 @@ const { getCommands, handleDiscordInteraction } = require('./commands/discord.js
 const { handleTerminalLine, completeTerminalLine  } = require('./commands/terminal.js');
 const {
 	loadSafeModule,	getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
-	consoleLog: _consoleLog, getTimestamp, makeLogMessage: _makeLogMessage, safeReply: _safeReply,
+	consoleLog: _consoleLog, getTimestamp, formatUptime, makeLogMessage: _makeLogMessage, safeReply: _safeReply,
 	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTester: _isAuthorizedTester, isAdminManageServer: _isAdminManageServer, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
 	saveVoiceState, restoreVoiceState,
 	shutdown: _shutdown, restart: _restart, loginWithRetry
@@ -76,18 +76,14 @@ const guildPlayers = new Map();
 
 const isInteractive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
 
-const rl = isInteractive ? readline.createInterface({
+// Always read console input. Hosting panels pipe stdin (not a TTY), so a no-op stub here would swallow every command.
+const rl = readline.createInterface({
 	input: process.stdin,
 	output: process.stdout,
-	prompt: '> ',
-	completer: (line) => completeTerminalLine(line, executionContext)
-}) : {
-	prompt: () => {},
-	close: () => {},
-	closed: true,
-	on: () => {},
-	once: () => {}
-};
+	terminal: isInteractive,
+	prompt: isInteractive ? '> ' : '',
+	completer: isInteractive ? (line) => completeTerminalLine(line, executionContext) : undefined
+});
 
 const CONFIG = {
 	statusBot: process.env.STATUS,
@@ -108,7 +104,7 @@ const executionContext = {
 	voiceConnections, guildVolumes, guildPlayers, botStartTime, 
 	get currentVolume() { return currentVolume; }, set currentVolume(v) { currentVolume = v; },
 	getCmdText, getLocText, getLocalizedLoreSnippets, removeDuplicateLoreInFiles,
-	consoleLog, getTimestamp, makeLogMessage, safeReply,
+	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply,
 	isWhitelist, isWhitelistNot, isAuthorizedTester, isAdminManageServer, isGuildNot, isVoiceNot,
 	saveVoiceState, restoreVoiceState,
 	shutdown, restart, rl, loadSafeModule

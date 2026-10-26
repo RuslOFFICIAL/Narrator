@@ -68,6 +68,9 @@ cleanup() {
 }
 
 main() {
+	# Keep a copy of the real stdin (console input) for nodemon.
+	exec 3<&0
+
 	# Add watched files.
 	add_watch "$SCRIPT_NAME"
 	[ -f "nodemon.json" ] && add_watch "nodemon.json"
@@ -119,7 +122,7 @@ main() {
 	fi
 
 	# Start nodemon in the background.
-	npx --yes nodemon <&0 &
+	npx --yes nodemon <&3 3<&- &
 	NM_PID=$!
 
 	CHANGED_FILE=""
