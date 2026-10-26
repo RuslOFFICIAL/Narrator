@@ -1,5 +1,6 @@
 {
 	"restartable": "rs",
+	"stdin": false,
 	"ignore": [
 		"lores/",
 		"sounds/",

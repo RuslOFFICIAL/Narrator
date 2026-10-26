@@ -1,12 +1,11 @@
 {
 	"name": "narrator",
-	"version": "11.0.0",
+	"version": "11.1.0",
 	"description": "Narrator bot for Discord.",
 	"main": "narrator.js",
 	"author": "Rusl",
 	"license": "ISC",
 	"type": "commonjs",
-	
 	"dependencies": {
 		"@discordjs/voice": "^0.19.2",
 		"discord.js": "^14.27.0",
@@ -14,7 +13,6 @@
 		"ffmpeg-static": "^5.3.0",
 		"opusscript": "^0.1.1"
 	},
-	
 	"allowScripts": {
 		"ffmpeg-static@5.3.0": true
 	}
