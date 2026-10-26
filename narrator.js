@@ -103,7 +103,7 @@ const executionContext = {
 	getCmdText, getLocText, getLocalizedLoreSnippets, removeDuplicateLoreInFiles,
 	consoleLog, getTimestamp, makeLogMessage, safeReply,
 	isWhitelist, isWhitelistNot, isAuthorizedTester, isAdminManageServer, isGuildNot, isVoiceNot,
-	shutdown, restart, rl, loadSafeModule
+	shutdown, restart, rl, loadSafeModule, saveVoiceState
 };
 
 // Run this code after the client is ready.

@@ -62,7 +62,8 @@ async function handleDiscordInteraction(interaction, context) {
 		isBotReady, CONFIG, getLocText, getLocalizedLoreSnippets, packageJson,
 		consoleLog, getTimestamp, makeLogMessage, safeReply,
 		voiceConnections, guildVolumes, guildPlayers, currentVolume,
-		isWhitelist, isWhitelistNot, isAuthorizedTester, isGuildNot, isVoiceNot
+		isWhitelist, isWhitelistNot, isAuthorizedTester, isGuildNot, isVoiceNot,
+		saveVoiceState
 	} = context;
 
 	if (!isBotReady) {
@@ -393,7 +394,7 @@ async function commandLotteryKick(interaction, { CONFIG, getLocText, makeLogMess
 	}
 }
 
-async function commandVoiceJoin(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, voiceConnections, guildPlayers, guildVolumes, currentVolume }) {
+async function commandVoiceJoin(interaction, { getLocText, saveVoiceState, makeLogMessage, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, voiceConnections, guildPlayers, guildVolumes, currentVolume }) {
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
@@ -434,7 +435,7 @@ async function commandVoiceJoin(interaction, { getLocText, makeLogMessage, safeR
 	}
 }
 
-async function commandVoiceLeave(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume }) {
+async function commandVoiceLeave(interaction, { getLocText, saveVoiceState, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume }) {
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
@@ -457,7 +458,7 @@ async function commandVoiceLeave(interaction, { getLocText, makeLogMessage, safe
 	}
 }
 
-async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildVolumes, guildPlayers, currentVolume }) {
+async function commandSoundboardPlay(interaction, { getLocText, saveVoiceState, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildVolumes, guildPlayers, currentVolume }) {
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
@@ -512,7 +513,7 @@ async function commandSoundboardPlay(interaction, { getLocText, makeLogMessage, 
 	}
 }
 
-async function commandSoundboardStop(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume }) {
+async function commandSoundboardStop(interaction, { getLocText, saveVoiceState, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume }) {
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
@@ -534,7 +535,7 @@ async function commandSoundboardStop(interaction, { getLocText, makeLogMessage, 
 	}
 }
 
-async function commandSoundboardVolume(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, guildVolumes, guildPlayers, currentVolume }) {
+async function commandSoundboardVolume(interaction, { getLocText, saveVoiceState, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, guildVolumes, guildPlayers, currentVolume }) {
 	try {
 		if (await isGuildNot(interaction)) return;
 		if (await isWhitelistNot(interaction)) return;
