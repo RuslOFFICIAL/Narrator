@@ -76,7 +76,7 @@ const guildPlayers = new Map();
 
 const isInteractive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
 
-// Always read console input. Hosting panels pipe stdin (not a TTY), so a no-op stub here would swallow every command.
+// Always read console input.
 const rl = readline.createInterface({
 	input: process.stdin,
 	output: process.stdout,
