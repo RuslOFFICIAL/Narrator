@@ -1,10 +1,11 @@
 # Directories.
+lores/*
 sounds/*
-lores/
 
 # Files.
 run.pid
 voice-state.json
+!lores/README.md
 !sounds/README.md
 
 *.lnk
