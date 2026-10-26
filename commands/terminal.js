@@ -34,10 +34,11 @@ const allLoreFiles = fs.readdirSync(loresDir).filter(file => file.endsWith('.js'
 async function handleTerminalLine(line, context) {
 	const { 
 		client, isBotReady, CONFIG, locales, defaultLang, packageJson,
-		rawSnippetsEn, rawSnippetsUk, voiceConnections, 
+		voiceConnections, 
 		guildVolumes, guildPlayers, currentVolume, botStartTime, 
-		consoleLog, getTimestamp, shutdown, restart, rl , loadSafeModule,
-		formatUptime, saveVoiceState, removeDuplicateLoreInFiles
+		consoleLog, getTimestamp, formatUptime, removeDuplicateLoreInFiles, 
+		saveVoiceState,
+		shutdown, restart, rl, loadSafeModule
 	} = context;
 
 	const trimmedLine = line.trim();
