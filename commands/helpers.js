@@ -261,7 +261,7 @@ async function isWhitelistNot(interaction, CONFIG, locales) {
 async function isAuthorizedTesterNot(interaction, CONFIG, locales) {
 	if (!CONFIG.authorizedTesters.includes(interaction.user.id)) {
 		await safeReply(interaction, {
-			content: getLocText(interaction, 'replyAuthorizedTester', {}, locales),
+			content: getLocText(interaction, 'replyAuthorizedTesterNot', {}, locales),
 			flags: [MessageFlags.Ephemeral]
 		});
 		return true;

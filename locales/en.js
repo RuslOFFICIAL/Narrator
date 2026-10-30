@@ -29,7 +29,7 @@ They are not created by the creator of the "Narrator" bot.`,
 	
 	replyWhitelistYes: `This command is not available to You because it might do something to You. Try using another command or try again later.`,
 	replyWhitelistNo: `This command is not available to You. Try using another command or try again later.`,
-	replyAuthorizedTester: `This command is being tested. Try using another command or try again later.`,
+	replyAuthorizedTesterNot: `This command is being tested. Try using another command or try again later.`,
 	
 	replyLore: `Lore? Well, alright...\n\n{loreSnippet}`,
 	
