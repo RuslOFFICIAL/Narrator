@@ -76,7 +76,7 @@ async function handleTerminalLine(line, context) {
 			case 'ping': {
 				consoleLog(`[${getTimestamp()}] Pinging...`);
 				const pingCmd = process.platform === 'win32' ? 'ping -n 1 8.8.8.8' : 'ping -c 1 -W 3 8.8.8.8';
-				exec(pingCmd, (error, stdout) => {
+				exec(pingCmd, (err, stdout) => {
 					if (err) {
 						consoleLog(`[${getTimestamp()}] Failed to execute ping.`);
 					} else {
