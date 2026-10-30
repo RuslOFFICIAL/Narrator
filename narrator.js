@@ -44,9 +44,12 @@ const isVoiceNot = (interaction) => _isVoiceNot(interaction, voiceConnections, l
 const shutdown = () => _shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume);
 const restart = () => _restart(client, voiceConnections, guildPlayers, rl, __filename, guildVolumes, currentVolume);
 
-process.on('unhandledRejection', error => {
+process.on('unhandledRejection', err => {
 	consoleLog(`[${getTimestamp()}] Unhandled promise rejection: `, err);
 });
+
+try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) {}
+process.stdin.resume();
 
 // Create a new client instance with necessary intents.
 const client = new Client({
@@ -76,13 +79,11 @@ const guildPlayers = new Map();
 
 const isInteractive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
 
-// Always read console input.
 const rl = readline.createInterface({
 	input: process.stdin,
 	output: process.stdout,
-	terminal: isInteractive,
-	prompt: isInteractive ? '> ' : '',
-	completer: isInteractive ? (line) => completeTerminalLine(line, executionContext) : undefined
+	terminal: true,
+	completer: (line) => completeTerminalLine(line, executionContext)
 });
 
 const CONFIG = {
@@ -197,7 +198,8 @@ process.stdin.on('data', (key) => {
 	}
 });
 
-process.once('SIGINT', () => shutdown(client, voiceConnections, guildPlayers, rl, currentVolume));
-process.once('SIGTERM', () => shutdown(client, voiceConnections, guildPlayers, rl, currentVolume));
+const restoreTTY = () => { try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) {} };
+process.on('exit', restoreTTY);
+process.on('SIGTERM', () => shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume));
 
 loginWithRetry(client);

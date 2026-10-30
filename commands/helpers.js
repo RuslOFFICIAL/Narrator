@@ -221,7 +221,7 @@ function setupPlayerEvents(guildId, player, voiceConnections, guildPlayers, guil
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 	});
 	
-	player.on('err', error => {
+	player.on('err', err => {
 		guildPlayers.delete(guildId);
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 	});
@@ -457,6 +457,7 @@ async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes
 		consoleLog(err);
 	} finally {
 		consoleLog(`Press 'Ctrl+C' or close the window to end process.`);
+		try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) {}
 		process.exit(0);
 	}
 }
@@ -503,6 +504,7 @@ async function restart(client, voiceConnections, guildPlayers, rl, scriptFilenam
 		} catch (err) {
 			// Fallback if touching fails.
 		}
+		try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) {}
 		process.exit(0);
 	}
 }

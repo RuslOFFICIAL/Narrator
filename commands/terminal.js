@@ -9,7 +9,8 @@ const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerSta
 const HELP_TEXT = `Commands:\n
 BOT:
 - help: Show terminal commands.
-- exit/stop/shutdown: Shut down the bot.
+- stop: Completely end the process.
+- exit/shutdown: Shut down the bot.
 - restart/reboot: Restart the bot.
 - status: Status of the bot.
 - ping: Check bot latency.
@@ -94,18 +95,25 @@ async function handleTerminalLine(line, context) {
 				break;
 			}
 			
+			case 'stop': {
+				consoleLog(`[${getTimestamp()}] Completely ending process via stop command...`);
+				
+				try { fs.writeFileSync(path.join(__dirname, '../.run.stop'), String(Date.now())); } catch (err) {}
+				shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume);
+				return;
+			}
+			
 			case 'exit':
-			case 'stop':
 			case 'shutdown': {
 				consoleLog(`[${getTimestamp()}] Stopping bot via terminal command...`);
-				shutdown(client, voiceConnections, guildPlayers, rl, currentVolume);
+				shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume);
 				return;
 			}
 			
 			case 'restart':
 			case 'reboot': {
 				consoleLog(`[${getTimestamp()}] Restarting bot via terminal command...`);
-				restart(client, voiceConnections, guildPlayers, rl, __filename, currentVolume); 
+				restart(client, voiceConnections, guildPlayers, rl, __filename, guildVolumes, currentVolume); 
 				break;
 			}
 			
@@ -567,7 +575,7 @@ async function handleTerminalLine(line, context) {
 						saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 					});
 
-					player.on('err', error => {
+					player.on('err', err => {
 						guildPlayers.delete(gId);
 						saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 					});
@@ -582,7 +590,7 @@ async function handleTerminalLine(line, context) {
 						});
 					}
 					
-					player.on('err', error => {
+					player.on('err', err => {
 						consoleLog(`[${getTimestamp()}] Audio player error in guild ${gId}:`, err.message);
 					});
 				}

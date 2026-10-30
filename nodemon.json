@@ -1,6 +1,7 @@
 {
 	"restartable": "rs",
 	"stdin": false,
+	"signal": "SIGTERM",
 	"ignore": [
 		"lores/",
 		"sounds/",
