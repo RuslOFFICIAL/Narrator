@@ -3,7 +3,7 @@ lores/*
 sounds/*
 
 # Files.
-.run.conf
+.run.*
 voice-state.json
 !lores/README.md
 !sounds/README.md

@@ -112,18 +112,18 @@ main() {
 
 	# Install dependencies.
 	if [ ! -f "$FILE_PACKAGE" ]; then
-		echo -e "\nFile '$FILE_PACKAGE' not found."
+		printf "\nFile '%s' not found.\n" "$FILE_PACKAGE"
 		npm init -y
 	fi
 
-	echo -e "\nConfiguring npm..."
+	printf '\nConfiguring npm...\n'
 	npm config set fund false --location=project
 
-	echo -e "\nInstalling dependencies..."
+	printf '\nInstalling dependencies...\n'
 	npm install
 
-	echo -e "\nRunning vulnerability audit check..."
-	npm audit fix --omit=dev
+	printf '\nRunning vulnerability audit check...\n'
+	npm audit --omit=dev || true
 
 	echo
 
@@ -143,7 +143,7 @@ main() {
 	while kill -0 "$NM_PID" 2>/dev/null; do
 		if [ -f "$STOP_FILE" ]; then
 			rm -f "$STOP_FILE"
-			echo -e "\nStop requested. Exiting..."
+			printf '\nStop requested. Exiting...\n'
 			stop_nodemon
 			cleanup
 			exit 0
@@ -156,24 +156,18 @@ main() {
 		sleep 1
 	done
 	
-	if [ -z "$CHANGED_FILE" ]; then
-		cleanup
-		exit 0
-	fi
-
-
 	if [ -n "$CHANGED_FILE" ]; then
 		stty sane 2>/dev/null
-		echo -e "\nChanges detected in '$CHANGED_FILE'. Restarting completely..."
+		printf "\nChanges detected in '%s'. Restarting completely...\n" "$CHANGED_FILE"
 		trap - EXIT
 		exec sh "$SCRIPT_PATH"
 	fi
-	
+
 	wait "$NM_PID" 2>/dev/null
 	STATUS=$?
 	NM_PID=""
 	stty sane 2>/dev/null
-	echo -e "\nNodemon exited (Status $STATUS)."
+	printf "\nNodemon exited (Status %s).\n" "$STATUS"
 	return "$STATUS"
 }
 

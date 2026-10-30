@@ -1,10 +1,11 @@
 // Dependencies.
-const { SlashCommandBuilder, InteractionContextType, ApplicationIntegrationType, ChannelType, MessageFlags, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, ChannelType, MessageFlags } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
 // Variables.
 const loresDir = path.join(__dirname, '../lores');
+const soundsDir = path.join(__dirname, '../sounds');
 
 function getCommands(CONFIG, getCmdText) {
 	return [
@@ -25,16 +26,16 @@ function getCommands(CONFIG, getCmdText) {
 		
 		new SlashCommandBuilder().setName('lore-list').setDescription(getCmdText('descLoreList'))
 			.setContexts([0]).setIntegrationTypes([0])
-			.addStringOption(option => option.setName('language_code').setDescription(getCmdText('optionLanguageCode')).setRequired(false)),
+			.addStringOption(option => option.setName('language_code').setDescription(getCmdText('optionLanguageCode')).setMaxLength(10).setRequired(false)),
 		
 		new SlashCommandBuilder().setName('lore-create').setDescription(getCmdText('descLoreCreate'))
 			.setContexts([0]).setIntegrationTypes([0])
-			.addStringOption(option => option.setName('language_code').setDescription(getCmdText('optionLanguageCode')).setRequired(true))
-			.addStringOption(option => option.setName('snippet').setDescription(getCmdText('optionSnippet')).setRequired(true)),
+			.addStringOption(option => option.setName('language_code').setDescription(getCmdText('optionLanguageCode')).setMaxLength(10).setRequired(true))
+			.addStringOption(option => option.setName('snippet').setDescription(getCmdText('optionSnippet')).setMaxLength(1000).setRequired(true)),
 		
 		new SlashCommandBuilder().setName('lore-remove').setDescription(getCmdText('descLoreRemove'))
 			.setContexts([0]).setIntegrationTypes([0])
-			.addStringOption(option => option.setName('language_code').setDescription(getCmdText('optionLanguageCode')).setRequired(true))
+			.addStringOption(option => option.setName('language_code').setDescription(getCmdText('optionLanguageCode')).setMaxLength(10).setRequired(true))
 			.addIntegerOption(option => option.setName('snippet_number').setDescription(getCmdText('optionSnippetNumber')).setRequired(true)),
 		
 		new SlashCommandBuilder().setName('voice-join').setDescription(getCmdText('descVoiceJoin'))
@@ -59,11 +60,8 @@ function getCommands(CONFIG, getCmdText) {
 
 async function handleDiscordInteraction(interaction, context) {
 	const { 
-		isBotReady, CONFIG, getLocText, getLocalizedLoreSnippets, packageJson,
-		consoleLog, getTimestamp, makeLogMessage, safeReply,
-		voiceConnections, guildVolumes, guildPlayers, currentVolume,
-		isWhitelist, isWhitelistNot, isAuthorizedTester, isGuildNot, isVoiceNot,
-		saveVoiceState
+		isBotReady, getLocText,
+		consoleLog, getTimestamp, safeReply
 	} = context;
 
 	if (!isBotReady) {
@@ -79,13 +77,13 @@ async function handleDiscordInteraction(interaction, context) {
 	if (interaction.isAutocomplete()) {
 		if (interaction.commandName === 'soundboard-play') {
 			try {
-				if (!fs.existsSync('./sounds')) {
+				if (!fs.existsSync(soundsDir)) {
 					return;
 				}
-				const files = fs.readdirSync('./sounds');
+				const files = fs.readdirSync(soundsDir);
 				const choices = files
 					.filter(file => file.endsWith('.mp3'))
-					.map(file => file.replace('.mp3', ''));
+					.map(file => file.slice(0, -'.mp3'.length));
 				
 				const focusedValue = interaction.options.getFocused();
 				const filtered = choices.filter(choice => choice.toLowerCase().includes(focusedValue.toLowerCase()));
@@ -187,7 +185,7 @@ async function commandHelp(interaction, { CONFIG, getLocText, makeLogMessage, sa
 	}
 }
 
-async function commandInfo(interaction, { CONFIG, getLocText, removeDuplicateLoreInFiles, makeLogMessage, safeReply, consoleLog, getTimestamp, packageJson }) {
+async function commandInfo(interaction, { getLocText, makeLogMessage, safeReply, consoleLog, getTimestamp, packageJson }) {
 	try {
 		makeLogMessage(interaction);
 		
@@ -296,45 +294,52 @@ async function commandLoreList(interaction, { getLocText, removeDuplicateLoreInF
 		}
 		
 		const responseText = outputLines.length > 0 ? outputLines.join('\n') : getLocText(interaction, 'replyLoreSnippetsUnavailable');
-		await safeReply(interaction, { content: responseText, flags: [MessageFlags.Ephemeral] });
+		
+		const chunks = [];
+		let currentChunk = '';
+		for (const line of responseText.split('\n')) {
+			const safeLine = line.length > 1900 ? `${line.slice(0, 1897)}...` : line;
+			if (currentChunk && currentChunk.length + safeLine.length + 1 > 1900) {
+				chunks.push(currentChunk);
+				currentChunk = safeLine;
+			} else {
+				currentChunk = currentChunk ? `${currentChunk}\n${safeLine}` : safeLine;
+			}
+		}
+		if (currentChunk) chunks.push(currentChunk);
+		
+		for (const chunk of chunks.slice(0, 5)) {
+			await safeReply(interaction, { content: chunk, flags: [MessageFlags.Ephemeral] });
+		}
 	} catch (err) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, err);
 		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
 	}
 }
 
-async function commandLoreCreate(interaction, { getLocText, removeDuplicateLoreInFiles, makeLogMessage, safeReply, consoleLog, getTimestamp, loadSafeModule, isGuildNot, isAdminManageServer }) {
+async function commandLoreCreate(interaction, { getLocText, removeDuplicateLoreInFiles, makeLogMessage, safeReply, consoleLog, getTimestamp, loadSafeModule, getLoreFilePath, isGuildNot, isAdminManageServer }) {
 	try {
 		if (await isGuildNot(interaction)) return;
 		if (await isAdminManageServer(interaction)) return;
-		
+
 		makeLogMessage(interaction);
-		
-		const guildIdArg = interaction.guildId || 'default';
+
+		const guildIdArg = interaction.guildId;
 		const langArg = interaction.options.getString('language_code');
 		const snippetText = interaction.options.getString('snippet');
-		
+
+		const filePath = getLoreFilePath(guildIdArg, langArg);
+		if (!filePath) {
+			await safeReply(interaction, { content: getLocText(interaction, 'replyLoreInvalidLanguage'), flags: [MessageFlags.Ephemeral] });
+			return;
+		}
+
 		if (!fs.existsSync(loresDir)) {
 			fs.mkdirSync(loresDir, { recursive: true });
 		}
 
-		const filePath = path.join(loresDir, `${guildIdArg}_${langArg}.js`);
-		let existingSnippets = [];
-		
-		if (fs.existsSync(filePath)) {
-			try {
-				const fileData = fs.readFileSync(filePath, 'utf8');
-				// Extract array portion from "module.exports = [...]"
-				const match = fileData.match(/\[([\s\S]*)\]/);
-				if (match) {
-					// Evaluate or parse safely
-					existingSnippets = eval(`[${match[1]}]`);
-				}
-			} catch (err) {
-				existingSnippets = [];
-			}
-		}
-		
+		const existingSnippets = fs.existsSync(filePath) ? loadSafeModule(filePath, []) : [];
+
 		existingSnippets.push(snippetText);
 		const fileContent = `module.exports = ${JSON.stringify(existingSnippets, null, '\t')};\n`;
 
@@ -343,7 +348,7 @@ async function commandLoreCreate(interaction, { getLocText, removeDuplicateLoreI
 			delete require.cache[require.resolve(filePath)];
 		} catch (err) {}
 		removeDuplicateLoreInFiles(loresDir);
-		
+
 		consoleLog(`[${getTimestamp()}] Success: Added snippet via Discord to '${filePath}'`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replyLoreCreateSuccess', { guildId: guildIdArg, lang: langArg }), flags: [MessageFlags.Ephemeral] });
 	} catch (err) {
@@ -352,37 +357,41 @@ async function commandLoreCreate(interaction, { getLocText, removeDuplicateLoreI
 	}
 }
 
-async function commandLoreRemove(interaction, { getLocText, removeDuplicateLoreInFiles, makeLogMessage, safeReply, consoleLog, getTimestamp, loadSafeModule, isGuildNot, isAdminManageServer }) {
+async function commandLoreRemove(interaction, { getLocText, removeDuplicateLoreInFiles, makeLogMessage, safeReply, consoleLog, getTimestamp, loadSafeModule, getLoreFilePath, isGuildNot, isAdminManageServer }) {
 	try {
 		if (await isGuildNot(interaction)) return;
 		if (await isAdminManageServer(interaction)) return;
 		makeLogMessage(interaction);
-		
+
 		const guildId = interaction.guildId;
 		const langArg = interaction.options.getString('language_code');
 		const snippetNumber = interaction.options.getInteger('snippet_number');
-		
-		const filePath = path.join(loresDir, `${guildId}_${langArg}.js`);
+
+		const filePath = getLoreFilePath(guildId, langArg);
+		if (!filePath) {
+			await safeReply(interaction, { content: getLocText(interaction, 'replyLoreInvalidLanguage'), flags: [MessageFlags.Ephemeral] });
+			return;
+		}
 		if (!fs.existsSync(filePath)) {
 			await safeReply(interaction, { content: getLocText(interaction, 'replyLoreSnippetsUnavailable'), flags: [MessageFlags.Ephemeral] });
 			return;
 		}
-		
+
 		let snippets = loadSafeModule(filePath, []);
-		
+
 		if (snippetNumber > 0 && snippetNumber <= snippets.length) {
 			snippets.splice(snippetNumber - 1, 1);
-			
+
 			if (snippets.length === 0) {
 				fs.unlinkSync(filePath);
 			} else {
 				const fileContent = `module.exports = ${JSON.stringify(snippets, null, '\t')};\n`;
 				fs.writeFileSync(filePath, fileContent, 'utf8');
 			}
-			
+
 			try { delete require.cache[require.resolve(filePath)]; } catch (err) {}
 			removeDuplicateLoreInFiles(loresDir);
-			
+
 			consoleLog(`[${getTimestamp()}] Success: Removed snippet #${snippetNumber} from '${guildId}_${langArg}.js' via Discord`);
 			await safeReply(interaction, { content: getLocText(interaction, 'replyLoreRemoveSuccess', { number: snippetNumber }), flags: [MessageFlags.Ephemeral] });
 		} else {
@@ -394,39 +403,34 @@ async function commandLoreRemove(interaction, { getLocText, removeDuplicateLoreI
 	}
 }
 
-async function commandVoiceJoin(interaction, { getLocText, saveVoiceState, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, voiceConnections, guildPlayers, guildVolumes, currentVolume }) {
+async function commandVoiceJoin(interaction, { getLocText, saveVoiceState, makeLogMessage, safeReply, consoleLog, getTimestamp, joinVoice, isWhitelistNot, isGuildNot, voiceConnections, guildPlayers, guildVolumes, currentVolume }) {
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
 		makeLogMessage(interaction);
-		
+
 		const optionChannel = interaction.options.getChannel('channel');
-		if (!optionChannel) {
-			await safeReply(interaction, { content: getLocText(interaction, 'replyVoiceNotFound', { channelId: 'unknown' }), flags: [MessageFlags.Ephemeral] });
+		if (!optionChannel || !optionChannel.isVoiceBased()) {
+			await safeReply(interaction, { content: getLocText(interaction, 'replyVoiceNotFound', { channelId: optionChannel?.id ?? 'unknown' }), flags: [MessageFlags.Ephemeral] });
 			return;
 		}
-		const { joinVoiceChannel, VoiceConnectionStatus } = require('@discordjs/voice');
 		
-		const connection = joinVoiceChannel({
-			channelId: optionChannel.id,
-			guildId: optionChannel.guild.id,
-			adapterCreator: optionChannel.guild.voiceAdapterCreator,
-		});
-		connection.on('err', (err) => {
-			consoleLog(`[${getTimestamp()}] Voice connection error: `, err.message);
-			try {
-				connection.destroy();
-			} catch (err) {}
-		});
-		
-		voiceConnections.set(optionChannel.guild.id, connection);
-		connection.on('stateChange', (oldState, newState) => {
-			if (newState.status === VoiceConnectionStatus.Disconnected) {
-				voiceConnections.delete(optionChannel.guild.id);
-			}
-		});
+		try {
+			await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+		} catch (err) {
+			if (err.code === 10062) return;
+			throw err;
+		}
+
+		try {
+			await joinVoice(optionChannel, voiceConnections, guildPlayers);
+		} catch (err) {
+			consoleLog(`[${getTimestamp()}] ${err.message}`);
+			await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+			return;
+		}
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
-		
+
 		consoleLog(`[${getTimestamp()}] Successfully joined the voice channel '${optionChannel.name}' (${optionChannel.id}) by @${interaction.user.tag} (${interaction.user.id})`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replyVoiceJoinSuccess', { channelName: optionChannel.name }), flags: [MessageFlags.Ephemeral] });
 	} catch (err) {
@@ -443,11 +447,11 @@ async function commandVoiceLeave(interaction, { getLocText, saveVoiceState, make
 		makeLogMessage(interaction);
 		
 		const connection = voiceConnections.get(interaction.guildId);
-		if (connection) {
-			connection.destroy();
-		}
+		const activePlayer = guildPlayers.get(interaction.guildId);
 		voiceConnections.delete(interaction.guildId);
 		guildPlayers.delete(interaction.guildId);
+		try { activePlayer?.player.stop(true); } catch (err) {}
+		try { connection?.destroy(); } catch (err) {}
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 		
 		consoleLog(`[${getTimestamp()}] Successfully left voice channel for guild ID '${interaction.guildId}' by @${interaction.user.tag} (${interaction.user.id})`);
@@ -458,55 +462,51 @@ async function commandVoiceLeave(interaction, { getLocText, saveVoiceState, make
 	}
 }
 
-async function commandSoundboardPlay(interaction, { getLocText, saveVoiceState, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildVolumes, guildPlayers, currentVolume }) {
+async function commandSoundboardPlay(interaction, { getLocText, saveVoiceState, makeLogMessage, safeReply, consoleLog, getTimestamp, getSoundFilePath, setupPlayerEvents, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildVolumes, guildPlayers, currentVolume }) {
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
 		if (await isVoiceNot(interaction)) return;
 		makeLogMessage(interaction);
-		
+
 		const soundChoice = interaction.options.getString('sound');
-		const soundPath = `./sounds/${soundChoice}.mp3`;
-		if (!fs.existsSync(soundPath)) {
+		const soundPath = getSoundFilePath(soundChoice);
+		if (!soundPath || !fs.existsSync(soundPath)) {
 			await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardPlayNotFound'), flags: [MessageFlags.Ephemeral] });
 			return;
 		}
-		
+
 		const connection = voiceConnections.get(interaction.guildId);
 		if (!connection) {
 			await safeReply(interaction, { content: getLocText(interaction, 'replyNotInVoice'), flags: [MessageFlags.Ephemeral] });
 			return;
 		}
-		
-		const { createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
-		consoleLog(`[${getTimestamp()}] Played sound '${soundChoice}' for guild ID '${interaction.guildId}'.`);
-		await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardPlayPlaying', { soundChoice }), flags: [MessageFlags.Ephemeral] });
+
+		const { createAudioPlayer, createAudioResource } = require('@discordjs/voice');
+
+		const previousEntry = guildPlayers.get(interaction.guildId);
+		guildPlayers.delete(interaction.guildId);
+		try { previousEntry?.player.stop(true); } catch (err) {}
+
 		const player = createAudioPlayer();
 		const resource = createAudioResource(soundPath, { inlineVolume: true });
 		const volume = guildVolumes.get(interaction.guildId) ?? currentVolume;
 		resource.volume.setVolume(volume);
-		
+
 		guildPlayers.set(interaction.guildId, {
 			player,
 			resource,
-			soundName: soundChoice, 
+			soundName: path.basename(soundPath, '.mp3'),
 			startTime: Date.now()
 		});
-		
-		player.on(AudioPlayerStatus.Idle, () => {
-			guildPlayers.delete(interaction.guildId);
-			saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
-		});
-		
-		player.on('err', (err) => {
-			consoleLog(`[${getTimestamp()}] Audio player error in guild '${interaction.guildId}': `, err.message);
-			guildPlayers.delete(interaction.guildId);
-			saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
-		});
-		
+		setupPlayerEvents(interaction.guildId, player, voiceConnections, guildPlayers, guildVolumes, currentVolume);
+
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 		connection.subscribe(player);
 		player.play(resource);
+
+		consoleLog(`[${getTimestamp()}] Played sound '${soundChoice}' for guild ID '${interaction.guildId}'.`);
+		await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardPlayPlaying', { soundChoice }), flags: [MessageFlags.Ephemeral] });
 	} catch (err) {
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, err);
 		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
@@ -535,7 +535,7 @@ async function commandSoundboardStop(interaction, { getLocText, saveVoiceState, 
 	}
 }
 
-async function commandSoundboardVolume(interaction, { getLocText, saveVoiceState, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, guildVolumes, guildPlayers, currentVolume }) {
+async function commandSoundboardVolume(interaction, { getLocText, saveVoiceState, makeLogMessage, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, voiceConnections, guildVolumes, guildPlayers, currentVolume }) {
 	try {
 		if (await isGuildNot(interaction)) return;
 		if (await isWhitelistNot(interaction)) return;

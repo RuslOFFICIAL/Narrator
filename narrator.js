@@ -1,9 +1,8 @@
 // Dependencies.
 require('dotenv').config();
-const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-const { Client, GatewayIntentBits, REST, Routes, ActivityType, MessageFlags, TextChannel, DMChannel, ThreadChannel } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, ActivityType } = require('discord.js');
 const packageJson = require('./package.json');
 
 // Import modularized commands and helpers.
@@ -12,8 +11,9 @@ const { handleTerminalLine, completeTerminalLine  } = require('./commands/termin
 const {
 	loadSafeModule,	getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
 	consoleLog: _consoleLog, getTimestamp, formatUptime, makeLogMessage: _makeLogMessage, safeReply: _safeReply,
-	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTester: _isAuthorizedTester, isAdminManageServer: _isAdminManageServer, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
+	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTesterNot: _isAuthorizedTesterNot, isAdminManageServer: _isAdminManageServer, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
 	saveVoiceState, restoreVoiceState,
+	getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown: _shutdown, restart: _restart, loginWithRetry
 } = require('./commands/helpers.js');
 
@@ -37,7 +37,7 @@ const makeLogMessage = (interaction) => _makeLogMessage(interaction, rl);
 const safeReply = (interaction, replyOptions) => _safeReply(interaction, replyOptions);
 const isWhitelist = (interaction) => _isWhitelist(interaction, CONFIG, locales);
 const isWhitelistNot = (interaction) => _isWhitelistNot(interaction, CONFIG, locales);
-const isAuthorizedTester = (interaction) => _isAuthorizedTester(interaction, CONFIG, locales);
+const isAuthorizedTesterNot = (interaction) => _isAuthorizedTesterNot(interaction, CONFIG, locales);
 const isAdminManageServer = (interaction) => _isAdminManageServer(interaction, locales);
 const isGuildNot = (interaction) => _isGuildNot(interaction, locales);
 const isVoiceNot = (interaction) => _isVoiceNot(interaction, voiceConnections, locales);
@@ -55,8 +55,6 @@ process.stdin.resume();
 const client = new Client({
 	intents: [
 		GatewayIntentBits.Guilds,
-		GatewayIntentBits.GuildMessages,
-		GatewayIntentBits.MessageContent,
 		GatewayIntentBits.GuildVoiceStates
 	],
 	allowedMentions: {
@@ -70,14 +68,11 @@ setupGlobalMessageSanitizer();
 // Variables.
 const botStartTime = Date.now();
 let isBotReady = false;
-let currentAudioResource = null;
 let currentVolume = 1.0;
 
 const voiceConnections = new Map();
 const guildVolumes = new Map();
 const guildPlayers = new Map();
-
-const isInteractive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
 
 const rl = readline.createInterface({
 	input: process.stdin,
@@ -86,16 +81,25 @@ const rl = readline.createInterface({
 	completer: (line) => completeTerminalLine(line, executionContext)
 });
 
+function parseIdList(value) {
+	return value ? value.split(',').map(id => id.trim()).filter(Boolean) : [];
+}
+
+function parseChance(value, fallback) {
+	const parsed = parseInt(value, 10);
+	return Number.isNaN(parsed) ? fallback : Math.min(100, Math.max(0, parsed));
+}
+
 const CONFIG = {
 	statusBot: process.env.STATUS,
 	statusName: process.env.STATUS_NAME,
 	statusType: process.env.STATUS_TYPE,
 	statusUrl: process.env.STATUS_URL,
 	
-	kickChance: parseInt(process.env.KICK_CHANCE, 10) || 10,
-	whitelist: process.env.WHITELIST ? process.env.WHITELIST.split(',') : [],
-	authorizedTesters: process.env.AUTHORIZED_TESTERS ? process.env.AUTHORIZED_TESTERS.split(',') : []
-}
+	kickChance: parseChance(process.env.KICK_CHANCE, 10),
+	whitelist: parseIdList(process.env.WHITELIST),
+	authorizedTesters: parseIdList(process.env.AUTHORIZED_TESTERS)
+};
 
 const commands = getCommands(CONFIG, getCmdText);
 
@@ -106,8 +110,9 @@ const executionContext = {
 	get currentVolume() { return currentVolume; }, set currentVolume(v) { currentVolume = v; },
 	getCmdText, getLocText, getLocalizedLoreSnippets, removeDuplicateLoreInFiles,
 	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply,
-	isWhitelist, isWhitelistNot, isAuthorizedTester, isAdminManageServer, isGuildNot, isVoiceNot,
+	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isGuildNot, isVoiceNot,
 	saveVoiceState, restoreVoiceState,
+	getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown, restart, rl, loadSafeModule
 };
 
@@ -179,20 +184,7 @@ rl.on('line', async (line) => {
 });
 
 // Shut down the bot.
-if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
-	try {
-		process.stdin.setRawMode(true);
-		process.stdin.resume();
-		process.stdin.on('data', (key) => {
-			if (key.length === 1 && key[0] === 3) {
-				process.emit('SIGINT');
-			}
-		});
-	} catch (err) {}
-}
-process.stdin.resume();
 process.stdin.on('data', (key) => {
-	// Ctrl+C.
 	if (key.length === 1 && key[0] === 3) {
 		process.emit('SIGINT');
 	}
@@ -200,6 +192,7 @@ process.stdin.on('data', (key) => {
 
 const restoreTTY = () => { try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) {} };
 process.on('exit', restoreTTY);
-process.on('SIGTERM', () => shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume));
+process.on('SIGINT', () => shutdown());
+process.on('SIGTERM', () => shutdown());
 
 loginWithRetry(client);

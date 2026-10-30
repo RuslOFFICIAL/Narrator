@@ -1,9 +1,8 @@
 // Dependencies.
 const fs = require('fs');
 const path = require('path');
-const readline = require('readline');
 const { exec } = require('child_process');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus, entersState } = require('@discordjs/voice');
+const { createAudioPlayer, createAudioResource, VoiceConnectionStatus } = require('@discordjs/voice');
 
 // Variables.
 const HELP_TEXT = `Commands:\n
@@ -30,16 +29,26 @@ BOT:
 \nCheck command formats in file 'formats.md'.`;
 
 const loresDir = path.join(__dirname, '../lores');
-const allLoreFiles = fs.readdirSync(loresDir).filter(file => file.endsWith('.js'));
+const getLoreFiles = () => {
+	try { return fs.readdirSync(loresDir).filter(file => file.endsWith('.js')); }
+	catch (err) { return []; }
+};
 
-async function handleTerminalLine(line, context) {
+function restAfter(text, n) {
+	let rest = text.trimStart();
+	for (let i = 0; i < n; i++) rest = rest.replace(/^\S+\s*/, '');
+	return rest;
+}
+
+async function runTerminalLine(line, context) {
 	const { 
 		client, isBotReady, CONFIG, locales, defaultLang, packageJson,
 		voiceConnections, 
-		guildVolumes, guildPlayers, currentVolume, botStartTime, 
+		guildVolumes, guildPlayers, botStartTime, 
 		consoleLog, getTimestamp, formatUptime, removeDuplicateLoreInFiles, 
 		saveVoiceState,
-		shutdown, restart, rl, loadSafeModule
+		shutdown, restart, rl, loadSafeModule,
+		getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents
 	} = context;
 
 	const trimmedLine = line.trim();
@@ -48,11 +57,28 @@ async function handleTerminalLine(line, context) {
 		return;
 	}
 	
-	const subCommands = trimmedLine.split('&').map(cmd => cmd.trim()).filter(Boolean);
+	let subCommands = [];
+	let remaining = trimmedLine;
+	while (remaining) {
+		const firstWord = remaining.split(/\s+/)[0].toLowerCase();
+		if (firstWord === 'echo' || firstWord === 'lore-create') {
+			subCommands.push(remaining.trim());
+			break;
+		}
+		const separatorIndex = remaining.indexOf('&');
+		if (separatorIndex === -1) {
+			subCommands.push(remaining.trim());
+			break;
+		}
+		subCommands.push(remaining.slice(0, separatorIndex).trim());
+		remaining = remaining.slice(separatorIndex + 1).trim();
+	}
+	subCommands = subCommands.filter(Boolean);
 	
 	for (const subCmd of subCommands) {
-		const args = subCmd.split(' ');
+		const args = subCmd.split(/\s+/);
 		const command = args[0].toLowerCase();
+		const allLoreFiles = getLoreFiles();
 		
 		// Terminal commands.
 		switch (command) {
@@ -99,21 +125,21 @@ async function handleTerminalLine(line, context) {
 				consoleLog(`[${getTimestamp()}] Completely ending process via stop command...`);
 				
 				try { fs.writeFileSync(path.join(__dirname, '../.run.stop'), String(Date.now())); } catch (err) {}
-				shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume);
+				shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, context.currentVolume);
 				return;
 			}
 			
 			case 'exit':
 			case 'shutdown': {
 				consoleLog(`[${getTimestamp()}] Stopping bot via terminal command...`);
-				shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume);
+				shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, context.currentVolume);
 				return;
 			}
 			
 			case 'restart':
 			case 'reboot': {
 				consoleLog(`[${getTimestamp()}] Restarting bot via terminal command...`);
-				restart(client, voiceConnections, guildPlayers, rl, __filename, guildVolumes, currentVolume); 
+				restart(client, voiceConnections, guildPlayers, rl, __filename, guildVolumes, context.currentVolume); 
 				break;
 			}
 			
@@ -122,7 +148,7 @@ async function handleTerminalLine(line, context) {
 				if (args[1] === '-e') {
 					// Edit Message: echo -e [CHANNEL_ID] [EDITED_TEXT]
 					const messageId = args[2];
-					const newText = args.slice(3).join(' ').replace(/\\n/g, '\n');
+					const newText = restAfter(subCmd, 3).replace(/\\n/g, '\n');
 					if (!messageId || !newText) {
 						consoleLog(`[${getTimestamp()}] Error: Please provide a message ID and new text.`);
 						break;
@@ -148,7 +174,7 @@ async function handleTerminalLine(line, context) {
 				} else {
 					// Send Message: echo [CHANNEL_ID] [MESSAGE]
 					const channelId = args[1];
-					const messageText = args.slice(2).join(' ').replace(/\\n/g, '\n');
+					const messageText = restAfter(subCmd, 2).replace(/\\n/g, '\n');
 					if (!channelId || !messageText) {
 						consoleLog(`[${getTimestamp()}] Error: Please provide a channel ID and a message.`);
 						break;
@@ -375,7 +401,7 @@ async function handleTerminalLine(line, context) {
 				// Usage: lore-create [GUILD_ID] [LANGUAGE] [LORE_SNIPPET]
 				const guildIdArg = args[1];
 				const langArg = args[2];
-				const snippetText = args.slice(3).join(' ');
+				const snippetText = restAfter(subCmd, 3);
 
 				if (!guildIdArg || !langArg || !snippetText) {
 					consoleLog(`[${getTimestamp()}] Error: Usage -> lore-create [GUILD_ID] [LANGUAGE] [LORE_SNIPPET]`);
@@ -386,7 +412,11 @@ async function handleTerminalLine(line, context) {
 					fs.mkdirSync(loresDir, { recursive: true });
 				}
 
-				const filePath = path.join(loresDir, `${guildIdArg}_${langArg}.js`);
+				const filePath = getLoreFilePath(guildIdArg, langArg);
+				if (!filePath) {
+					consoleLog(`[${getTimestamp()}] Error: Invalid guild ID or language code.`);
+					break;
+				}
 				let existingSnippets = [];
 
 				if (fs.existsSync(filePath)) {
@@ -429,7 +459,11 @@ async function handleTerminalLine(line, context) {
 					break;
 				}
 
-				const filePath = path.join(loresDir, `${removeGuildId}_${removeLang}.js`);
+				const filePath = getLoreFilePath(removeGuildId, removeLang);
+				if (!filePath) {
+					consoleLog(`[${getTimestamp()}] Error: Invalid guild ID or language code.`);
+					break;
+				}
 				if (!fs.existsSync(filePath)) {
 					consoleLog(`[${getTimestamp()}] Error: Lore file for guild ID '${removeGuildId}' and language '${removeLang}' not found.`);
 					break;
@@ -474,128 +508,112 @@ async function handleTerminalLine(line, context) {
 					break;
 				}
 				
-				const connection = joinVoiceChannel({
-					channelId: targetChannel.id,
-					guildId: targetChannel.guild.id,
-					adapterCreator: targetChannel.guild.voiceAdapterCreator,
-				});
-				connection.on('err', (err) => {
-					consoleLog(`[${getTimestamp()}] Voice connection error: `, err.message);
-					try {
-						connection.destroy();
-					} catch (err) {}
-				});
-				
-				try {
-					await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
-				} catch (err) {
-					const lastStatus = connection.state.status;
-					if (lastStatus !== VoiceConnectionStatus.Destroyed) connection.destroy();
-					voiceConnections.delete(targetChannel.guild.id);
-					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
-					consoleLog(`[${getTimestamp()}] Error: Could not join '${targetChannel.name}' (stuck at '${lastStatus}'). Check the bot's View/Connect permissions.`);
+				if (!targetChannel.isVoiceBased()) {
+					consoleLog(`[${getTimestamp()}] Error: Channel '${targetChannel.name}' is not a voice channel.`);
 					break;
 				}
-				voiceConnections.set(targetChannel.guild.id, connection);
-				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
-				
+
+				try {
+					await joinVoice(targetChannel, voiceConnections, guildPlayers);
+				} catch (err) {
+					consoleLog(`[${getTimestamp()}] Error: ${err.message}`);
+					break;
+				}
+				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, context.currentVolume);
+
 				consoleLog(`[${getTimestamp()}] Successfully joined voice channel: '${targetChannel.name}'`);
 				break;
 			}
 
 			case 'voice-leave': {
 				const leaveGuildId = args[1];
+				const leaveGuild = (gId) => {
+					const conn = voiceConnections.get(gId);
+					const entry = guildPlayers.get(gId);
+					voiceConnections.delete(gId);
+					guildPlayers.delete(gId);
+					try { entry?.player.stop(true); } catch (err) {}
+					try { conn?.destroy(); } catch (err) {}
+				};
+
 				if (!leaveGuildId) {
 					// Global: voice-leave
-					for (const [gId, conn] of voiceConnections.entries()) {
-						try {
-							conn.destroy();
-						} catch (err) {}
+					for (const gId of [...voiceConnections.keys()]) {
+						leaveGuild(gId);
 					}
-					voiceConnections.clear();
-					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
-					
-					consoleLog(`[${getTimestamp()}] Left all voice channels.\n`);
+					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, context.currentVolume);
+
+					consoleLog(`[${getTimestamp()}] Left all voice channels.`);
 					break;
 				}
-				
-				const connToLeave = voiceConnections.get(leaveGuildId);
-				if (connToLeave) {
-					// Specific Guild: voice-leave [GUILD_ID]
-					try {
-						connToLeave.destroy();
-					} catch (err) {}
-					voiceConnections.delete(leaveGuildId);
-					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
-					
-					consoleLog(`[${getTimestamp()}] Left voice channel for guild ID '${leaveGuildId}'.`);
+
+				// Specific Guild: voice-leave [GUILD_ID]
+				if (!voiceConnections.has(leaveGuildId)) {
+					consoleLog(`[${getTimestamp()}] Error: Bot is not connected to a voice channel in guild ID '${leaveGuildId}'.`);
+					break;
 				}
+				leaveGuild(leaveGuildId);
+				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, context.currentVolume);
+
+				consoleLog(`[${getTimestamp()}] Left voice channel for guild ID '${leaveGuildId}'.`);
 				break;
 			}
 
 			case 'soundboard-play': {
 				let playGuildId = null, rawTargetSound = '';
 				if (args[1] && voiceConnections.has(args[1])) {
-					// Global: soundboard-play [SOUND_NAME]
-					playGuildId = args[1];
-					rawTargetSound = args.slice(2).join(' ');
-				} else {
 					// Specific Guild: soundboard-play [GUILD_ID] [SOUND_NAME]
-					rawTargetSound = args.slice(1).join(' ');
+					playGuildId = args[1];
+					rawTargetSound = restAfter(subCmd, 2);
+				} else {
+					// Global: soundboard-play [SOUND_NAME]
+					rawTargetSound = restAfter(subCmd, 1);
 				}
-				const targetSound = rawTargetSound.replace('.mp3', '');
-				const soundPath = `./sounds/${targetSound}.mp3`;
-				if (!fs.existsSync(soundPath)) {
+				const soundPath = getSoundFilePath(rawTargetSound);
+				if (!soundPath || !fs.existsSync(soundPath)) {
 					consoleLog(`[${getTimestamp()}] Error: Sound file not found.`);
 					break;
 				}
-				
+				const targetSound = path.basename(soundPath, '.mp3');
+
 				const guildsToPlay = playGuildId ? [playGuildId] : Array.from(voiceConnections.keys());
 				if (guildsToPlay.length === 0) {
 					consoleLog(`[${getTimestamp()}] Error: Bot is not connected to any voice channels.`);
 					break;
 				}
-								
+
 				for (const gId of guildsToPlay) {
 					const conn = voiceConnections.get(gId);
 					if (!conn) continue;
+
+					const previousEntry = guildPlayers.get(gId);
+					guildPlayers.delete(gId);
+					try { previousEntry?.player.stop(true); } catch (err) {}
+
 					const player = createAudioPlayer();
 					const resource = createAudioResource(soundPath, { inlineVolume: true });
-					resource.volume.setVolume(guildVolumes.get(gId) ?? currentVolume);
-					
-					guildPlayers.set(gId, { 
-						player, 
-						resource, 
-						soundName: targetSound, 
-						startTime: Date.now() 
-					});
-					
-					player.on(AudioPlayerStatus.Idle, () => {
-						guildPlayers.delete(gId);
-						saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
-					});
+					resource.volume.setVolume(guildVolumes.get(gId) ?? context.currentVolume);
 
-					player.on('err', err => {
-						guildPlayers.delete(gId);
-						saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+					guildPlayers.set(gId, {
+						player,
+						resource,
+						soundName: targetSound,
+						startTime: Date.now()
 					});
-					
-					if (conn.state.status === VoiceConnectionStatus.Ready) {
+					setupPlayerEvents(gId, player, voiceConnections, guildPlayers, guildVolumes, context.currentVolume);
+
+					const startPlayback = () => {
 						conn.subscribe(player);
 						player.play(resource);
+					};
+					if (conn.state.status === VoiceConnectionStatus.Ready) {
+						startPlayback();
 					} else {
-						conn.on(VoiceConnectionStatus.Ready, () => {
-							conn.subscribe(player);
-							player.play(resource);
-						});
+						conn.once(VoiceConnectionStatus.Ready, startPlayback);
 					}
-					
-					player.on('err', err => {
-						consoleLog(`[${getTimestamp()}] Audio player error in guild ${gId}:`, err.message);
-					});
 				}
-				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
-				
+				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, context.currentVolume);
+
 				consoleLog(`[${getTimestamp()}] Played sound '${targetSound}'.`);
 				break;
 			}
@@ -608,7 +626,7 @@ async function handleTerminalLine(line, context) {
 					if (entry) {
 						entry.player.stop();
 						guildPlayers.delete(stopGuildId);
-						saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+						saveVoiceState(voiceConnections, guildPlayers, guildVolumes, context.currentVolume);
 						
 						consoleLog(`[${getTimestamp()}] Stopped playback for guild ID '${stopGuildId}'.`);
 					} else {
@@ -620,7 +638,7 @@ async function handleTerminalLine(line, context) {
 						entry?.player?.stop();
 					}
 					guildPlayers.clear();
-					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, context.currentVolume);
 					
 					consoleLog(`[${getTimestamp()}] Stopped playback on all guilds.`);
 				}
@@ -647,7 +665,7 @@ async function handleTerminalLine(line, context) {
 					for (const gId of voiceConnections.keys()) {
 						guildVolumes.set(gId, volume);
 					}
-					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, context.currentVolume);
 					
 					consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}% on all guilds.`);
 				} else if (args.length >= 3) {
@@ -665,7 +683,7 @@ async function handleTerminalLine(line, context) {
 					if (entry?.resource?.volume) {
 						try { entry.resource.volume.setVolume(volume); } catch (err) {}
 					}
-					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, context.currentVolume);
 					
 					consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}% for guild ID '${guildId}'.`);
 				} else {
@@ -686,6 +704,17 @@ async function handleTerminalLine(line, context) {
 	}
 }
 
+async function handleTerminalLine(line, context) {
+	try {
+		await runTerminalLine(line, context);
+	} catch (err) {
+		context.consoleLog(`[${context.getTimestamp()}] Terminal command failed: `, err);
+		try {
+			if (!context.rl.closed) context.rl.prompt();
+		} catch (e) {}
+	}
+}
+
 // Tab completion.
 const TERMINAL_COMMANDS = [
 	'help', 'status', 'ping', 'clear',
@@ -697,7 +726,7 @@ const TERMINAL_COMMANDS = [
 ];
  
 function completeTerminalLine(line, { client, locales, voiceConnections, guildPlayers, loadSafeModule }) {
-	const [cmd, ...args] = line.slice(line.lastIndexOf('&') + 1).trimStart().split(' ');
+	const [cmd, ...args] = line.slice(line.lastIndexOf('&') + 1).trimStart().split(/\s+/);
 	let partial = args.length ? args.at(-1) : cmd;
  
 	const keys = (map) => [...map.keys()];
