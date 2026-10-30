@@ -1,4 +1,5 @@
 #!/bin/sh
+set +H
 cd "$(dirname "$0")" || exit
 
 # Variables.
@@ -98,17 +99,17 @@ main() {
 
 	# Install dependencies.
 	if [ ! -f "$FILE_PACKAGE" ]; then
-		echo && echo "File '$FILE_PACKAGE' not found."
+		echo -e "\nFile '$FILE_PACKAGE' not found."
 		npm init -y
 	fi
 
-	echo && echo "Configuring npm..."
+	echo -e "\nConfiguring npm..."
 	npm config set fund false --location=project
 
-	echo && echo "Installing dependencies..."
+	echo -e "\nInstalling dependencies..."
 	npm install
 
-	echo && echo "Running vulnerability audit check..."
+	echo -e "\nRunning vulnerability audit check..."
 	npm audit fix --omit=dev
 
 	echo
@@ -137,7 +138,7 @@ main() {
 
 	if [ -n "$CHANGED_FILE" ]; then
 		stty sane 2>/dev/null
-		echo && echo "Changes detected in '$CHANGED_FILE'. Restarting completely..."
+		echo -e "\nChanges detected in '$CHANGED_FILE'. Restarting completely..."
 		trap - EXIT
 		exec sh "$SCRIPT_PATH"
 	fi
@@ -146,7 +147,7 @@ main() {
 	STATUS=$?
 	NM_PID=""
 	stty sane 2>/dev/null
-	echo && echo "Nodemon exited (Status $STATUS)."
+	echo -e "\nNodemon exited (Status $STATUS)."
 	return "$STATUS"
 }
 
