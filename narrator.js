@@ -45,7 +45,7 @@ const shutdown = () => _shutdown(client, voiceConnections, guildPlayers, rl, gui
 const restart = () => _restart(client, voiceConnections, guildPlayers, rl, __filename, guildVolumes, currentVolume);
 
 process.on('unhandledRejection', error => {
-	consoleLog(`[${getTimestamp()}] Unhandled promise rejection: `, error);
+	consoleLog(`[${getTimestamp()}] Unhandled promise rejection: `, err);
 });
 
 // Create a new client instance with necessary intents.
@@ -135,8 +135,8 @@ client.once('clientReady', async () => {
 			status: CONFIG.statusBot,
 		});
 		consoleLog(`[${getTimestamp()}] Status set successfully!`);
-	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Failed to set status: `, error);
+	} catch (err) {
+		consoleLog(`[${getTimestamp()}] Failed to set status: `, err);
 	}
 	
 	// Register slash (/).
@@ -155,20 +155,20 @@ client.once('clientReady', async () => {
 		if (!rl.closed) {
 			rl.prompt();
 		}
-	} catch (error) {
-		consoleLog(error);
+	} catch (err) {
+		consoleLog(err);
 	}
 });
 
 client.on('interactionCreate', async interaction => {
 	try {
 		await handleDiscordInteraction(interaction, executionContext);
-	} catch (error) {
+	} catch (err) {
 		// Ignore "Unknown interaction" (10062) or "Interaction has already been acknowledged" (40060).
-        if (error.code === 10062 || error.code === 40060) {
+        if (err.code === 10062 || err.code === 40060) {
             return;
         }
-        consoleLog(`[${getTimestamp()}] Interaction handling error: `, error);
+        consoleLog(`[${getTimestamp()}] Interaction handling error: `, err);
     }
 });
 

@@ -77,7 +77,7 @@ async function handleTerminalLine(line, context) {
 				consoleLog(`[${getTimestamp()}] Pinging...`);
 				const pingCmd = process.platform === 'win32' ? 'ping -n 1 8.8.8.8' : 'ping -c 1 -W 3 8.8.8.8';
 				exec(pingCmd, (error, stdout) => {
-					if (error) {
+					if (err) {
 						consoleLog(`[${getTimestamp()}] Failed to execute ping.`);
 					} else {
 						const match = stdout.match(/time[=<]\s*([\d.]+)\s*ms/i);
@@ -126,7 +126,7 @@ async function handleTerminalLine(line, context) {
 								try {
 									const fetchedMsg = await channel.messages.fetch(messageId);
 									if (fetchedMsg) { targetMessage = fetchedMsg; targetChannel = channel; break; }
-								} catch (e) {}
+								} catch (err) {}
 							}
 						}
 						if (targetMessage) break;
@@ -384,7 +384,7 @@ async function handleTerminalLine(line, context) {
 				if (fs.existsSync(filePath)) {
 					try {
 						delete require.cache[require.resolve(filePath)];
-					} catch (e) {}
+					} catch (err) {}
 					existingSnippets = loadSafeModule(filePath, []);
 				}
 				
@@ -395,7 +395,7 @@ async function handleTerminalLine(line, context) {
 					fs.writeFileSync(filePath, fileContent, 'utf8');
 					try {
 						delete require.cache[require.resolve(filePath)];
-					} catch (e) {}
+					} catch (err) {}
 					removeDuplicateLoreInFiles(loresDir);
 					
 					consoleLog(`[${getTimestamp()}] Success: Added snippet to '${filePath}'`);
@@ -439,7 +439,7 @@ async function handleTerminalLine(line, context) {
 						fs.writeFileSync(filePath, fileContent, 'utf8');
 					}
 
-					try { delete require.cache[require.resolve(filePath)]; } catch (e) {}
+					try { delete require.cache[require.resolve(filePath)]; } catch (err) {}
 					removeDuplicateLoreInFiles(loresDir);
 
 					consoleLog(`[${getTimestamp()}] Success: Removed snippet #${removeIndex} from '${removeGuildId}_${removeLang}.js' via terminal.`);
@@ -471,11 +471,11 @@ async function handleTerminalLine(line, context) {
 					guildId: targetChannel.guild.id,
 					adapterCreator: targetChannel.guild.voiceAdapterCreator,
 				});
-				connection.on('error', (error) => {
-					consoleLog(`[${getTimestamp()}] Voice connection error: `, error.message);
+				connection.on('err', (err) => {
+					consoleLog(`[${getTimestamp()}] Voice connection error: `, err.message);
 					try {
 						connection.destroy();
-					} catch (e) {}
+					} catch (err) {}
 				});
 				
 				try {
@@ -502,7 +502,7 @@ async function handleTerminalLine(line, context) {
 					for (const [gId, conn] of voiceConnections.entries()) {
 						try {
 							conn.destroy();
-						} catch (e) {}
+						} catch (err) {}
 					}
 					voiceConnections.clear();
 					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
@@ -516,7 +516,7 @@ async function handleTerminalLine(line, context) {
 					// Specific Guild: voice-leave [GUILD_ID]
 					try {
 						connToLeave.destroy();
-					} catch (e) {}
+					} catch (err) {}
 					voiceConnections.delete(leaveGuildId);
 					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 					
@@ -567,7 +567,7 @@ async function handleTerminalLine(line, context) {
 						saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 					});
 
-					player.on('error', error => {
+					player.on('err', error => {
 						guildPlayers.delete(gId);
 						saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 					});
@@ -582,8 +582,8 @@ async function handleTerminalLine(line, context) {
 						});
 					}
 					
-					player.on('error', error => {
-						consoleLog(`[${getTimestamp()}] Audio player error in guild ${gId}:`, error.message);
+					player.on('err', error => {
+						consoleLog(`[${getTimestamp()}] Audio player error in guild ${gId}:`, err.message);
 					});
 				}
 				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
@@ -633,7 +633,7 @@ async function handleTerminalLine(line, context) {
 					for (const [gId, entry] of guildPlayers.entries()) {
 						guildVolumes.set(gId, volume);
 						if (entry?.resource?.volume) {
-							try { entry.resource.volume.setVolume(volume); } catch (e) {}
+							try { entry.resource.volume.setVolume(volume); } catch (err) {}
 						}
 					}
 					for (const gId of voiceConnections.keys()) {
@@ -655,7 +655,7 @@ async function handleTerminalLine(line, context) {
 					
 					const entry = guildPlayers.get(guildId);
 					if (entry?.resource?.volume) {
-						try { entry.resource.volume.setVolume(volume); } catch (e) {}
+						try { entry.resource.volume.setVolume(volume); } catch (err) {}
 					}
 					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 					

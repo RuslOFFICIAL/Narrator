@@ -16,7 +16,7 @@ function loadSafeModule(filePath, fallbackValue) {
 			return mod.map(s => String(s));
 		}
 		return mod;
-	} catch (e) {
+	} catch (err) {
 		return fallbackValue;
 	}
 	return fallbackValue;
@@ -96,13 +96,13 @@ function removeDuplicateLoreInFiles(loresDir) {
 				
 				try {
 					delete require.cache[require.resolve(filePath)];
-				} catch (e) {}
+				} catch (err) {}
 				
 				modifiedFilesCount++;
 				consoleLog(`[${getTimestamp()}] [Lore Cleanup] Removed ${snippets.length - uniqueSnippets.length} duplicate(s) from file '${file}'.`);
 			}
-		} catch (error) {
-			consoleLog(`[${getTimestamp()}] Failed to process lore file '${file}':`, error);
+		} catch (err) {
+			consoleLog(`[${getTimestamp()}] Failed to process lore file '${file}':`, err);
 		}
 	}
 	
@@ -150,9 +150,9 @@ async function safeReply(interaction, replyOptions) {
 		} else {
 			await interaction.reply(replyOptions);
 		}
-	} catch (error) {
+	} catch (err) {
 		// Ignore "Unknown interaction" (10062) or "Interaction has already been acknowledged" (40060).
-		if (error.code === 10062 || error.code === 40060) {
+		if (err.code === 10062 || err.code === 40060) {
 			return;
 		}
 		throw error;
@@ -221,7 +221,7 @@ function setupPlayerEvents(guildId, player, voiceConnections, guildPlayers, guil
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 	});
 	
-	player.on('error', error => {
+	player.on('err', error => {
 		guildPlayers.delete(guildId);
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 	});
@@ -312,7 +312,7 @@ function saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVol
 		if (Object.keys(activeChannels).length > 0) {
 			consoleLog(`[${getTimestamp()}] [Voice] Voice state saved successfully (${Object.keys(activeChannels).length} active connection(s)).`);
 		}
-	} catch (error) {
+	} catch (err) {
 		// Ignore or log error.
 	}
 }
@@ -346,11 +346,11 @@ async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPl
 					guildId: guild.id,
 					adapterCreator: guild.voiceAdapterCreator,
 				});
-				connection.on('error', (error) => {
-					consoleLog(`[${getTimestamp()}] Voice connection error: `, error.message);
+				connection.on('err', (err) => {
+					consoleLog(`[${getTimestamp()}] Voice connection error: `, err.message);
 					try {
 						connection.destroy();
-					} catch (e) {}
+					} catch (err) {}
 				});
 
 				voiceConnections.set(guild.id, connection);
@@ -398,27 +398,27 @@ async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPl
 							startTime: Date.now() - (stateData.positionMs || 0) 
 						});
 						
-						player.on('error', err => {
+						player.on('err', err => {
 							// Ignore ended resource errors on cleanup
 						});
 
 						if (connection.state.status === VoiceConnectionStatus.Ready) {
 							connection.subscribe(player);
-							try { player.play(resource); } catch (e) {}
+							try { player.play(resource); } catch (err) {}
 						} else {
 							connection.on(VoiceConnectionStatus.Ready, () => {
 								connection.subscribe(player);
-								try { player.play(resource); } catch (e) {}
+								try { player.play(resource); } catch (err) {}
 							});
 						}
 						consoleLog(`[${getTimestamp()}] [Voice] Resumed audio playback for '${stateData.playingSound}'.`);
 					}
 				}
-			} catch (e) {
-				consoleLog(`[${getTimestamp()}] [Voice] Failed to restore voice state for guild ID '${guildId}': `, e.message);
+			} catch (err) {
+				consoleLog(`[${getTimestamp()}] [Voice] Failed to restore voice state for guild ID '${guildId}': `, err.message);
 			}
 		}
-	} catch (error) {
+	} catch (err) {
 		// Ignore.
 	}
 }
@@ -432,7 +432,7 @@ async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes
 		if (voiceConnections.size > 0 || guildPlayers.size > 0) {
 			try {
 				if (fs.existsSync(voiceStateFile)) {
-					try { fs.unlinkSync(voiceStateFile); } catch (e) {}
+					try { fs.unlinkSync(voiceStateFile); } catch (err) {}
 				}
 
 				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
@@ -440,21 +440,21 @@ async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes
 				for (const [guildId, connection] of voiceConnections.entries()) {
 					try {
 						connection.destroy();
-					} catch (e) {}
+					} catch (err) {}
 				}
 				voiceConnections.clear();
 				consoleLog(`[${getTimestamp()}] Successfully left all voice channels.`);
 				
 				await new Promise(resolve => setTimeout(resolve, 1000));
-			} catch (error) {
-				consoleLog(`[${getTimestamp()}] Failed to leave voice channels: `, error);
+			} catch (err) {
+				consoleLog(`[${getTimestamp()}] Failed to leave voice channels: `, err);
 			}
 		}
 		
 		if (client.ws) client.ws.destroy();
 		await client.destroy();
-	} catch (error) {
-		consoleLog(error);
+	} catch (err) {
+		consoleLog(err);
 	} finally {
 		consoleLog(`Press 'Ctrl+C' or close the window to end process.`);
 		process.exit(0);
@@ -470,7 +470,7 @@ async function restart(client, voiceConnections, guildPlayers, rl, scriptFilenam
 		if (voiceConnections.size > 0 || guildPlayers.size > 0) {
 			try {
 				if (fs.existsSync(voiceStateFile)) {
-					try { fs.unlinkSync(voiceStateFile); } catch (e) {}
+					try { fs.unlinkSync(voiceStateFile); } catch (err) {}
 				}
 
 				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
@@ -478,21 +478,21 @@ async function restart(client, voiceConnections, guildPlayers, rl, scriptFilenam
 				for (const [guildId, connection] of voiceConnections.entries()) {
 					try {
 						connection.destroy();
-					} catch (e) {}
+					} catch (err) {}
 				}
 				voiceConnections.clear();
 				consoleLog(`[${getTimestamp()}] Successfully left all voice channels.`);
 				
 				await new Promise(resolve => setTimeout(resolve, 1000));
-			} catch (error) {
-				consoleLog(`[${getTimestamp()}] Failed to leave voice channels: `, error);
+			} catch (err) {
+				consoleLog(`[${getTimestamp()}] Failed to leave voice channels: `, err);
 			}
 		}
 		
 		if (client.ws) client.ws.destroy();
 		await client.destroy();
-	} catch (error) {
-		consoleLog(error);
+	} catch (err) {
+		consoleLog(err);
 	} finally {
 		consoleLog(`[${getTimestamp()}] Triggering restart...`);
 		
@@ -510,8 +510,8 @@ async function restart(client, voiceConnections, guildPlayers, rl, scriptFilenam
 async function loginWithRetry(client, attempt = 1) {
 	try {
 		await client.login(process.env.DISCORD_TOKEN);
-	} catch (error) {
-		consoleLog(`[${getTimestamp()}] Login failed (attempt ${attempt}): ${error.message}`);
+	} catch (err) {
+		consoleLog(`[${getTimestamp()}] Login failed (attempt ${attempt}): ${err.message}`);
 		if (attempt >= 10) {
 			consoleLog(`[${getTimestamp()}] Giving up after ${attempt} attempts.`);
 			return;
