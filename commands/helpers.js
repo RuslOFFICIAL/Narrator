@@ -16,10 +16,14 @@ const FATAL_LOGIN_ERRORS = ['TokenInvalid', 'TokenMissing', 'DisallowedIntents']
 const GUILD_ID_REGEX = /^(\d{5,25}|default)$/;
 const LANG_CODE_REGEX = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
 const TIMESTAMP_PREFIX_REGEX = /^\[\d{2}:\d{2}:\d{2} \d{2}\.\d{2}\.\d{4} UTC\]/;
+const LOG_MAX_FILE_BYTES = (parseFloat(process.env.LOG_MAX_SIZE_MB) || 5) * 1024 * 1024;
+const LOG_RETENTION_DAYS = parseInt(process.env.LOG_RETENTION_DAYS, 10) || 30;
+const LOG_FILE_REGEX = /^(\d{4})-(\d{2})-(\d{2})(?:\.\d+)?\.log$/;
 
 let isExiting = false;
 let defaultRl = null;
 let logWriteWarned = false;
+let logState = { date: null, part: 0, size: null };
 
 // Functions.
 function loadSafeModule(filePath, fallbackValue) {
@@ -247,11 +251,11 @@ function writeLogToFile(message, { raw = false } = {}) {
 			.replace(/\r\n/g, '\n');
 		
 		if (raw) {
-			fs.mkdirSync(logsDir, { recursive: true });
-			fs.appendFileSync(path.join(logsDir, `${getFormattedDate()}.log`), `${normalized}\n`, 'utf8');
+			appendToLog(normalized);
 			logWriteWarned = false;
 			return;
 		}
+		
 		let cleanMessage = normalized
 			.replace(/\n{3,}/g, '\n\n')
 			.trim();
@@ -266,14 +270,71 @@ function writeLogToFile(message, { raw = false } = {}) {
 		
 		cleanMessage += '\n'.repeat(Math.min(trailingBreaks, 2));
 		
-		fs.mkdirSync(logsDir, { recursive: true });
-		const filePath = path.join(logsDir, `${getFormattedDate()}.log`);
-		fs.appendFileSync(filePath, `${cleanMessage}\n`, 'utf8');
+		appendToLog(cleanMessage);
 	} catch (err) {
 		if (!logWriteWarned) {
 			logWriteWarned = true;
 			try { consoleLog(`[LOGGER] Failed to write to log file: ${err.message}`); } catch (e) {}
 		}
+	}
+}
+
+function cleanOldLogs() {
+	try {
+		if (!fs.existsSync(logsDir)) return;
+		const cutoff = Date.now() - LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+		let removed = 0;
+
+		for (const file of fs.readdirSync(logsDir)) {
+			const match = file.match(LOG_FILE_REGEX);
+			if (!match) continue;
+
+			const fileDate = Date.UTC(+match[1], +match[2] - 1, +match[3]);
+			if (fileDate < cutoff) {
+				try {
+					fs.unlinkSync(path.join(logsDir, file));
+					removed++;
+				} catch (err) {}
+			}
+		}
+
+		if (removed > 0) {
+			consoleLog(`[${getTimestamp()}] [Logger] Removed ${removed} log file(s) older than ${LOG_RETENTION_DAYS} days.`);
+		}
+	} catch (err) {
+		consoleLog(`[${getTimestamp()}] [Logger] Failed to clean old logs: `, err.message);
+	}
+}
+
+function appendToLog(text) {
+	fs.mkdirSync(logsDir, { recursive: true });
+
+	const data = `${text}\n`;
+	const bytes = Buffer.byteLength(data, 'utf8');
+	const date = getFormattedDate();
+	
+	if (logState.date !== date) {
+		logState = { date, part: 0, size: null };
+		setImmediate(cleanOldLogs);
+	}
+
+	while (true) {
+		const fileName = logState.part === 0 ? `${date}.log` : `${date}.${logState.part}.log`;
+		const filePath = path.join(logsDir, fileName);
+
+		if (logState.size === null) {
+			try { logState.size = fs.statSync(filePath).size; } catch (err) { logState.size = 0; }
+		}
+
+		if (logState.size > 0 && logState.size + bytes > LOG_MAX_FILE_BYTES) {
+			logState.part++;
+			logState.size = null;
+			continue;
+		}
+
+		fs.appendFileSync(filePath, data, 'utf8');
+		logState.size += bytes;
+		return;
 	}
 }
 
