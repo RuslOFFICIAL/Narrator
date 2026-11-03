@@ -10,9 +10,9 @@ const { getCommands, handleDiscordInteraction } = require('./commands/discord.js
 const { handleTerminalLine, completeTerminalLine  } = require('./commands/terminal.js');
 const {
 	loadSafeModule,	getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
-	consoleLog: _consoleLog, getTimestamp, formatUptime, makeLogMessage: _makeLogMessage, safeReply: _safeReply,
+	consoleLog: _consoleLog, getTimestamp, formatUptime, makeLogMessage: _makeLogMessage, safeReply: _safeReply, writeLogToFile, writeCenteredLog, setLogReadline,
 	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTesterNot: _isAuthorizedTesterNot, isAdminManageServer: _isAdminManageServer, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
-	saveVoiceState, restoreVoiceState,
+	saveVoiceState, restoreVoiceState, loadVolumes, readLoreFileStrict, writeLoreFile,
 	getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown: _shutdown, restart: _restart, loginWithRetry
 } = require('./commands/helpers.js');
@@ -29,7 +29,7 @@ for (const lang of languages) {
 const defaultLang = 'en';
 
 // Wrapper functions to keep context clean for "executionContext".
-const consoleLog = (...args) => _consoleLog(rl, ...args);
+const consoleLog = (...args) => _consoleLog(undefined, ...args);
 const getCmdText = (key) => _getCmdText(key, locales, defaultLang);
 const getLocText = (interaction, key, vars) => _getLocText(interaction, key, vars, locales);
 const getLocalizedLoreSnippets = (interaction) => _getLocalizedLoreSnippets(interaction, locales, defaultLang);
@@ -46,6 +46,11 @@ const restart = () => _restart(client, voiceConnections, guildPlayers, rl, __fil
 
 process.on('unhandledRejection', err => {
 	consoleLog(`[${getTimestamp()}] Unhandled promise rejection: `, err);
+});
+
+process.on('uncaughtException', err => {
+	consoleLog(`[${getTimestamp()}] Uncaught exception: `, err);
+	shutdown();
 });
 
 try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) {}
@@ -74,12 +79,17 @@ const voiceConnections = new Map();
 const guildVolumes = new Map();
 const guildPlayers = new Map();
 
+const savedGlobalVolume = loadVolumes(guildVolumes);
+if (savedGlobalVolume !== null) currentVolume = savedGlobalVolume;
+
 const rl = readline.createInterface({
 	input: process.stdin,
 	output: process.stdout,
 	terminal: true,
 	completer: (line) => completeTerminalLine(line, executionContext)
 });
+
+setLogReadline(rl);
 
 function parseIdList(value) {
 	return value ? value.split(',').map(id => id.trim()).filter(Boolean) : [];
@@ -111,25 +121,28 @@ const executionContext = {
 	getCmdText, getLocText, getLocalizedLoreSnippets, removeDuplicateLoreInFiles,
 	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply,
 	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isGuildNot, isVoiceNot,
-	saveVoiceState, restoreVoiceState,
+	saveVoiceState, restoreVoiceState, readLoreFileStrict, writeLoreFile,
 	getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown, restart, rl, loadSafeModule
 };
 
 // Run this code after the client is ready.
 client.once('clientReady', async () => {
+	writeCenteredLog(`Start of the session`);
+	
 	consoleLog(`\nNarrator | ${packageJson.version}`);
-	consoleLog(`Press Ctrl+C to shut down bot.\nPrint "help" for commands.\n`);
+	consoleLog(`Press 'Ctrl+C' to shut down bot.`);
+	consoleLog(`Print "help" for commands.\n`);
 	consoleLog(`[${getTimestamp()}] Logged in as ${client.user.tag}!`);
 	
 	// Status.
 	try {
 		consoleLog(`[${getTimestamp()}] Setting bot status up... `);
-		const statusText = `${CONFIG.statusName} | ${packageJson.version}`;
+		const statusText = `${CONFIG.statusName || 'Narrator'} | ${packageJson.version}`;
 		
 		const activityConfig = {
 			name: statusText,
-			type: ActivityType[CONFIG.statusType]
+			type: ActivityType[CONFIG.statusType] ?? ActivityType.Playing
 		};
 
 		if (CONFIG.statusType === 'Streaming' && CONFIG.statusUrl && CONFIG.statusUrl.trim() !== '') {
@@ -149,20 +162,21 @@ client.once('clientReady', async () => {
 	const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 	try {
 		consoleLog(`[${getTimestamp()}] Refreshing application (/) commands... `);
-		await rest.put(
-			Routes.applicationCommands(client.user.id),
-			{ body: commands },
-		);
-		await restoreVoiceState(client, voiceConnections, guildVolumes, guildPlayers, currentVolume);
-		
-		consoleLog(`[${getTimestamp()}] Waiting for commands...\n`);
-		
-		isBotReady = true;
-		if (!rl.closed) {
-			rl.prompt();
-		}
+		await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
 	} catch (err) {
-		consoleLog(err);
+		consoleLog(`[${getTimestamp()}] Failed to register commands: `, err);
+	}
+
+	try {
+		await restoreVoiceState(client, voiceConnections, guildVolumes, guildPlayers, currentVolume);
+	} catch (err) {
+		consoleLog(`[${getTimestamp()}] Failed to restore voice state: `, err);
+	}
+
+	consoleLog(`[${getTimestamp()}] Waiting for commands...\n`);
+	isBotReady = true;
+	if (!rl.closed) {
+		rl.prompt();
 	}
 });
 
@@ -180,6 +194,14 @@ client.on('interactionCreate', async interaction => {
 
 // Terminal.
 rl.on('line', async (line) => {
+	const trimmedLine = line.trim();
+	if (trimmedLine) {
+		writeLogToFile(`[User Input] ${trimmedLine}`);
+		if (!rl.closed) {
+			rl.prompt();
+		}
+	}
+	
 	await handleTerminalLine(line, executionContext);
 });
 
@@ -194,5 +216,6 @@ const restoreTTY = () => { try { if (process.stdin.isTTY) process.stdin.setRawMo
 process.on('exit', restoreTTY);
 process.on('SIGINT', () => shutdown());
 process.on('SIGTERM', () => shutdown());
+process.on('SIGUSR2', () => shutdown());
 
 loginWithRetry(client);

@@ -1,13 +1,16 @@
 # Directories.
-lores/*
-sounds/*
+data/
+logs/
+lores/
+sounds/
 
 # Files.
-.run.*
-voice-state.json
 !lores/README.md
 !sounds/README.md
 
+*.bak
+*.tmp
+*.log
 *.lnk
 
 # Environment variables.

@@ -3,6 +3,7 @@
 	"stdin": false,
 	"signal": "SIGTERM",
 	"ignore": [
+		"data/",
 		"lores/",
 		"sounds/",
 		"node_modules/",

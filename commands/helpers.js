@@ -2,13 +2,24 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const util = require('util');
 const { MessageFlags, TextChannel, ThreadChannel, PermissionFlagsBits } = require('discord.js');
-const voiceStateFile = path.join(__dirname, '../voice-state.json');
+
+const dataDir = path.join(__dirname, '../data');
+const voiceStateFile = path.join(dataDir, 'voice-state.json');
+const volumesFile = path.join(dataDir, 'volumes.json');
+const logsDir = path.join(__dirname, '../logs');
 const loresDir = path.join(__dirname, '../lores');
 const soundsDir = path.join(__dirname, '../sounds');
-const LANG_CODE_REGEX = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
+
+const FATAL_LOGIN_ERRORS = ['TokenInvalid', 'TokenMissing', 'DisallowedIntents'];
 const GUILD_ID_REGEX = /^(\d{5,25}|default)$/;
+const LANG_CODE_REGEX = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
+const TIMESTAMP_PREFIX_REGEX = /^\[\d{2}:\d{2}:\d{2} \d{2}\.\d{2}\.\d{4} UTC\]/;
+
 let isExiting = false;
+let defaultRl = null;
+let logWriteWarned = false;
 
 // Functions.
 function loadSafeModule(filePath, fallbackValue) {
@@ -96,13 +107,7 @@ function removeDuplicateLoreInFiles(loresDir) {
 			const uniqueSnippets = [...new Set(snippets)];
 			
 			if (uniqueSnippets.length !== snippets.length) {
-				const fileContent = `module.exports = ${JSON.stringify(uniqueSnippets, null, '\t')};\n`;
-				fs.writeFileSync(filePath, fileContent, 'utf8');
-				
-				try {
-					delete require.cache[require.resolve(filePath)];
-				} catch (err) {}
-				
+				writeLoreFile(filePath, uniqueSnippets);				
 				modifiedFilesCount++;
 				consoleLog(`[${getTimestamp()}] [Lore Cleanup] Removed ${snippets.length - uniqueSnippets.length} duplicate(s) from file '${file}'.`);
 			}
@@ -164,17 +169,22 @@ async function safeReply(interaction, replyOptions) {
 }
 
 function consoleLog(rl, ...args) {
+	if (typeof args[0] === 'string' && args.length > 1) {
+		args[0] = args[0].replace(/%/g, '%%');
+	}
+	
 	if (!rl || typeof rl.prompt !== 'function') {
 		if (rl !== undefined) args = [rl, ...args];
-		rl = null;
+		rl = defaultRl;
 	}
 	
 	if (process.stdout.isTTY) {
 		readline.clearLine(process.stdout, 0);
 		readline.cursorTo(process.stdout, 0);
 	}
-	
+	const logString = util.format(...args);
 	console.log(...args);
+	  writeLogToFile(logString, { raw: logString === '' });
 	
 	try {
 		if (rl && typeof rl.prompt === 'function' && !rl.closed) {
@@ -183,6 +193,18 @@ function consoleLog(rl, ...args) {
 	} catch (err) {
 		// Readline is closed.
 	}
+}
+
+function setLogReadline(rl) {
+	defaultRl = rl;
+}
+
+function getFormattedDate() {
+	const now = new Date();
+	const day = String(now.getUTCDate()).padStart(2, '0');
+	const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+	const year = now.getUTCFullYear();
+	return `${year}-${month}-${day}`; // Format for sorting: "YYYY-MM-DD".
 }
 
 function getTimestamp() {
@@ -216,6 +238,77 @@ function formatUptime(ms) {
 function makeLogMessage(interaction, rl) {
 	const logMessage = `[${getTimestamp()}] [Command Used] '/${interaction.commandName}' was executed by @${interaction.user.tag} (${interaction.user.id})`;
 	consoleLog(rl, logMessage);
+}
+
+function writeLogToFile(message, { raw = false } = {}) {
+	try {
+		const normalized = String(message)
+			.replace(/\u001b\[[0-9;?]*[A-Za-z]/g, '')
+			.replace(/\r\n/g, '\n');
+		
+		if (raw) {
+			fs.mkdirSync(logsDir, { recursive: true });
+			fs.appendFileSync(path.join(logsDir, `${getFormattedDate()}.log`), `${normalized}\n`, 'utf8');
+			logWriteWarned = false;
+			return;
+		}
+		let cleanMessage = normalized
+			.replace(/\n{3,}/g, '\n\n')
+			.trim();
+		
+		if (!cleanMessage) return;
+		
+		const trailingBreaks = (normalized.match(/\s*$/)[0].match(/\n/g) || []).length;
+		
+		if (!TIMESTAMP_PREFIX_REGEX.test(cleanMessage)) {
+			cleanMessage = `[${getTimestamp()}] ${cleanMessage}`;
+		}
+		
+		cleanMessage += '\n'.repeat(Math.min(trailingBreaks, 2));
+		
+		fs.mkdirSync(logsDir, { recursive: true });
+		const filePath = path.join(logsDir, `${getFormattedDate()}.log`);
+		fs.appendFileSync(filePath, `${cleanMessage}\n`, 'utf8');
+	} catch (err) {
+		if (!logWriteWarned) {
+			logWriteWarned = true;
+			try { consoleLog(`[LOGGER] Failed to write to log file: ${err.message}`); } catch (e) {}
+		}
+	}
+}
+
+function writeCenteredLog(title, width = 40) {
+	const padding = Math.max(0, Math.floor((width - title.length) / 2));
+	const line = '-'.repeat(width);
+
+	writeLogToFile(line, { raw: true });
+	writeLogToFile(`${' '.repeat(padding)}${title}`, { raw: true });
+	writeLogToFile(line, { raw: true });
+}
+
+function readLoreFileStrict(filePath) {
+	if (!fs.existsSync(filePath)) return [];
+	const absolutePath = require.resolve(filePath);
+	delete require.cache[absolutePath];
+	const mod = require(absolutePath);
+	if (!Array.isArray(mod)) {
+		throw new Error(`Lore file '${path.basename(filePath)}' does not export an array.`);
+	}
+	return mod.map(s => String(s));
+}
+
+function writeLoreFile(filePath, snippets) {
+	if (fs.existsSync(filePath)) {
+		try { fs.copyFileSync(filePath, `${filePath}.bak`); } catch (err) {}
+	}
+	if (snippets.length === 0) {
+		fs.rmSync(filePath, { force: true });
+	} else {
+		const tmpPath = `${filePath}.tmp`;
+		fs.writeFileSync(tmpPath, `module.exports = ${JSON.stringify(snippets, null, '\t')};\n`, 'utf8');
+		fs.renameSync(tmpPath, filePath);
+	}
+	try { delete require.cache[require.resolve(filePath)]; } catch (err) {}
 }
 
 function setupPlayerEvents(guildId, player, voiceConnections, guildPlayers, guildVolumes, currentVolume) {
@@ -298,6 +391,8 @@ async function isVoiceNot(interaction, voiceConnections, locales) {
 }
 
 function saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume = 1.0) {
+	saveVolumes(guildVolumes, currentVolume);
+	
 	try {
 		const activeChannels = {};
 		for (const [guildId, connection] of voiceConnections.entries()) {
@@ -308,20 +403,131 @@ function saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVol
 				activeChannels[guildId] = {
 					channelId,
 					playingSound: playerEntry?.soundName || null,
-					positionMs: playerEntry ? Date.now() - playerEntry.startTime : 0,
-					volume: vol
+					positionMs: playerEntry ? Date.now() - playerEntry.startTime : 0
 				};
 			}
 		}
 		
 		const fileContent = `${JSON.stringify(activeChannels, null, '\t')}\n`;
+		fs.mkdirSync(dataDir, { recursive: true });
 		fs.writeFileSync(voiceStateFile, fileContent, 'utf8');
-		
-		if (Object.keys(activeChannels).length > 0) {
-			consoleLog(`[${getTimestamp()}] [Voice] Voice state saved successfully (${Object.keys(activeChannels).length} active connection(s)).`);
+	} catch (err) {
+		consoleLog(`[${getTimestamp()}] [Voice] Failed to save voice state: `, err.message);
+	}
+}
+
+async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPlayers, currentVolume) {
+	try {
+		if (!fs.existsSync(voiceStateFile)) return;
+		const data = JSON.parse(fs.readFileSync(voiceStateFile, 'utf8'));
+		fs.unlinkSync(voiceStateFile);
+
+		consoleLog(`[${getTimestamp()}] [Voice] Restoring previous voice states...`);
+
+		const { joinVoiceChannel, VoiceConnectionStatus, AudioPlayerStatus, createAudioPlayer, createAudioResource, StreamType } = require('@discordjs/voice');
+		const { spawn } = require('child_process');
+
+		for (const [guildId, stateData] of Object.entries(data)) {
+			try {
+				const guild = client.guilds.cache.get(guildId);
+				if (!guild) continue;
+
+				// Support both old string format and new object format.
+				const channelId = typeof stateData === 'string' ? stateData : stateData.channelId;
+				const channel = guild.channels.cache.get(channelId);
+				if (!channel) continue;
+				
+				const connection = joinVoiceChannel({
+					channelId: channel.id,
+					guildId: guild.id,
+					adapterCreator: guild.voiceAdapterCreator,
+				});
+				attachConnectionHandlers(connection, guild.id, voiceConnections, guildPlayers);
+				voiceConnections.set(guild.id, connection);
+				consoleLog(`[${getTimestamp()}] [Voice] Rejoined voice channel '${channel.name}' in guild ID '${guildId}'.`);
+
+				// Restore playing sound if available.
+				const soundPath = (typeof stateData === 'object' && stateData.playingSound) ? getSoundFilePath(stateData.playingSound) : null;
+				if (soundPath && fs.existsSync(soundPath)) {
+					const player = createAudioPlayer();
+					const seekSeconds = Math.max(0, Math.floor((stateData.positionMs || 0) / 1000));
+
+					const ffmpegArgs = ['-nostdin'];
+					if (seekSeconds > 0) {
+						ffmpegArgs.push('-ss', String(seekSeconds), '-accurate_seek');
+					}
+					ffmpegArgs.push('-i', soundPath, '-loglevel', '0', '-f', 's16le', '-ar', '48000', '-ac', '2', 'pipe:1');
+
+					const ffmpegProcess = spawn('ffmpeg', ffmpegArgs, { stdio: ['ignore', 'pipe', 'ignore'] });
+					const killFfmpeg = () => { try { ffmpegProcess.kill('SIGKILL'); } catch (e) {} };
+					ffmpegProcess.on('error', (err) => {
+						consoleLog(`[${getTimestamp()}] [Voice] Could not run ffmpeg to resume '${stateData.playingSound}': `, err.message);
+						try { player.stop(true); } catch (e) {}
+						if (guildPlayers.get(guild.id)?.player === player) {
+							guildPlayers.delete(guild.id);
+						}
+					});
+
+					// Explicitly specify StreamType.Raw so Discord parses the PCM stream correctly.
+					const resource = createAudioResource(ffmpegProcess.stdout, {
+						inlineVolume: true,
+						inputType: StreamType.Raw,
+						metadata: { title: stateData.playingSound }
+					});
+					
+					guildPlayers.set(guild.id, {
+						player,
+						resource,
+						soundName: stateData.playingSound,
+						startTime: Date.now() - (stateData.positionMs || 0)
+					});
+
+					setupPlayerEvents(guild.id, player, voiceConnections, guildPlayers, guildVolumes, currentVolume);
+					player.once(AudioPlayerStatus.Idle, killFfmpeg);
+					player.once('error', killFfmpeg);
+
+					const startPlayback = () => {
+						connection.subscribe(player);
+						try { player.play(resource); } catch (e) {}
+					};
+					if (connection.state.status === VoiceConnectionStatus.Ready) {
+						startPlayback();
+					} else {
+						connection.once(VoiceConnectionStatus.Ready, startPlayback);
+					}
+					consoleLog(`[${getTimestamp()}] [Voice] Resumed audio playback for '${stateData.playingSound}'.`);
+				}
+			} catch (err) {
+				consoleLog(`[${getTimestamp()}] [Voice] Failed to restore voice state for guild ID '${guildId}': `, err.message);
+			}
 		}
 	} catch (err) {
-		// Ignore or log error.
+		consoleLog(`[${getTimestamp()}] [Voice] Failed to restore voice state: `, err.message);
+	}
+}
+
+function saveVolumes(guildVolumes, currentVolume = 1.0) {
+	try {
+		const data = { global: currentVolume, guilds: Object.fromEntries(guildVolumes) };
+		fs.mkdirSync(dataDir, { recursive: true });
+		fs.writeFileSync(volumesFile, `${JSON.stringify(data, null, '\t')}\n`, 'utf8');
+	} catch (err) {
+		consoleLog(`[${getTimestamp()}] [Voice] Failed to save volumes: `, err.message);
+	}
+}
+
+function loadVolumes(guildVolumes) {
+	try {
+		if (!fs.existsSync(volumesFile)) return null;
+		const data = JSON.parse(fs.readFileSync(volumesFile, 'utf8'));
+		const valid = (v) => typeof v === 'number' && v >= 0 && v <= 1;
+		for (const [guildId, vol] of Object.entries(data.guilds || {})) {
+			if (valid(vol)) guildVolumes.set(guildId, vol);
+		}
+		return valid(data.global) ? data.global : null;
+	} catch (err) {
+		consoleLog(`[${getTimestamp()}] [Voice] Failed to load volumes: `, err.message);
+		return null;
 	}
 }
 
@@ -403,108 +609,10 @@ async function joinVoice(channel, voiceConnections, guildPlayers) {
 	return connection;
 }
 
-async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPlayers, currentVolume) {
-	try {
-		if (!fs.existsSync(voiceStateFile)) return;
-		const data = JSON.parse(fs.readFileSync(voiceStateFile, 'utf8'));
-		fs.unlinkSync(voiceStateFile);
-
-		consoleLog(`[${getTimestamp()}] [Voice] Restoring previous voice states...`);
-
-		const { joinVoiceChannel, VoiceConnectionStatus, AudioPlayerStatus, createAudioPlayer, createAudioResource, StreamType } = require('@discordjs/voice');
-		const { spawn } = require('child_process');
-
-		for (const [guildId, stateData] of Object.entries(data)) {
-			try {
-				const guild = client.guilds.cache.get(guildId);
-				if (!guild) continue;
-
-				// Support both old string format and new object format.
-				const channelId = typeof stateData === 'string' ? stateData : stateData.channelId;
-				const channel = guild.channels.cache.get(channelId);
-				if (!channel) continue;
-
-				if (typeof stateData === 'object' && stateData.volume !== null && stateData.volume !== undefined) {
-					guildVolumes.set(guild.id, stateData.volume);
-				}
-
-				const connection = joinVoiceChannel({
-					channelId: channel.id,
-					guildId: guild.id,
-					adapterCreator: guild.voiceAdapterCreator,
-				});
-				attachConnectionHandlers(connection, guild.id, voiceConnections, guildPlayers);
-				voiceConnections.set(guild.id, connection);
-				consoleLog(`[${getTimestamp()}] [Voice] Rejoined voice channel '${channel.name}' in guild ID '${guildId}'.`);
-
-				// Restore playing sound if available.
-				const soundPath = (typeof stateData === 'object' && stateData.playingSound) ? getSoundFilePath(stateData.playingSound) : null;
-				if (soundPath && fs.existsSync(soundPath)) {
-					const player = createAudioPlayer();
-					const seekSeconds = Math.max(0, Math.floor((stateData.positionMs || 0) / 1000));
-
-					const ffmpegArgs = ['-nostdin'];
-					if (seekSeconds > 0) {
-						ffmpegArgs.push('-ss', String(seekSeconds), '-accurate_seek');
-					}
-					ffmpegArgs.push('-i', soundPath, '-loglevel', '0', '-f', 's16le', '-ar', '48000', '-ac', '2', 'pipe:1');
-
-					const ffmpegProcess = spawn('ffmpeg', ffmpegArgs, { stdio: ['ignore', 'pipe', 'ignore'] });
-					const killFfmpeg = () => { try { ffmpegProcess.kill('SIGKILL'); } catch (e) {} };
-					ffmpegProcess.on('error', (err) => {
-						consoleLog(`[${getTimestamp()}] [Voice] Could not run ffmpeg to resume '${stateData.playingSound}': `, err.message);
-						try { player.stop(true); } catch (e) {}
-						if (guildPlayers.get(guild.id)?.player === player) {
-							guildPlayers.delete(guild.id);
-						}
-					});
-
-					// Explicitly specify StreamType.Raw so Discord parses the PCM stream correctly.
-					const resource = createAudioResource(ffmpegProcess.stdout, {
-						inlineVolume: true,
-						inputType: StreamType.Raw,
-						metadata: { title: stateData.playingSound }
-					});
-
-					const volume = guildVolumes.get(guild.id) ?? currentVolume;
-					guildVolumes.set(guild.id, volume);
-					resource.volume.setVolume(volume);
-
-					guildPlayers.set(guild.id, {
-						player,
-						resource,
-						soundName: stateData.playingSound,
-						startTime: Date.now() - (stateData.positionMs || 0)
-					});
-
-					setupPlayerEvents(guild.id, player, voiceConnections, guildPlayers, guildVolumes, currentVolume);
-					player.once(AudioPlayerStatus.Idle, killFfmpeg);
-					player.once('error', killFfmpeg);
-
-					const startPlayback = () => {
-						connection.subscribe(player);
-						try { player.play(resource); } catch (e) {}
-					};
-					if (connection.state.status === VoiceConnectionStatus.Ready) {
-						startPlayback();
-					} else {
-						connection.once(VoiceConnectionStatus.Ready, startPlayback);
-					}
-					consoleLog(`[${getTimestamp()}] [Voice] Resumed audio playback for '${stateData.playingSound}'.`);
-				}
-			} catch (err) {
-				consoleLog(`[${getTimestamp()}] [Voice] Failed to restore voice state for guild ID '${guildId}': `, err.message);
-			}
-		}
-	} catch (err) {
-		// Ignore.
-	}
-}
-
 async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume = 1.0) {
 	if (isExiting) return;
 	isExiting = true;
-
+	
 	consoleLog(`\n[${getTimestamp()}] Shutting down the bot safely...`);
 	
 	try {
@@ -537,7 +645,7 @@ async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes
 	} catch (err) {
 		consoleLog(err);
 	} finally {
-		consoleLog(`Press 'Ctrl+C' or close the window to end process.`);
+		writeCenteredLog(`End of the session`);
 		try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) {}
 		process.exit(0);
 	}
@@ -588,6 +696,8 @@ async function restart(client, voiceConnections, guildPlayers, rl, scriptFilenam
 		} catch (err) {
 			// Fallback if touching fails.
 		}
+		
+		writeCenteredLog(`End of the session`);
 		try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) {}
 		process.exit(0);
 	}
@@ -598,8 +708,10 @@ async function loginWithRetry(client, attempt = 1) {
 		await client.login(process.env.DISCORD_TOKEN);
 	} catch (err) {
 		consoleLog(`[${getTimestamp()}] Login failed (attempt ${attempt}): ${err.message}`);
-		if (attempt >= 10) {
-			consoleLog(`[${getTimestamp()}] Giving up after ${attempt} attempts.`);
+		if (FATAL_LOGIN_ERRORS.includes(err.code) || attempt >= 10) {
+			consoleLog(`[${getTimestamp()}] Giving up after ${attempt} attempt(s).`);
+			writeCenteredLog("End of the session");
+			process.exit(1);
 			return;
 		}
 		
@@ -611,9 +723,9 @@ async function loginWithRetry(client, attempt = 1) {
 
 module.exports = {
 	loadSafeModule, getCmdText, getLocText, getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
-	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply,
+	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply, getFormattedDate, writeLogToFile, writeCenteredLog, setLogReadline,
 	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isGuildNot, isVoiceNot,
-	saveVoiceState, restoreVoiceState,
+	saveVoiceState, restoreVoiceState, loadVolumes, readLoreFileStrict, writeLoreFile,
 	getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown, restart, loginWithRetry
 };

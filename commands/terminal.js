@@ -46,7 +46,7 @@ async function runTerminalLine(line, context) {
 		voiceConnections, 
 		guildVolumes, guildPlayers, botStartTime, 
 		consoleLog, getTimestamp, formatUptime, removeDuplicateLoreInFiles, 
-		saveVoiceState,
+		saveVoiceState, readLoreFileStrict, writeLoreFile,
 		shutdown, restart, rl, loadSafeModule,
 		getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents
 	} = context;
@@ -56,7 +56,7 @@ async function runTerminalLine(line, context) {
 		rl.prompt();
 		return;
 	}
-	
+		
 	let subCommands = [];
 	let remaining = trimmedLine;
 	while (remaining) {
@@ -111,7 +111,6 @@ async function runTerminalLine(line, context) {
 						const time = match ? `${match[1]}ms` : 'unknown';
 						consoleLog(`[${getTimestamp()}] Pong! Network latency: ${time}`);
 					}
-					rl.prompt(true);
 				});
 				break;
 			}
@@ -124,7 +123,12 @@ async function runTerminalLine(line, context) {
 			case 'stop': {
 				consoleLog(`[${getTimestamp()}] Completely ending process via stop command...`);
 				
-				try { fs.writeFileSync(path.join(__dirname, '../.run.stop'), String(Date.now())); } catch (err) {}
+				try {
+					const stopFile = path.join(__dirname, '../data/run.stop');
+					fs.mkdirSync(path.dirname(stopFile), { recursive: true });
+					fs.writeFileSync(stopFile, String(Date.now()));
+				} catch (err) {}
+				
 				shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, context.currentVolume);
 				return;
 			}
@@ -205,8 +209,6 @@ async function runTerminalLine(line, context) {
 					consoleLog(`[${getTimestamp()}] Error: '${loresDir}' directory not found.`);
 					break;
 				}
-				
-				removeDuplicateLoreInFiles(loresDir);
 				
 				if (allLoreFiles.length === 0) {
 					consoleLog(`[${getTimestamp()}] No guild lore files found in '${loresDir}'.`);
@@ -339,8 +341,6 @@ async function runTerminalLine(line, context) {
 					break;
 				}
 				
-				removeDuplicateLoreInFiles(loresDir);
-				
 				if (allLoreFiles.length === 0) {
 					consoleLog(`[${getTimestamp()}] No lore files found.`);
 					break;
@@ -417,25 +417,12 @@ async function runTerminalLine(line, context) {
 					consoleLog(`[${getTimestamp()}] Error: Invalid guild ID or language code.`);
 					break;
 				}
-				let existingSnippets = [];
-
-				if (fs.existsSync(filePath)) {
-					try {
-						delete require.cache[require.resolve(filePath)];
-					} catch (err) {}
-					existingSnippets = loadSafeModule(filePath, []);
-				}
 				
-				existingSnippets.push(snippetText);
-				const fileContent = `module.exports = ${JSON.stringify(existingSnippets, null, '\t')};\n`;
-
 				try {
-					fs.writeFileSync(filePath, fileContent, 'utf8');
-					try {
-						delete require.cache[require.resolve(filePath)];
-					} catch (err) {}
+					const existingSnippets = readLoreFileStrict(filePath);
+					existingSnippets.push(snippetText);
+					writeLoreFile(filePath, existingSnippets);
 					removeDuplicateLoreInFiles(loresDir);
-					
 					consoleLog(`[${getTimestamp()}] Success: Added snippet to '${filePath}'`);
 				} catch (err) {
 					consoleLog(`[${getTimestamp()}] Error writing lore file:`, err.message);
@@ -469,19 +456,11 @@ async function runTerminalLine(line, context) {
 					break;
 				}
 
-				let snippets = loadSafeModule(filePath, []);
+				const snippets = readLoreFileStrict(filePath);
 				
 				if (removeIndex > 0 && removeIndex <= snippets.length) {
 					snippets.splice(removeIndex - 1, 1);
-
-					if (snippets.length === 0) {
-						fs.unlinkSync(filePath);
-					} else {
-						const fileContent = `module.exports = ${JSON.stringify(snippets, null, '\t')};\n`;
-						fs.writeFileSync(filePath, fileContent, 'utf8');
-					}
-
-					try { delete require.cache[require.resolve(filePath)]; } catch (err) {}
+					writeLoreFile(filePath, snippets);
 					removeDuplicateLoreInFiles(loresDir);
 
 					consoleLog(`[${getTimestamp()}] Success: Removed snippet #${removeIndex} from '${removeGuildId}_${removeLang}.js' via terminal.`);

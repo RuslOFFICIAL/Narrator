@@ -6,8 +6,10 @@ cd "$(dirname "$0")" || exit
 SCRIPT_NAME="$(basename "$0")"
 SCRIPT_PATH="./$SCRIPT_NAME"
 FILE_PACKAGE="package.json"
-CONF_FILE=".run.conf"
-STOP_FILE=".run.stop"
+
+DATA_DIR="data"
+CONF_FILE="$DATA_DIR/run.conf"
+STOP_FILE="$DATA_DIR/run.stop"
 
 WATCH_FILES=""
 NM_PID=""
@@ -102,6 +104,7 @@ main() {
 	fi
 
 	# Write fresh config.
+	mkdir -p "$DATA_DIR"
 	echo "PID=$$" > "$CONF_FILE"
 	rm -f "$STOP_FILE"
 	export RUN_SH_PID=$$
