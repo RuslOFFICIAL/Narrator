@@ -16,7 +16,7 @@ const FATAL_LOGIN_ERRORS = ['TokenInvalid', 'TokenMissing', 'DisallowedIntents']
 const GUILD_ID_REGEX = /^(\d{5,25}|default)$/;
 const LANG_CODE_REGEX = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
 const TIMESTAMP_PREFIX_REGEX = /^\[\d{2}:\d{2}:\d{2} \d{2}\.\d{2}\.\d{4} UTC\]/;
-const LOG_MAX_FILE_BYTES = (parseFloat(process.env.LOG_MAX_SIZE_MB) || 5) * 1024 * 1024;
+const LOG_MAX_FILE_BYTES = process.env.LOG_MAX_SIZE_MB ? parseFloat(process.env.LOG_MAX_SIZE_MB) * 1024 * 1024 : (2 ** 25);
 const LOG_RETENTION_DAYS = parseInt(process.env.LOG_RETENTION_DAYS, 10) || 30;
 const LOG_FILE_REGEX = /^(\d{4})-(\d{2})-(\d{2})(?:\.\d+)?\.log$/;
 
