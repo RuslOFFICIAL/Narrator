@@ -20,6 +20,7 @@ const LOG_MAX_FILE_BYTES = process.env.LOG_MAX_SIZE_MB ? parseFloat(process.env.
 const LOG_RETENTION_DAYS = parseInt(process.env.LOG_RETENTION_DAYS, 10) || 30;
 const LOG_FILE_REGEX = /^(\d{4})-(\d{2})-(\d{2})(?:\.\d+)?\.log$/;
 
+const resolveVolume = (v) => (typeof v === 'function' ? v() : v);
 let isExiting = false;
 let defaultRl = null;
 let logWriteWarned = false;
@@ -57,12 +58,12 @@ function getLocText(interaction, key, variables = {}, locales) {
 }
 
 function getLocalizedLoreSnippets(interaction, locales, defaultLang) {
-	const guildId = interaction.guildId || 'default';
-	const loresDir = path.join(__dirname, '../lores');
-	
-	// Get the user's language code from Discord (e.g.: 'uk', 'en-US', etc.)
-	const userLocale = interaction.locale ? interaction.locale.split('-')[0] : 'en';
-	let filePath = `${loresDir}/${guildId}_${userLocale}.js`;
+	const fullLocale = interaction.locale || 'en';
+	const baseLocale = fullLocale.split('-')[0];
+	const localeCandidates = [...new Set([fullLocale, baseLocale])].filter(l => LANG_CODE_REGEX.test(l));
+	let filePath = localeCandidates
+		.map(l => `${loresDir}/${guildId}_${l}.js`)
+		.find(p => fs.existsSync(p)) || `${loresDir}/${guildId}_${baseLocale}.js`;
 	
 	// User's language.
 	if (!fs.existsSync(filePath)) {
@@ -379,14 +380,14 @@ function setupPlayerEvents(guildId, player, voiceConnections, guildPlayers, guil
 	player.on(AudioPlayerStatus.Idle, () => {
 		if (!isCurrent()) return;
 		guildPlayers.delete(guildId);
-		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, resolveVolume(currentVolume));
 	});
 
 	player.on('error', err => {
 		consoleLog(`[${getTimestamp()}] Audio player error in guild '${guildId}': `, err.message);
 		if (!isCurrent()) return;
 		guildPlayers.delete(guildId);
-		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, resolveVolume(currentVolume));
 	});
 }
 
@@ -536,6 +537,8 @@ async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPl
 						metadata: { title: stateData.playingSound }
 					});
 					
+					resource.volume?.setVolume(guildVolumes.get(guild.id) ?? resolveVolume(currentVolume));
+					
 					guildPlayers.set(guild.id, {
 						player,
 						resource,
@@ -670,7 +673,7 @@ async function joinVoice(channel, voiceConnections, guildPlayers) {
 	return connection;
 }
 
-async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume = 1.0) {
+async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume = 1.0, exitCode = 0) {
 	if (isExiting) return;
 	isExiting = true;
 	
@@ -708,11 +711,11 @@ async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes
 	} finally {
 		writeCenteredLog(`End of the session`);
 		try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) {}
-		process.exit(0);
+		process.exit(exitCode);
 	}
 }
 
-async function restart(client, voiceConnections, guildPlayers, rl, scriptFilename, guildVolumes, currentVolume = 1.0) {
+async function restart(client, voiceConnections, guildPlayers, rl, scriptFilename, guildVolumes, currentVolume = 1.0, exitCode = 0) {
 	if (isExiting) return;
 	isExiting = true;
 
@@ -760,7 +763,7 @@ async function restart(client, voiceConnections, guildPlayers, rl, scriptFilenam
 		
 		writeCenteredLog(`End of the session`);
 		try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) {}
-		process.exit(0);
+		process.exit(exitCode);
 	}
 }
 

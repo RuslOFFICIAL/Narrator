@@ -50,7 +50,7 @@ process.on('unhandledRejection', err => {
 
 process.on('uncaughtException', err => {
 	consoleLog(`[${getTimestamp()}] Uncaught exception: `, err);
-	shutdown();
+	shutdown(1);
 });
 
 try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) {}
@@ -118,6 +118,7 @@ const executionContext = {
 	client, get isBotReady() { return isBotReady; }, CONFIG, locales, defaultLang, packageJson,
 	voiceConnections, guildVolumes, guildPlayers, botStartTime, 
 	get currentVolume() { return currentVolume; }, set currentVolume(v) { currentVolume = v; },
+	getCurrentVolume: () => currentVolume,
 	getCmdText, getLocText, getLocalizedLoreSnippets, removeDuplicateLoreInFiles,
 	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply,
 	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isGuildNot, isVoiceNot,
@@ -168,10 +169,11 @@ client.once('clientReady', async () => {
 	}
 
 	try {
-		await restoreVoiceState(client, voiceConnections, guildVolumes, guildPlayers, currentVolume);
+		await restoreVoiceState(client, voiceConnections, guildVolumes, guildPlayers, () => currentVolume);
 	} catch (err) {
 		consoleLog(`[${getTimestamp()}] Failed to restore voice state: `, err);
 	}
+	saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 
 	consoleLog(`[${getTimestamp()}] Waiting for commands...\n`);
 	isBotReady = true;

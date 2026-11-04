@@ -34,6 +34,8 @@ const getLoreFiles = () => {
 	catch (err) { return []; }
 };
 
+const LANG_CODE_REGEX = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
+
 function restAfter(text, n) {
 	let rest = text.trimStart();
 	for (let i = 0; i < n; i++) rest = rest.replace(/^\S+\s*/, '');
@@ -151,28 +153,32 @@ async function runTerminalLine(line, context) {
 			case 'echo': {
 				if (args[1] === '-e') {
 					// Edit Message: echo -e [CHANNEL_ID] [EDITED_TEXT]
-					const messageId = args[2];
-					const newText = restAfter(subCmd, 3).replace(/\\n/g, '\n');
-					if (!messageId || !newText) {
-						consoleLog(`[${getTimestamp()}] Error: Please provide a message ID and new text.`);
+					const editChannelId = args[2];
+					const messageId = args[3];
+					const newText = restAfter(subCmd, 4).replace(/\\n/g, '\n');
+					if (!editChannelId || !messageId || !newText) {
+						consoleLog(`[${getTimestamp()}] Error: Please provide a channel ID, a message ID and new text.`);
 						break;
 					}
-					let targetMessage = null, targetChannel = null;
-					for (const [guildId, guild] of client.guilds.cache) {
-						for (const [channelId, channel] of guild.channels.cache) {
-							if (channel.isTextBased()) {
-								try {
-									const fetchedMsg = await channel.messages.fetch(messageId);
-									if (fetchedMsg) { targetMessage = fetchedMsg; targetChannel = channel; break; }
-								} catch (err) {}
-							}
-						}
-						if (targetMessage) break;
+					
+					let targetChannel = null;
+					for (const [, guild] of client.guilds.cache) {
+						const channel = guild.channels.cache.get(editChannelId);
+						if (channel) { targetChannel = channel; break; }
 					}
+					
+					if (!targetChannel || !targetChannel.isTextBased()) {
+						consoleLog(`[${getTimestamp()}] Error: Could not find text channel with ID '${editChannelId}'.`);
+						break;
+					}
+					
+					let targetMessage = null;
+					try { targetMessage = await targetChannel.messages.fetch(messageId); } catch (err) {}
 					if (!targetMessage) {
-						consoleLog(`[${getTimestamp()}] Error: Could not find message with ID '${messageId}'.`);
+						consoleLog(`[${getTimestamp()}] Error: Could not find message with ID '${messageId}' in #${targetChannel.name}.`);
 						break;
 					}
+					
 					await targetMessage.edit(newText);
 					consoleLog(`[${getTimestamp()}] Message successfully edited in channel #${targetChannel.name}.`);
 				} else {
@@ -236,6 +242,11 @@ async function runTerminalLine(line, context) {
 						requestedLang = args[1];
 					}
 					// Random: lore
+				}
+				
+				if (requestedLang && !LANG_CODE_REGEX.test(requestedLang)) {
+					consoleLog(`[${getTimestamp()}] Error: Invalid language code '${requestedLang}'.`);
+					break;
 				}
 
 				if (requestedGuildId) {
@@ -370,6 +381,11 @@ async function runTerminalLine(line, context) {
 							selectedFiles = allLoreFiles.filter(f => f.startsWith(`${targetGuildId}_`));
 						}
 					}
+				}
+				
+				if (targetLang && !LANG_CODE_REGEX.test(targetLang)) {
+					consoleLog(`[${getTimestamp()}] Error: Invalid language code '${targetLang}'.`);
+					break;
 				}
 
 				if (selectedFiles.length === 0) {
@@ -579,7 +595,7 @@ async function runTerminalLine(line, context) {
 						soundName: targetSound,
 						startTime: Date.now()
 					});
-					setupPlayerEvents(gId, player, voiceConnections, guildPlayers, guildVolumes, context.currentVolume);
+					setupPlayerEvents(gId, player, voiceConnections, guildPlayers, guildVolumes, context.getCurrentVolume);
 
 					const startPlayback = () => {
 						conn.subscribe(player);
@@ -635,15 +651,11 @@ async function runTerminalLine(line, context) {
 					const volume = volumePercent / 100;
 					context.currentVolume = volume;
 					
-					for (const [gId, entry] of guildPlayers.entries()) {
-						guildVolumes.set(gId, volume);
-						if (entry?.resource?.volume) {
-							try { entry.resource.volume.setVolume(volume); } catch (err) {}
-						}
+					guildVolumes.clear();
+					for (const entry of guildPlayers.values()) {
+						try { entry?.resource?.volume?.setVolume(volume); } catch (err) {}
 					}
-					for (const gId of voiceConnections.keys()) {
-						guildVolumes.set(gId, volume);
-					}
+
 					saveVoiceState(voiceConnections, guildPlayers, guildVolumes, context.currentVolume);
 					
 					consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}% on all guilds.`);

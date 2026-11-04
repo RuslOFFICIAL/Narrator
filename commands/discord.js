@@ -299,7 +299,7 @@ async function commandLoreList(interaction, { getLocText, safeReply, consoleLog,
 			const snippets = loadSafeModule(path.join(loresDir, file), []);
 			if (snippets.length > 0) {
 				outputLines.push(getLocText(interaction, 'replyLoreListLanguage', { lang }));
-				snippets.forEach((s, idx) => outputLines.push(`> ${idx + 1}. ${String(s)}`));
+				snippets.forEach((s, idx) => outputLines.push(`> ${idx + 1}. ${String(s).replace(/\n/g, '\n> ')}`));
 			}
 		}
 		
@@ -463,7 +463,7 @@ async function commandVoiceLeave(interaction, { getLocText, saveVoiceState, safe
 	}
 }
 
-async function commandSoundboardPlay(interaction, { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, getSoundFilePath, setupPlayerEvents, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildVolumes, guildPlayers, currentVolume }) {
+async function commandSoundboardPlay(interaction, { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, getSoundFilePath, setupPlayerEvents, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildVolumes, guildPlayers, currentVolume, getCurrentVolume }) {
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
@@ -497,7 +497,7 @@ async function commandSoundboardPlay(interaction, { getLocText, saveVoiceState, 
 			soundName: path.basename(soundPath, '.mp3'),
 			startTime: Date.now()
 		});
-		setupPlayerEvents(interaction.guildId, player, voiceConnections, guildPlayers, guildVolumes, currentVolume);
+		setupPlayerEvents(interaction.guildId, player, voiceConnections, guildPlayers, guildVolumes, getCurrentVolume);
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 		
 		const startPlayback = () => {
