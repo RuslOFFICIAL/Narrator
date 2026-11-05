@@ -1,7 +1,8 @@
 // Dependencies.
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
+const net = require('net');
+const { execFile } = require('child_process');
 const { createAudioPlayer, createAudioResource, VoiceConnectionStatus } = require('@discordjs/voice');
 
 // Variables.
@@ -105,17 +106,45 @@ async function runTerminalLine(line, context) {
 			
 			case 'ping': {
 				consoleLog(`[${getTimestamp()}] Pinging...`);
-				consoleLog(`[${getTimestamp()}] Pong! Discord WebSocket latency: ${client.ws.ping}ms`);
-				const pingCmd = process.platform === 'win32' ? 'ping -n 1 8.8.8.8' : 'ping -c 1 -W 3 8.8.8.8';
-				exec(pingCmd, (err, stdout) => {
-					if (err) {
-						consoleLog(`[${getTimestamp()}] Failed to execute ping.`);
-					} else {
-						const match = stdout.match(/time[=<]\s*([\d.]+)\s*ms/i);
-						const time = match ? `${match[1]}ms` : 'unknown';
-						consoleLog(`[${getTimestamp()}] Pong! Network latency: ${time}`);
-					}
+				const host = '8.8.8.8';
+ 
+				// Platform-specific arguments.
+				let pingArgs;
+				if (process.platform === 'win32') pingArgs = ['-n', '1', '-w', '3000', host];
+				else if (process.platform === 'darwin') pingArgs = ['-c', '1', '-W', '3000', host];
+				else pingArgs = ['-c', '1', '-W', '3', host];
+ 
+				// Fallback when the ping binary is missing or not permitted.
+				const tcpPing = () => new Promise((resolve, reject) => {
+					const start = process.hrtime.bigint();
+					const socket = net.connect({ host, port: 53, timeout: 3000 });
+					socket.once('connect', () => {
+						const ms = Number(process.hrtime.bigint() - start) / 1e6;
+						socket.destroy();
+						resolve(ms.toFixed(1));
+					});
+					socket.once('timeout', () => { socket.destroy(); reject(new Error('timeout')); });
+					socket.once('error', (e) => { socket.destroy(); reject(e); });
 				});
+ 
+				const result = await new Promise((resolve) => {
+					execFile('ping', pingArgs, { timeout: 8000, windowsHide: true, env: { ...process.env, LC_ALL: 'C' } }, (err, stdout) => {
+						if (err) return resolve({ err });
+						const match = String(stdout).match(/time\s*[=<]\s*([\d.,]+)\s*ms/i);
+						resolve({ time: match ? match[1].replace(',', '.') : null });
+					});
+				});
+ 
+				if (result.time) {
+					consoleLog(`[${getTimestamp()}] Pong! Network latency: ${result.time}ms`);
+				} else {
+					try {
+						const ms = await tcpPing();
+						consoleLog(`[${getTimestamp()}] Pong! Network latency: ${ms}ms (TCP fallback, ping unavailable)`);
+					} catch (err) {
+						consoleLog(`[${getTimestamp()}] Failed to reach ${host}.`);
+					}
+				}
 				break;
 			}
 			
