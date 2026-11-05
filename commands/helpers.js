@@ -16,9 +16,11 @@ const FATAL_LOGIN_ERRORS = ['TokenInvalid', 'TokenMissing', 'DisallowedIntents']
 const GUILD_ID_REGEX = /^(\d{5,25}|default)$/;
 const LANG_CODE_REGEX = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
 const TIMESTAMP_PREFIX_REGEX = /^\[\d{2}:\d{2}:\d{2} \d{2}\.\d{2}\.\d{4} UTC\]/;
-const LOG_MAX_FILE_BYTES = process.env.LOG_MAX_SIZE_MB ? parseFloat(process.env.LOG_MAX_SIZE_MB) * 1024 * 1024 : (2 ** 25);
+
+const LOG_MAX_FILE_BYTES = parseInt(process.env.LOG_MAX_SIZE_BYTES, 10) || (2 ** 25); // 32 MiB.
 const LOG_RETENTION_DAYS = parseInt(process.env.LOG_RETENTION_DAYS, 10) || 30;
 const LOG_FILE_REGEX = /^(\d{4})-(\d{2})-(\d{2})(?:\.\d+)?\.log$/;
+const LORE_MAX_FILE_BYTES = parseInt(process.env.LORE_MAX_SIZE_BYTES, 10) || (2 ** 20); // 1 MiB.
 
 const resolveVolume = (v) => (typeof v === 'function' ? v() : v);
 let isExiting = false;
@@ -359,6 +361,14 @@ function readLoreFileStrict(filePath) {
 	return mod.map(s => String(s));
 }
 
+function serializeLore(snippets) {
+	return `module.exports = ${JSON.stringify(snippets, null, '\t')};\n`;
+}
+
+function exceedsLoreLimit(snippets) {
+	return Buffer.byteLength(serializeLore(snippets), 'utf8') > LORE_MAX_FILE_BYTES;
+}
+
 function writeLoreFile(filePath, snippets) {
 	if (fs.existsSync(filePath)) {
 		try { fs.copyFileSync(filePath, `${filePath}.bak`); } catch (err) {}
@@ -367,7 +377,7 @@ function writeLoreFile(filePath, snippets) {
 		fs.rmSync(filePath, { force: true });
 	} else {
 		const tmpPath = `${filePath}.tmp`;
-		fs.writeFileSync(tmpPath, `module.exports = ${JSON.stringify(snippets, null, '\t')};\n`, 'utf8');
+		fs.writeFileSync(tmpPath, serializeLore(snippets), 'utf8');
 		fs.renameSync(tmpPath, filePath);
 	}
 	try { delete require.cache[require.resolve(filePath)]; } catch (err) {}
@@ -789,7 +799,8 @@ module.exports = {
 	loadSafeModule, getCmdText, getLocText, getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
 	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply, getFormattedDate, writeLogToFile, writeCenteredLog, setLogReadline,
 	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isGuildNot, isVoiceNot,
-	saveVoiceState, restoreVoiceState, loadVolumes, readLoreFileStrict, writeLoreFile,
+	saveVoiceState, restoreVoiceState, loadVolumes,
+	readLoreFileStrict, writeLoreFile, exceedsLoreLimit, LORE_MAX_FILE_BYTES,
 	getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown, restart, loginWithRetry
 };

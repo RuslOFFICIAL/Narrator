@@ -31,21 +31,22 @@ module.exports = {
 	replyWhitelistNo: `Ця команда недоступна Вам. Спробуйте використати іншу команду або пізніше.`,
 	replyAuthorizedTesterNot: `Ця команда тестується. Спробуйте використати іншу команду або пізніше.`,
 	
-	replyLore: `Лор? Ну добре...\n\n{loreSnippet}`,
-	
-	replyLoreListLanguage: '**Мова: `{lang}`**',
-	
-	replyLoreCreateSuccess: `Успішно додано уривок лору до '{guildId}_{lang}.js'.`,
-	replyLoreCreateError: `Не вдалося додати уривок лору.`,
-	
-	replyLoreRemoveSuccess: `Успішно видалено уривок лору #{number}.`,
-	replyLoreRemoveNotFound: `Не вдалося знайти уривок лору з номером #{number}.`,
-	
 	replyLotteryKickYes: `<@{userId}>\n\nОй, схоже вдача не на Вашій стороні сьогодні. Шкода... насправді ні.\n\nЧерез 30 секунд Ваш кік. Напишіть Ваші останні слова.`,
 	replyLotteryKickDm: `Хей! Ви тільки-но були кікнуті із серверу, на жаль. Ось посилання на сервер:\nhttps://discord.gg/{inviteCode}`,
 	replyLotteryKickReason: `На жаль, удача не на Вашій стороні була того разу. Спробуйте знову наступного разу, якщо не страшно.`,
 	replyLotteryKickError: `<@{userId}>\n\nВас не вдалося кікнути. Спробуйте знову.`,
 	replyLotteryKickNo: `<@{userId}>\n\nЩо ж, Ваш кік не сьогодні... Спробуйте знову, якщо не боїтеся.\n\nСпробуєте знову? Все-таки, кік і є виграшем тут.`,
+	
+	replyLore: `Лор? Ну добре...\n\n{loreSnippet}`,
+	
+	replyLoreListLanguage: '**Мова: `{lang}`**',
+	
+	replyLoreCreateSuccess: `Успішно додано уривок лору до '{guildId}_{lang}.js'.`,
+	replyLoreCreateTooLarge: `Файл лору досяг ліміту розміру ({limit} байт). Видаліть кілька фрагментів перед додаванням нових.`,
+	replyLoreCreateError: `Не вдалося додати уривок лору.`,
+	
+	replyLoreRemoveSuccess: `Успішно видалено уривок лору #{number}.`,
+	replyLoreRemoveNotFound: `Не вдалося знайти уривок лору з номером #{number}.`,
 	
 	replyVoiceJoinSuccess: `Бот успішно приєднався до: "{channelName}".`,
 	replyVoiceJoinError: `Боту не вдалося приєднатися до голосового каналу. Спробуйте знову.`,
@@ -65,12 +66,12 @@ module.exports = {
 	
 	// Commands.
 	descHelp: `Показує команди бота.`,
+	descInfo: `Інформація про лор.`,
+	descLotteryKick: `{kickChance}% на кік з серверу. Удачі!`,
 	descLore: `Команда для лору.`,
 	descLoreList: `Перелік уривків лору.`,
 	descLoreCreate: `Додати новий уривок лору до файлу сервера.`,
 	descLoreRemove: `Видалити фрагмент лору за його порядковим номером.`,
-	descInfo: `Інформація про лор.`,
-	descLotteryKick: `{kickChance}% на кік з серверу. Удачі!`,
 	descVoiceJoin: `Заходить в обраний голосовий канал.`,
 	descVoiceLeave: `Покидає голосовий канал.`,
 	descSoundboardPlay: `Запускає обраний звук в голосовому каналі.`,

@@ -48,7 +48,8 @@ async function runTerminalLine(line, context) {
 		voiceConnections, 
 		guildVolumes, guildPlayers, botStartTime, 
 		consoleLog, getTimestamp, formatUptime, removeDuplicateLoreInFiles, 
-		saveVoiceState, readLoreFileStrict, writeLoreFile,
+		saveVoiceState, readLoreFileStrict, 
+		writeLoreFile, exceedsLoreLimit, LORE_MAX_FILE_BYTES,
 		shutdown, restart, rl, loadSafeModule,
 		getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents
 	} = context;
@@ -437,6 +438,12 @@ async function runTerminalLine(line, context) {
 				try {
 					const existingSnippets = readLoreFileStrict(filePath);
 					existingSnippets.push(snippetText);
+
+					if (exceedsLoreLimit(existingSnippets)) {
+						consoleLog(`[${getTimestamp()}] Error: Lore file would exceed the ${LORE_MAX_FILE_BYTES} Bytes limit. Snippet not added.`);
+						break;
+					}
+
 					writeLoreFile(filePath, existingSnippets);
 					removeDuplicateLoreInFiles(loresDir);
 					consoleLog(`[${getTimestamp()}] Success: Added snippet to '${filePath}'`);

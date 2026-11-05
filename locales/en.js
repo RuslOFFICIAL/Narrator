@@ -31,21 +31,22 @@ They are not created by the creator of the "Narrator" bot.`,
 	replyWhitelistNo: `This command is not available to You. Try using another command or try again later.`,
 	replyAuthorizedTesterNot: `This command is being tested. Try using another command or try again later.`,
 	
-	replyLore: `Lore? Well, alright...\n\n{loreSnippet}`,
-	
-	replyLoreListLanguage: '**Language: `{lang}`**',
-	
-	replyLoreCreateSuccess: `Successfully added lore snippet to '{guildId}_{lang}.js'.`,
-	replyLoreCreateError: `Failed to add lore snippet.`,
-	
-	replyLoreRemoveSuccess: `Successfully removed lore snippet #{number}.`,
-	replyLoreRemoveNotFound: `Could not find a lore snippet with number #{number}.`,
-	
 	replyLotteryKickYes: `<@{userId}>\n\nOh, it seems luck is not on Your side today. Too bad... actually, not really.\n\nYour kick is in 30 seconds. Write Your last words.`,
 	replyLotteryKickDm: `Hey! You were just kicked from the server, unfortunately. Here is the link to the server:\nhttps://discord.gg/{inviteCode}`,
 	replyLotteryKickReason: `Unfortunately, luck was not on Your side that time. Try again next time, if You're not afraid.`,
 	replyLotteryKickError: `<@{userId}>\n\nFailed to kick You. Try again.`,
 	replyLotteryKickNo: `<@{userId}>\n\nWell, Your kick isn't today... Try again, if You aren't afraid.\n\nWill You try again? After all, a kick is a win here.`,
+	
+	replyLore: `Lore? Well, alright...\n\n{loreSnippet}`,
+	
+	replyLoreListLanguage: '**Language: `{lang}`**',
+	
+	replyLoreCreateSuccess: `Successfully added lore snippet to '{guildId}_{lang}.js'.`,
+	replyLoreCreateTooLarge: `This lore file has reached the size limit ({limit} bytes). Remove some snippets before adding new ones.`,
+	replyLoreCreateError: `Failed to add lore snippet.`,
+	
+	replyLoreRemoveSuccess: `Successfully removed lore snippet #{number}.`,
+	replyLoreRemoveNotFound: `Could not find a lore snippet with number #{number}.`,
 	
 	replyVoiceJoinSuccess: `The bot has successfully joined: "{channelName}".`,
 	replyVoiceJoinError: `The bot failed to join the voice channel. Try again.`,
@@ -65,12 +66,12 @@ They are not created by the creator of the "Narrator" bot.`,
 	
 	// Commands.
 	descHelp: `Shows the bot commands.`,
+	descInfo: `Information about the lore.`,
+	descLotteryKick: `{kickChance}% chance to be kicked from the server. Good luck!`,
 	descLore: `Command for the lore.`,
 	descLoreList: `Lists lore snippets.`,
 	descLoreCreate: `Add a new lore snippet to a server file.`,
 	descLoreRemove: `Remove a specific lore snippet`,
-	descInfo: `Information about the lore.`,
-	descLotteryKick: `{kickChance}% chance to be kicked from the server. Good luck!`,
 	descVoiceJoin: `Joins the selected voice channel.`,
 	descVoiceLeave: `Leaves the voice channel.`,
 	descSoundboardPlay: `Plays the selected sound in the voice channel.`,

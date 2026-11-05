@@ -12,7 +12,8 @@ const {
 	loadSafeModule,	getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
 	consoleLog: _consoleLog, getTimestamp, formatUptime, makeLogMessage: _makeLogMessage, safeReply: _safeReply, writeLogToFile, writeCenteredLog, setLogReadline,
 	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTesterNot: _isAuthorizedTesterNot, isAdminManageServer: _isAdminManageServer, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
-	saveVoiceState, restoreVoiceState, loadVolumes, readLoreFileStrict, writeLoreFile,
+	saveVoiceState, restoreVoiceState, loadVolumes,
+	readLoreFileStrict, writeLoreFile, exceedsLoreLimit, LORE_MAX_FILE_BYTES,
 	getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown: _shutdown, restart: _restart, loginWithRetry
 } = require('./commands/helpers.js');
@@ -122,7 +123,8 @@ const executionContext = {
 	getCmdText, getLocText, getLocalizedLoreSnippets, removeDuplicateLoreInFiles,
 	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply,
 	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isGuildNot, isVoiceNot,
-	saveVoiceState, restoreVoiceState, readLoreFileStrict, writeLoreFile,
+	saveVoiceState, restoreVoiceState,
+	readLoreFileStrict, writeLoreFile, exceedsLoreLimit, LORE_MAX_FILE_BYTES,
 	getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown, restart, rl, loadSafeModule
 };

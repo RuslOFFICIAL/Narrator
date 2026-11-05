@@ -333,7 +333,7 @@ async function commandLoreList(interaction, { getLocText, safeReply, consoleLog,
 	}
 }
 
-async function commandLoreCreate(interaction, { getLocText, removeDuplicateLoreInFiles, safeReply, consoleLog, getTimestamp, getLoreFilePath, readLoreFileStrict, writeLoreFile, isGuildNot, isAdminManageServer }) {
+async function commandLoreCreate(interaction, { getLocText, removeDuplicateLoreInFiles, safeReply, consoleLog, getTimestamp, getLoreFilePath, readLoreFileStrict, writeLoreFile, exceedsLoreLimit, LORE_MAX_FILE_BYTES, isGuildNot, isAdminManageServer }) {
 	try {
 		if (await isGuildNot(interaction)) return;
 		if (await isAdminManageServer(interaction)) return;
@@ -354,6 +354,12 @@ async function commandLoreCreate(interaction, { getLocText, removeDuplicateLoreI
 
 		const snippets = readLoreFileStrict(filePath);
 		snippets.push(snippetText);
+
+		if (exceedsLoreLimit(snippets)) {
+			await safeReply(interaction, { content: getLocText(interaction, 'replyLoreCreateTooLarge', { limit: LORE_MAX_FILE_BYTES }), flags: [MessageFlags.Ephemeral] });
+			return;
+		}
+
 		writeLoreFile(filePath, snippets);
 		removeDuplicateLoreInFiles(loresDir);
 
