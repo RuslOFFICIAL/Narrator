@@ -66,6 +66,14 @@ stop_nodemon() {
 	wait "$NM_PID" 2>/dev/null
 }
 
+is_run_sh() {
+	if [ -r "/proc/$1/cmdline" ]; then
+		tr '\0' ' ' < "/proc/$1/cmdline" | grep -q "$SCRIPT_NAME"
+	else
+		ps -p "$1" -o command= 2>/dev/null | grep -q "$SCRIPT_NAME"
+	fi
+}
+
 cleanup() {
 	trap '' EXIT INT TERM HUP
 	stop_nodemon
@@ -95,7 +103,7 @@ main() {
 	# Stop any other running instances.
 	if [ -f "$CONF_FILE" ]; then
 		OLD_PID=$(get_conf PID)
-		if [ -n "$OLD_PID" ] && [ "$OLD_PID" != "$$" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+		if [ -n "$OLD_PID" ] && [ "$OLD_PID" != "$$" ] && kill -0 "$OLD_PID" 2>/dev/null && is_run_sh "$OLD_PID"; then
 			echo "Stopping previous instance (PID: $OLD_PID)..."
 			kill -15 "$OLD_PID" 2>/dev/null
 			sleep 1

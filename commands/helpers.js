@@ -60,6 +60,7 @@ function getLocText(interaction, key, variables = {}, locales) {
 }
 
 function getLocalizedLoreSnippets(interaction, locales, defaultLang) {
+	const guildId = interaction.guildId;
 	const fullLocale = interaction.locale || 'en';
 	const baseLocale = fullLocale.split('-')[0];
 	const localeCandidates = [...new Set([fullLocale, baseLocale])].filter(l => LANG_CODE_REGEX.test(l));
@@ -176,13 +177,13 @@ async function safeReply(interaction, replyOptions) {
 }
 
 function consoleLog(rl, ...args) {
-	if (typeof args[0] === 'string' && args.length > 1) {
-		args[0] = args[0].replace(/%/g, '%%');
-	}
-	
 	if (!rl || typeof rl.prompt !== 'function') {
 		if (rl !== undefined) args = [rl, ...args];
 		rl = defaultRl;
+	}
+	
+	if (typeof args[0] === 'string' && args.length > 1) {
+		args[0] = args[0].replace(/%/g, '%%');
 	}
 	
 	if (process.stdout.isTTY) {
@@ -274,6 +275,7 @@ function writeLogToFile(message, { raw = false } = {}) {
 		cleanMessage += '\n'.repeat(Math.min(trailingBreaks, 2));
 		
 		appendToLog(cleanMessage);
+		logWriteWarned = false;
 	} catch (err) {
 		if (!logWriteWarned) {
 			logWriteWarned = true;
@@ -471,7 +473,6 @@ function saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVol
 			const channelId = connection.joinConfig.channelId;
 			if (channelId) {
 				const playerEntry = guildPlayers.get(guildId);
-				const vol = guildVolumes.has(guildId) ? guildVolumes.get(guildId) : currentVolume;
 				activeChannels[guildId] = {
 					channelId,
 					playingSound: playerEntry?.soundName || null,

@@ -206,6 +206,14 @@ async function commandLotteryKick(interaction, { CONFIG, getLocText, safeReply, 
 		
 		const roll = Math.floor(Math.random() * 100) + 1;
 		if (roll <= CONFIG.kickChance) {
+			if (!interaction.member?.kickable) {
+				await safeReply(interaction, {
+					content: getLocText(interaction, 'replyLotteryKickError', { userId: interaction.user.id }),
+					flags: [MessageFlags.Ephemeral]
+				});
+				return;
+			}
+			
 			const kickMsg = getLocText(interaction, 'replyLotteryKickYes', { userId: interaction.user.id });
 			await safeReply(interaction, kickMsg);
 			await new Promise(resolve => setTimeout(resolve, 30000));

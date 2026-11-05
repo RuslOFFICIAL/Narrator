@@ -105,6 +105,7 @@ async function runTerminalLine(line, context) {
 			
 			case 'ping': {
 				consoleLog(`[${getTimestamp()}] Pinging...`);
+				consoleLog(`[${getTimestamp()}] Pong! Discord WebSocket latency: ${client.ws.ping}ms`);
 				const pingCmd = process.platform === 'win32' ? 'ping -n 1 8.8.8.8' : 'ping -c 1 -W 3 8.8.8.8';
 				exec(pingCmd, (err, stdout) => {
 					if (err) {
@@ -132,21 +133,21 @@ async function runTerminalLine(line, context) {
 					fs.writeFileSync(stopFile, String(Date.now()));
 				} catch (err) {}
 				
-				shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, context.currentVolume);
+				shutdown();
 				return;
 			}
 			
 			case 'exit':
 			case 'shutdown': {
 				consoleLog(`[${getTimestamp()}] Stopping bot via terminal command...`);
-				shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, context.currentVolume);
+				shutdown();
 				return;
 			}
 			
 			case 'restart':
 			case 'reboot': {
 				consoleLog(`[${getTimestamp()}] Restarting bot via terminal command...`);
-				restart(client, voiceConnections, guildPlayers, rl, __filename, guildVolumes, context.currentVolume); 
+				restart();
 				break;
 			}
 			

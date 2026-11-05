@@ -42,8 +42,8 @@ const isAuthorizedTesterNot = (interaction) => _isAuthorizedTesterNot(interactio
 const isAdminManageServer = (interaction) => _isAdminManageServer(interaction, locales);
 const isGuildNot = (interaction) => _isGuildNot(interaction, locales);
 const isVoiceNot = (interaction) => _isVoiceNot(interaction, voiceConnections, locales);
-const shutdown = () => _shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume);
-const restart = () => _restart(client, voiceConnections, guildPlayers, rl, __filename, guildVolumes, currentVolume);
+const shutdown = (exitCode = 0) => _shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume, exitCode);
+const restart = (exitCode = 0) => _restart(client, voiceConnections, guildPlayers, rl, __filename, guildVolumes, currentVolume, exitCode);
 
 process.on('unhandledRejection', err => {
 	consoleLog(`[${getTimestamp()}] Unhandled promise rejection: `, err);
@@ -51,7 +51,11 @@ process.on('unhandledRejection', err => {
 
 process.on('uncaughtException', err => {
 	consoleLog(`[${getTimestamp()}] Uncaught exception: `, err);
-	shutdown(1);
+	try {
+		shutdown(1);
+	} catch (e) {
+		process.exit(1);
+	}
 });
 
 try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) {}
