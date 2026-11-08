@@ -31,7 +31,7 @@ Open an issue describing the problem you want to solve, your proposed solution, 
 
 1. Fork the repository and clone your fork:
 ```bash
-	git clone https://gitlab.com/Rusl_OFFICIAL/Narrator.git
+	git clone https://github.com/Rusl_OFFICIAL/Narrator.git
 	cd Narrator
 ```
 2. Create a branch:
