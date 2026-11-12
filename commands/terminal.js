@@ -69,20 +69,38 @@ async function runTerminalLine(line, context) {
 			subCommands.push(remaining.trim());
 			break;
 		}
-		const separatorIndex = remaining.indexOf('&');
+		const separatorIndex = remaining.indexOf('&&');
 		if (separatorIndex === -1) {
 			subCommands.push(remaining.trim());
 			break;
 		}
 		subCommands.push(remaining.slice(0, separatorIndex).trim());
-		remaining = remaining.slice(separatorIndex + 1).trim();
+		remaining = remaining.slice(separatorIndex + 2).trim();
 	}
 	subCommands = subCommands.filter(Boolean);
 	
+	let isFirst = true;
 	for (const subCmd of subCommands) {
+		if (!isFirst) {
+			consoleLog(); // Prints an empty line between commands.
+		}
+		isFirst = false;
+		
 		const args = subCmd.split(/\s+/);
 		const command = args[0].toLowerCase();
 		const allLoreFiles = getLoreFiles();
+		
+		// Commands that are allowed to have more than 1 argument.
+		const multiArgCommands = new Set([
+			'echo', 'lore', 'lore-list', 'lore-create', 'lore-remove', 
+			'voice-join', 'voice-leave', 'soundboard-play', 'soundboard-stop', 'soundboard-volume'
+		]);
+
+		// If the command is not in the multi-arg list, enforce strict single-word usage.
+		if (!multiArgCommands.has(command) && TERMINAL_COMMANDS.includes(command) && args.length > 1) {
+			consoleLog(`[${getTimestamp()}] Error: '${command}' does not take any arguments.`);
+			break;
+		}
 		
 		// Terminal commands.
 		switch (command) {
@@ -754,7 +772,9 @@ const TERMINAL_COMMANDS = [
 ];
  
 function completeTerminalLine(line, { client, locales, voiceConnections, guildPlayers, loadSafeModule }) {
-	const [cmd, ...args] = line.slice(line.lastIndexOf('&') + 1).trimStart().split(/\s+/);
+	const lastSep = line.lastIndexOf('&&');
+	const currentSegment = lastSep === -1 ? line : line.slice(lastSep + 2);
+	const [cmd, ...args] = currentSegment.trimStart().split(/\s+/);
 	let partial = args.length ? args.at(-1) : cmd;
  
 	const keys = (map) => [...map.keys()];
