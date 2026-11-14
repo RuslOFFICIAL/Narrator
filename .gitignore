@@ -1,8 +1,8 @@
 # Directories.
 data/
 logs/
-lores/
-sounds/
+lores/*
+sounds/*
 
 # Files.
 *.env
