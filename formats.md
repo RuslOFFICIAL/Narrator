@@ -50,9 +50,13 @@
 
 ### help
 
-### exit/stop/shutdown
+### exit/shutdown
 
-### restart/reboot
+### stop
+
+### restart
+
+### reboot
 
 ### status
 

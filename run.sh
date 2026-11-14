@@ -10,6 +10,7 @@ FILE_PACKAGE="package.json"
 DATA_DIR="data"
 CONF_FILE="$DATA_DIR/run.conf"
 STOP_FILE="$DATA_DIR/run.stop"
+RESTART_FILE="$DATA_DIR/run.restart"
 
 WATCH_FILES=""
 NM_PID=""
@@ -114,7 +115,7 @@ main() {
 	# Write fresh config.
 	mkdir -p "$DATA_DIR"
 	echo "PID=$$" > "$CONF_FILE"
-	rm -f "$STOP_FILE"
+	rm -f "$STOP_FILE" "$RESTART_FILE"
 	export RUN_SH_PID=$$
 	trap cleanup EXIT
 	trap 'exit 143' INT TERM HUP
@@ -159,6 +160,15 @@ main() {
 			cleanup
 			exit 0
 		fi
+		if [ -f "$RESTART_FILE" ]; then
+			rm -f "$RESTART_FILE"
+			stop_nodemon
+			stty sane 2>/dev/null
+			printf '\nReboot requested. Restarting completely...\n'
+			trap - EXIT
+			exec sh "$SCRIPT_PATH"
+		fi
+		
 		CHANGED_FILE=$(get_changed)
 		if [ -n "$CHANGED_FILE" ]; then
 			stop_nodemon

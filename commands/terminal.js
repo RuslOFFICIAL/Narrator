@@ -9,9 +9,10 @@ const { createAudioPlayer, createAudioResource, VoiceConnectionStatus } = requir
 const HELP_TEXT = `Commands:\n
 BOT:
 - help: Show terminal commands.
-- stop: Completely end the process.
 - exit/shutdown: Shut down the bot.
-- restart/reboot: Restart the bot.
+- stop: Completely end the process.
+- restart: Restart the bot.
+- reboot: Restart the bot and the watcher script.
 - status: Status of the bot.
 - ping: Check bot latency.
 - clear: Clear the terminal screen.
@@ -171,6 +172,13 @@ async function runTerminalLine(line, context) {
 				break;
 			}
 			
+			case 'exit':
+			case 'shutdown': {
+				consoleLog(`[${getTimestamp()}] Stopping bot via terminal command...`);
+				shutdown();
+				return;
+			}
+			
 			case 'stop': {
 				consoleLog(`[${getTimestamp()}] Completely ending process via stop command...`);
 				
@@ -184,18 +192,23 @@ async function runTerminalLine(line, context) {
 				return;
 			}
 			
-			case 'exit':
-			case 'shutdown': {
-				consoleLog(`[${getTimestamp()}] Stopping bot via terminal command...`);
-				shutdown();
-				return;
-			}
-			
-			case 'restart':
-			case 'reboot': {
+			case 'restart': {
 				consoleLog(`[${getTimestamp()}] Restarting bot via terminal command...`);
 				restart();
 				break;
+			}
+			
+			case 'reboot': {
+				consoleLog(`[${getTimestamp()}] Rebooting bot and watcher script via terminal command...`);
+
+				try {
+					const restartFile = path.join(__dirname, '../data/run.restart');
+					fs.mkdirSync(path.dirname(restartFile), { recursive: true });
+					fs.writeFileSync(restartFile, String(Date.now()));
+				} catch (err) {}
+
+				shutdown();
+				return;
 			}
 			
 			// Server.
