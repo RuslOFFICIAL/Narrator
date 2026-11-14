@@ -5,19 +5,16 @@ lores/
 sounds/
 
 # Files.
-!lores/README.md
-!sounds/README.md
-
+*.env
+*.env.*
 *.bak
 *.tmp
 *.log
 *.lnk
 
 !*.example
-
-# Environment variables.
-*.env
-*.env.*
+!lores/README.md
+!sounds/README.md
 
 # Dependencies.
 node_modules/
