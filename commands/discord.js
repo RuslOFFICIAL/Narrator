@@ -442,7 +442,7 @@ async function commandRoleAdd(interaction, context) {
 	
 	try {
 		if (await isGuildNot(interaction)) return;
-		if (await isRoleManagerNot(, CONFIG, locales)) return;
+		if (await isRoleManagerNot(interaction, CONFIG, locales)) return;
 
 		const guild = interaction.guild;
 		const optionRoleId = interaction.options.getString('role', true);
