@@ -177,7 +177,9 @@ async function handleDiscordInteraction(interaction, context) {
 }
 
 // Discord commands.
-async function commandHelp(interaction, { CONFIG, getLocText, safeReply, consoleLog, getTimestamp }) {
+async function commandHelp(interaction, context) {
+	const { CONFIG, getLocText, safeReply, consoleLog, getTimestamp } = context;
+	
 	try {
 		const HELP_TEXT = getLocText(interaction, 'helpText', { kickChance: CONFIG.kickChance });
 		await safeReply(interaction, HELP_TEXT);
@@ -188,7 +190,9 @@ async function commandHelp(interaction, { CONFIG, getLocText, safeReply, console
 	}
 }
 
-async function commandInfo(interaction, { getLocText, safeReply, consoleLog, getTimestamp, packageJson }) {
+async function commandInfo(interaction, context) {
+	const { getLocText, safeReply, consoleLog, getTimestamp, packageJson } = context;
+	
 	try {
 		const INFO_TEXT = getLocText(interaction, 'infoText');
 		await safeReply(interaction, { content: `Narrator | ${packageJson.version}\n\n${INFO_TEXT}`, flags: [MessageFlags.Ephemeral] });
@@ -199,7 +203,9 @@ async function commandInfo(interaction, { getLocText, safeReply, consoleLog, get
 	}
 }
 
-async function commandLotteryKick(interaction, { CONFIG, getLocText, safeReply, consoleLog, getTimestamp, isWhitelist, isGuildNot }) {
+async function commandLotteryKick(interaction, context) {
+	const { CONFIG, getLocText, safeReply, consoleLog, getTimestamp, isWhitelist, isGuildNot } = context;
+	
 	try {
 		if (await isWhitelist(interaction)) return;
 		if (await isGuildNot(interaction)) return;
@@ -251,7 +257,8 @@ async function commandLotteryKick(interaction, { CONFIG, getLocText, safeReply, 
 	}
 }
 
-async function commandLore(interaction, { getLocalizedLoreSnippets, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot }) {
+async function commandLore(interaction, context) {
+	const { getLocalizedLoreSnippets, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot } = context;
 	try {
 		if (await isGuildNot(interaction)) return;
 		
@@ -276,7 +283,9 @@ async function commandLore(interaction, { getLocalizedLoreSnippets, getLocText, 
 	}
 }
 
-async function commandLoreList(interaction, { getLocText, safeReply, consoleLog, getTimestamp, loadSafeModule, isGuildNot, isAdminManageServer }) {
+async function commandLoreList(interaction, context) {
+	const { getLocText, safeReply, consoleLog, getTimestamp, loadSafeModule, isGuildNot, isAdminManageServer } = context;
+	
 	try {
 		if (await isGuildNot(interaction)) return;
 		if (await isAdminManageServer(interaction)) return;
@@ -341,7 +350,9 @@ async function commandLoreList(interaction, { getLocText, safeReply, consoleLog,
 	}
 }
 
-async function commandLoreCreate(interaction, { getLocText, removeDuplicateLoreInFiles, safeReply, consoleLog, getTimestamp, getLoreFilePath, readLoreFileStrict, writeLoreFile, exceedsLoreLimit, LORE_MAX_FILE_BYTES, isGuildNot, isAdminManageServer }) {
+async function commandLoreCreate(interaction, context) {
+	const { getLocText, removeDuplicateLoreInFiles, safeReply, consoleLog, getTimestamp, getLoreFilePath, readLoreFileStrict, writeLoreFile, exceedsLoreLimit, LORE_MAX_FILE_BYTES, isGuildNot, isAdminManageServer } = context;
+	
 	try {
 		if (await isGuildNot(interaction)) return;
 		if (await isAdminManageServer(interaction)) return;
@@ -380,7 +391,9 @@ async function commandLoreCreate(interaction, { getLocText, removeDuplicateLoreI
 	}
 }
 
-async function commandLoreRemove(interaction, { getLocText, removeDuplicateLoreInFiles, safeReply, consoleLog, getTimestamp, getLoreFilePath, readLoreFileStrict, writeLoreFile, isGuildNot, isAdminManageServer }) {
+async function commandLoreRemove(interaction, context) {
+	const { getLocText, removeDuplicateLoreInFiles, safeReply, consoleLog, getTimestamp, getLoreFilePath, readLoreFileStrict, writeLoreFile, isGuildNot, isAdminManageServer } = context;
+	
 	try {
 		if (await isGuildNot(interaction)) return;
 		if (await isAdminManageServer(interaction)) return;
@@ -418,7 +431,9 @@ async function commandLoreRemove(interaction, { getLocText, removeDuplicateLoreI
 	}
 }
 
-async function commandVoiceJoin(interaction, { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, joinVoice, isWhitelistNot, isGuildNot, voiceConnections, guildPlayers, guildVolumes, currentVolume }) {
+async function commandVoiceJoin(interaction, context) {
+	const { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, joinVoice, isWhitelistNot, isGuildNot, voiceConnections, guildPlayers, guildVolumes, currentVolume } = context;
+	
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
@@ -454,7 +469,9 @@ async function commandVoiceJoin(interaction, { getLocText, saveVoiceState, safeR
 	}
 }
 
-async function commandVoiceLeave(interaction, { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume }) {
+async function commandVoiceLeave(interaction, context) {
+	const { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume } = context;
+	
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
@@ -477,7 +494,9 @@ async function commandVoiceLeave(interaction, { getLocText, saveVoiceState, safe
 	}
 }
 
-async function commandSoundboardPlay(interaction, { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, getSoundFilePath, setupPlayerEvents, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildVolumes, guildPlayers, currentVolume, getCurrentVolume }) {
+async function commandSoundboardPlay(interaction, context) {
+	const { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, getSoundFilePath, setupPlayerEvents, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildVolumes, guildPlayers, currentVolume, getCurrentVolume } = context;
+	
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
@@ -533,7 +552,9 @@ async function commandSoundboardPlay(interaction, { getLocText, saveVoiceState, 
 	}
 }
 
-async function commandSoundboardStop(interaction, { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume }) {
+async function commandSoundboardStop(interaction, context) {
+	const { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume } = context;
+	
 	try {
 		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
@@ -555,7 +576,8 @@ async function commandSoundboardStop(interaction, { getLocText, saveVoiceState, 
 	}
 }
 
-async function commandSoundboardVolume(interaction, { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, voiceConnections, guildVolumes, guildPlayers, currentVolume }) {
+async function commandSoundboardVolume(interaction, context) {
+	const { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, voiceConnections, guildVolumes, guildPlayers, currentVolume } = context;
 	try {
 		if (await isGuildNot(interaction)) return;
 		if (await isWhitelistNot(interaction)) return;
