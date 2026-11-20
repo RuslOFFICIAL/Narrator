@@ -9,11 +9,12 @@ const packageJson = require('./package.json');
 const { getCommands, handleDiscordInteraction } = require('./commands/discord.js');
 const { handleTerminalLine, completeTerminalLine } = require('./commands/terminal.js');
 const {
-	loadSafeModule,	getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
+	loadSafeModule, getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
 	consoleLog: _consoleLog, getTimestamp, formatUptime, makeLogMessage: _makeLogMessage, safeReply: _safeReply, writeLogToFile, writeCenteredLog, setLogReadline,
-	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTesterNot: _isAuthorizedTesterNot, isAdminManageServer: _isAdminManageServer, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
+	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTesterNot: _isAuthorizedTesterNot, isAdminManageServer: _isAdminManageServer, isRoleManagerNot: _isRoleManagerNot, isSelectedRoleNot: _isSelectedRoleNot, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
 	saveVoiceState, restoreVoiceState, loadVolumes,
 	readLoreFileStrict, writeLoreFile, exceedsLoreLimit, LORE_MAX_FILE_BYTES,
+	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, roleColorEmoji, ROLES_MAX_PER_GUILD,
 	getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown: _shutdown, restart: _restart, loginWithRetry
 } = require('./commands/helpers.js');
@@ -40,6 +41,8 @@ const isWhitelist = (interaction) => _isWhitelist(interaction, CONFIG, locales);
 const isWhitelistNot = (interaction) => _isWhitelistNot(interaction, CONFIG, locales);
 const isAuthorizedTesterNot = (interaction) => _isAuthorizedTesterNot(interaction, CONFIG, locales);
 const isAdminManageServer = (interaction) => _isAdminManageServer(interaction, locales);
+const isRoleManagerNot = (interaction) => _isRoleManagerNot(interaction, CONFIG, locales);
+const isSelectedRoleNot = (interaction) => _isSelectedRoleNot(interaction, locales);
 const isGuildNot = (interaction) => _isGuildNot(interaction, locales);
 const isVoiceNot = (interaction) => _isVoiceNot(interaction, voiceConnections, locales);
 const shutdown = (exitCode = 0) => _shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume, exitCode);
@@ -58,7 +61,7 @@ process.on('uncaughtException', err => {
 	}
 });
 
-try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) {}
+try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) { }
 process.stdin.resume();
 
 // Create a new client instance with necessary intents.
@@ -110,7 +113,7 @@ const CONFIG = {
 	statusName: process.env.STATUS_NAME,
 	statusType: process.env.STATUS_TYPE,
 	statusUrl: process.env.STATUS_URL,
-	
+
 	kickChance: parseChance(process.env.KICK_CHANCE, 10),
 	whitelist: parseIdList(process.env.WHITELIST),
 	authorizedTesters: parseIdList(process.env.AUTHORIZED_TESTERS)
@@ -121,14 +124,15 @@ const commands = getCommands(CONFIG, getCmdText);
 // Shared execution context package passed to command modules.
 const executionContext = {
 	client, get isBotReady() { return isBotReady; }, CONFIG, locales, defaultLang, packageJson,
-	voiceConnections, guildVolumes, guildPlayers, botStartTime, 
+	voiceConnections, guildVolumes, guildPlayers, botStartTime,
 	get currentVolume() { return currentVolume; }, set currentVolume(v) { currentVolume = v; },
 	getCurrentVolume: () => currentVolume,
 	getCmdText, getLocText, getLocalizedLoreSnippets, removeDuplicateLoreInFiles,
 	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply,
-	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isGuildNot, isVoiceNot,
+	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isRoleManagerNot, isSelectedRoleNot, isGuildNot, isVoiceNot,
 	saveVoiceState, restoreVoiceState,
 	readLoreFileStrict, writeLoreFile, exceedsLoreLimit, LORE_MAX_FILE_BYTES,
+	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, roleColorEmoji, ROLES_MAX_PER_GUILD,
 	getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown, restart, rl, loadSafeModule
 };
@@ -136,17 +140,17 @@ const executionContext = {
 // Run this code after the client is ready.
 client.once('clientReady', async () => {
 	writeCenteredLog(`Start of the session`);
-	
+
 	consoleLog(`\nNarrator | ${packageJson.version}`);
 	consoleLog(`Press 'Ctrl+C' to shut down bot.`);
 	consoleLog(`Print "help" for commands.\n`);
 	consoleLog(`[${getTimestamp()}] Logged in as ${client.user.tag}!`);
-	
+
 	// Status.
 	try {
 		consoleLog(`[${getTimestamp()}] Setting bot status up... `);
 		const statusText = `${CONFIG.statusName || 'Narrator'} | ${packageJson.version}`;
-		
+
 		const activityConfig = {
 			name: statusText,
 			type: ActivityType[CONFIG.statusType] ?? ActivityType.Playing
@@ -164,7 +168,7 @@ client.once('clientReady', async () => {
 	} catch (err) {
 		consoleLog(`[${getTimestamp()}] Failed to set status: `, err);
 	}
-	
+
 	// Register slash (/).
 	const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 	try {
@@ -209,7 +213,7 @@ rl.on('line', async (line) => {
 			rl.prompt();
 		}
 	}
-	
+
 	await handleTerminalLine(line, executionContext);
 });
 
@@ -220,7 +224,7 @@ process.stdin.on('data', (key) => {
 	}
 });
 
-const restoreTTY = () => { try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) {} };
+const restoreTTY = () => { try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) { } };
 process.on('exit', restoreTTY);
 process.on('SIGINT', () => shutdown());
 process.on('SIGTERM', () => shutdown());

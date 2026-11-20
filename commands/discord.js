@@ -9,6 +9,32 @@ const path = require('path');
 const loresDir = path.join(__dirname, '../lores');
 const soundsDir = path.join(__dirname, '../sounds');
 
+const ROLE_ERROR_KEYS = {
+	notFound: 'replyRoleNotFound',
+	everyone: 'replyRoleInvalidEveryone',
+	managed: 'replyRoleInvalidManaged',
+	dangerous: 'replyRoleInvalidDangerous',
+	botPermission: 'replyRoleInvalidBotPermission',
+	botHierarchy: 'replyRoleInvalidBotHierarchy',
+	userHierarchy: 'replyRoleInvalidUserHierarchy'
+};
+const ROLE_CREATE_ERROR_KEYS = {
+	limit: 'replyRoleAddLimit',
+	botPermission: 'replyRoleInvalidBotPermission',
+	invalidName: 'replyRoleCreateInvalidName'
+};
+const ROLE_GIVE_ERROR_KEYS = {
+	...ROLE_ERROR_KEYS,
+	memberNotFound: 'replyRoleGiveMemberNotFound',
+	notSelected: 'replyRoleGiveNotSelected',
+	targetHierarchy: 'replyRoleGiveTargetHierarchy',
+	already: 'replyRoleGiveAlready'
+};
+const ROLE_TAKE_ERROR_KEYS = {
+	...ROLE_GIVE_ERROR_KEYS,
+	missing: 'replyRoleTakeMissing'
+};
+
 function getCommands(CONFIG, getCmdText) {
 	return [
 		// setContexts: 0 (Guild), 1 (Bot DM), 2 (Group DMs and Friend DMs).
@@ -19,6 +45,31 @@ function getCommands(CONFIG, getCmdText) {
 		
 		new SlashCommandBuilder().setName('info').setDescription(getCmdText('descInfo'))
 			.setContexts([0, 1, 2]).setIntegrationTypes([0, 1]),
+		
+		new SlashCommandBuilder().setName('role-create').setDescription(getCmdText('descRoleCreate'))
+			.setContexts([0]).setIntegrationTypes([0])
+			.addStringOption(option => option.setName('name').setDescription(getCmdText('optionRoleName')).setMaxLength(100).setRequired(true)),
+		
+		new SlashCommandBuilder().setName('role-add').setDescription(getCmdText('descRoleAdd'))
+			.setContexts([0]).setIntegrationTypes([0])
+			.addStringOption(option => option.setName('role').setDescription(getCmdText('optionRole')).setRequired(true).setAutocomplete(true)),
+		
+		new SlashCommandBuilder().setName('role-give').setDescription(getCmdText('descRoleGive'))
+			.setContexts([0]).setIntegrationTypes([0])
+			.addUserOption(option => option.setName('member').setDescription(getCmdText('optionMember')).setRequired(true))
+			.addStringOption(option => option.setName('role').setDescription(getCmdText('optionRole')).setRequired(true).setAutocomplete(true)),
+		
+		new SlashCommandBuilder().setName('role-take').setDescription(getCmdText('descRoleTake'))
+			.setContexts([0]).setIntegrationTypes([0])
+			.addUserOption(option => option.setName('member').setDescription(getCmdText('optionMember')).setRequired(true))
+			.addStringOption(option => option.setName('role').setDescription(getCmdText('optionRole')).setRequired(true).setAutocomplete(true)),
+		
+		new SlashCommandBuilder().setName('role-remove').setDescription(getCmdText('descRoleRemove'))
+			.setContexts([0]).setIntegrationTypes([0])
+			.addStringOption(option => option.setName('role').setDescription(getCmdText('optionRole')).setRequired(true).setAutocomplete(true)),
+		
+		new SlashCommandBuilder().setName('role-list').setDescription(getCmdText('descRoleList'))
+			.setContexts([0]).setIntegrationTypes([0]),
 		
 		new SlashCommandBuilder().setName('lottery-kick').setDescription(getCmdText('descLotteryKick').replace('{kickChance}', CONFIG.kickChance))
 			.setContexts([0]).setIntegrationTypes([0]),
@@ -42,7 +93,7 @@ function getCommands(CONFIG, getCmdText) {
 		
 		new SlashCommandBuilder().setName('voice-join').setDescription(getCmdText('descVoiceJoin'))
 			.setContexts([0]).setIntegrationTypes([0])
-			.addChannelOption(option => option.setName('channel').setDescription(getCmdText('optionChannel')).addChannelTypes(ChannelType.GuildVoice).setRequired(true)),
+			.addChannelOption(option => option.setName('channel').setDescription(getCmdText('optionVoiceChannel')).addChannelTypes(ChannelType.GuildVoice).setRequired(true)),
 		
 		new SlashCommandBuilder().setName('voice-leave').setDescription(getCmdText('descVoiceLeave'))
 			.setContexts([0]).setIntegrationTypes([0]),
@@ -63,6 +114,7 @@ function getCommands(CONFIG, getCmdText) {
 async function handleDiscordInteraction(interaction, context) {
 	const { 
 		isBotReady, getLocText,
+		roleColorEmoji,
 		consoleLog, makeLogMessage, getTimestamp, safeReply
 	} = context;
 
@@ -77,11 +129,58 @@ async function handleDiscordInteraction(interaction, context) {
 	}
 	
 	if (interaction.isAutocomplete()) {
-		if (interaction.commandName === 'soundboard-play') {
+		if (['role-add', 'role-give', 'role-take', 'role-remove'].includes(interaction.commandName)) {
 			try {
-				if (!fs.existsSync(soundsDir)) {
+				const guild = interaction.guild;
+				if (!interaction.guildId || !guild) {
+					if (!interaction.responded) await interaction.respond([]);
 					return;
 				}
+
+				const selected = new Set(context.getGuildRoles(interaction.guildId));
+				const focusedValue = interaction.options.getFocused().toLowerCase();
+				let roles;
+
+				if (interaction.commandName === 'role-add') {
+					// Not selected roles.
+					const actor = context.CONFIG.whitelist.includes(interaction.user.id) ? null : interaction.member;
+					roles = [...guild.roles.cache.values()]
+						.filter(role => !selected.has(role.id))
+						.filter(role => !context.validateRoleSelection(guild, role, actor))
+						.sort((a, b) => b.position - a.position);
+				} else {
+					// Selected roles.
+					roles = [...selected].map(id => guild.roles.cache.get(id)).filter(Boolean);
+				}
+
+				const choices = roles
+					.filter(role => role.name.toLowerCase().includes(focusedValue) || role.id.includes(focusedValue))
+					.slice(0, 25)
+					.map(role => ({ name: `${roleColorEmoji(role)} ${role.name}`.slice(0, 100), value: role.id }));
+
+				if (!interaction.responded) await interaction.respond(choices);
+			} catch (err) {
+				if (!isIgnorableInteractionError(err)) {
+					consoleLog(`[${getTimestamp()}] Error handling role autocomplete: `, err);
+				}
+			}
+		}
+		
+		if (interaction.commandName === 'soundboard-play') {
+			try {
+				if (!interaction.guildId) {
+					if (!interaction.responded) {
+						await interaction.respond([]);
+					}
+					return;
+				}
+				if (!fs.existsSync(soundsDir)) {
+					if (!interaction.responded) {
+						await interaction.respond([]);
+					}
+					return;
+				}
+				
 				const files = fs.readdirSync(soundsDir);
 				const choices = files
 					.filter(file => file.endsWith('.mp3'))
@@ -116,6 +215,36 @@ async function handleDiscordInteraction(interaction, context) {
 			
 			case 'info': {
 				await commandInfo(interaction, context);
+				break;
+			}
+			
+			case 'role-create': {
+				await commandRoleCreate(interaction, context);
+				break;
+			}
+			
+			case 'role-give': {
+				await commandRoleGive(interaction, context);
+				break;
+			}
+			
+			case 'role-take': {
+				await commandRoleTake(interaction, context);
+				break;
+			}
+			
+			case 'role-add': {
+				await commandRoleAdd(interaction, context);
+				break;
+			}
+			
+			case 'role-remove': {
+				await commandRoleRemove(interaction, context);
+				break;
+			}
+			
+			case 'role-list': {
+				await commandRoleList(interaction, context);
 				break;
 			}
 			
@@ -203,12 +332,212 @@ async function commandInfo(interaction, context) {
 	}
 }
 
+async function commandRoleCreate(interaction, context) {
+	const { getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, createSelectedRole, ROLES_MAX_PER_GUILD } = context;
+	
+	try {
+		if (await isGuildNot(interaction)) return;
+		if (await isRoleManagerNot(interaction)) return;
+
+		const roleName = interaction.options.getString('name', true);
+		const result = await createSelectedRole(interaction.guild, {
+			name: roleName,
+			reason: `Created by @${interaction.user.tag} (${interaction.user.id}).`
+		});
+
+		if (result.status !== 'created') {
+			const key = ROLE_CREATE_ERROR_KEYS[result.status] ?? 'replyRoleCreateFailed';
+			await safeReply(interaction, { content: getLocText(interaction, key, { limit: ROLES_MAX_PER_GUILD }), flags: [MessageFlags.Ephemeral] });
+			return;
+		}
+
+		consoleLog(`[${getTimestamp()}] Success: Created selected role '${result.role.id}' in guild '${interaction.guildId}' by @${interaction.user.tag} (${interaction.user.id}) via Discord`);
+		await safeReply(interaction, {
+			content: getLocText(interaction, 'replyRoleCreateSuccess', { role: `<@&${result.role.id}>` }),
+			allowedMentions: { parse: [] },
+			flags: [MessageFlags.Ephemeral]
+		});
+	} catch (err) {
+		if (isIgnorableInteractionError(err)) return;
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, err);
+		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+	}
+}
+
+async function commandRoleGive(interaction, context) {
+	const { CONFIG, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, giveGuildRole } = context;
+
+	try {
+		if (await isGuildNot(interaction)) return;
+		if (await isRoleManagerNot(interaction)) return;
+
+		const guild = interaction.guild;
+		const member = interaction.options.getMember('member');
+		const roleId = interaction.options.getString('role', true);
+		const role = guild?.roles.cache.get(roleId);
+
+		const actor = CONFIG.whitelist.includes(interaction.user.id) ? null : interaction.member;
+		const status = await giveGuildRole(guild, member, role, actor, `Given by @${interaction.user.tag} (${interaction.user.id}).`);
+
+		if (status !== 'given') {
+			const key = ROLE_GIVE_ERROR_KEYS[status] ?? 'replyRoleGiveFailed';
+			await safeReply(interaction, { content: getLocText(interaction, key, { role: `<@&${roleId}>` }), flags: [MessageFlags.Ephemeral] });
+			return;
+		}
+
+		consoleLog(`[${getTimestamp()}] Success: Gave role '${role.id}' to '${member.id}' in guild '${guild.id}' by @${interaction.user.tag} (${interaction.user.id}) via Discord`);
+		await safeReply(interaction, {
+			content: getLocText(interaction, 'replyRoleGiveSuccess', { member: `<@${member.id}>`, role: `<@&${role.id}>` }),
+			allowedMentions: { parse: [] },
+			flags: [MessageFlags.Ephemeral]
+		});
+	} catch (err) {
+		if (isIgnorableInteractionError(err)) return;
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, err);
+		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+	}
+}
+
+async function commandRoleTake(interaction, context) {
+	const { CONFIG, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, takeGuildRole } = context;
+
+	try {
+		if (await isGuildNot(interaction)) return;
+		if (await isRoleManagerNot(interaction)) return;
+
+		const guild = interaction.guild;
+		const member = interaction.options.getMember('member');
+		const roleId = interaction.options.getString('role', true);
+		const role = guild?.roles.cache.get(roleId);
+
+		const actor = CONFIG.whitelist.includes(interaction.user.id) ? null : interaction.member;
+		const status = await takeGuildRole(guild, member, role, actor, `Taken by @${interaction.user.tag} (${interaction.user.id}).`);
+
+		if (status !== 'taken') {
+			const key = ROLE_TAKE_ERROR_KEYS[status] ?? 'replyRoleTakeFailed';
+			await safeReply(interaction, {
+				content: getLocText(interaction, key, { role: `<@&${roleId}>`, member: member ? `<@${member.id}>` : '' }),
+				allowedMentions: { parse: [] },
+				flags: [MessageFlags.Ephemeral]
+			});
+			return;
+		}
+
+		consoleLog(`[${getTimestamp()}] Success: Took role '${role.id}' from '${member.id}' in guild '${guild.id}' by @${interaction.user.tag} (${interaction.user.id}) via Discord`);
+		await safeReply(interaction, {
+			content: getLocText(interaction, 'replyRoleTakeSuccess', { member: `<@${member.id}>`, role: `<@&${role.id}>` }),
+			allowedMentions: { parse: [] },
+			flags: [MessageFlags.Ephemeral]
+		});
+	} catch (err) {
+		if (isIgnorableInteractionError(err)) return;
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, err);
+		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+	}
+}
+
+async function commandRoleAdd(interaction, context) {
+	const { CONFIG, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, validateRoleSelection, addGuildRole, ROLES_MAX_PER_GUILD } = context;
+	
+	try {
+		if (await isGuildNot(interaction)) return;
+		if (await isRoleManagerNot(interaction)) return;
+
+		const guild = interaction.guild;
+		const optionRoleId = interaction.options.getString('role', true);
+		const role = guild?.roles.cache.get(optionRoleId);
+		
+		const actor = CONFIG.whitelist.includes(interaction.user.id) ? null : interaction.member;
+		const problem = guild ? validateRoleSelection(guild, role, actor) : 'notFound';
+		if (problem) {
+			await safeReply(interaction, { content: getLocText(interaction, ROLE_ERROR_KEYS[problem]), flags: [MessageFlags.Ephemeral] });
+			return;
+		}
+
+		const result = addGuildRole(guild.id, role.id);
+		if (result === 'exists') {
+			await safeReply(interaction, { content: getLocText(interaction, 'replyRoleAddExists', { role: `<@&${role.id}>` }), flags: [MessageFlags.Ephemeral] });
+			return;
+		}
+		if (result === 'limit') {
+			await safeReply(interaction, { content: getLocText(interaction, 'replyRoleAddLimit', { limit: ROLES_MAX_PER_GUILD }), flags: [MessageFlags.Ephemeral] });
+			return;
+		}
+
+		consoleLog(`[${getTimestamp()}] Success: Selected role '${role.id}' in guild '${guild.id}' by @${interaction.user.tag} (${interaction.user.id}) via Discord`);
+		await safeReply(interaction, { content: getLocText(interaction, 'replyRoleAddSuccess', { role: `<@&${role.id}>` }), flags: [MessageFlags.Ephemeral] });
+	} catch (err) {
+		if (isIgnorableInteractionError(err)) return;
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, err);
+		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+	}
+}
+
+async function commandRoleRemove(interaction, context) {
+	const { getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, removeGuildRole } = context;
+	
+	try {
+		if (await isGuildNot(interaction)) return;
+		if (await isRoleManagerNot(interaction)) return;
+
+		const roleId = interaction.options.getString('role', true);
+		const result = removeGuildRole(interaction.guildId, roleId);
+		if (result === 'missing') {
+			await safeReply(interaction, { content: getLocText(interaction, 'replyRoleRemoveNotFound', { role: `<@&${roleId}>` }), flags: [MessageFlags.Ephemeral] });
+			return;
+		}
+
+		consoleLog(`[${getTimestamp()}] Success: Unselected role '${roleId}' in guild '${interaction.guildId}' by @${interaction.user.tag} (${interaction.user.id}) via Discord`);
+		await safeReply(interaction, { content: getLocText(interaction, 'replyRoleRemoveSuccess', { role: `<@&${roleId}>` }), flags: [MessageFlags.Ephemeral] });
+	} catch (err) {
+		if (isIgnorableInteractionError(err)) return;
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, err);
+		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+	}
+}
+
+async function commandRoleList(interaction, context) {
+	const { getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, getGuildRoles } = context;
+	
+	try {
+		if (await isGuildNot(interaction)) return;
+		if (await isRoleManagerNot(interaction)) return;
+
+		const ids = getGuildRoles(interaction.guildId);
+		if (ids.length === 0) {
+			await safeReply(interaction, { content: getLocText(interaction, 'replyRoleListEmpty'), flags: [MessageFlags.Ephemeral] });
+			return;
+		}
+
+		const deleted = getLocText(interaction, 'replyRoleListDeleted');
+		const rows = ids.map(id => {
+			const role = interaction.guild?.roles.cache.get(id);
+			return role
+				? { rich: `- <@&${id}> \`${id}\``, plain: `${role.name} (${id})` }
+				: { rich: `- \`${id}\` ${deleted}`, plain: `${id} ${deleted}` };
+		});
+		const header = getLocText(interaction, 'replyRoleListHeader', { count: ids.length });
+		const text = `${header}\n${rows.map(r => r.rich).join('\n')}`;
+
+		if (text.length > 1900) {
+			const file = new AttachmentBuilder(Buffer.from(`${header}\n${rows.map(r => r.plain).join('\n')}`, 'utf8'), { name: 'role-list.txt' });
+			await safeReply(interaction, { files: [file], flags: [MessageFlags.Ephemeral] });
+		} else {
+			await safeReply(interaction, { content: text, flags: [MessageFlags.Ephemeral] });
+		}
+	} catch (err) {
+		if (isIgnorableInteractionError(err)) return;
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, err);
+		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+	}
+}
+
 async function commandLotteryKick(interaction, context) {
 	const { CONFIG, getLocText, safeReply, consoleLog, getTimestamp, isWhitelist, isGuildNot } = context;
 	
 	try {
-		if (await isWhitelist(interaction)) return;
 		if (await isGuildNot(interaction)) return;
+		if (await isWhitelist(interaction)) return;
 		
 		const roll = Math.floor(Math.random() * 100) + 1;
 		if (roll <= CONFIG.kickChance) {
@@ -432,15 +761,15 @@ async function commandLoreRemove(interaction, context) {
 }
 
 async function commandVoiceJoin(interaction, context) {
-	const { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, joinVoice, isWhitelistNot, isGuildNot, voiceConnections, guildPlayers, guildVolumes, currentVolume } = context;
+	const { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, joinVoice, isWhitelistNot, isSelectedRoleNot, isGuildNot, voiceConnections, guildPlayers, guildVolumes, currentVolume } = context;
 	
 	try {
-		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
+		if (await isSelectedRoleNot(interaction)) return;
 
-		const optionChannel = interaction.options.getChannel('channel');
-		if (!optionChannel || !optionChannel.isVoiceBased()) {
-			await safeReply(interaction, { content: getLocText(interaction, 'replyVoiceNotFound', { channelId: optionChannel?.id ?? 'unknown' }), flags: [MessageFlags.Ephemeral] });
+		const optionVoiceChannel = interaction.options.getChannel('channel');
+		if (!optionVoiceChannel || !optionVoiceChannel.isVoiceBased()) {
+			await safeReply(interaction, { content: getLocText(interaction, 'replyVoiceNotFound', { channelId: optionVoiceChannel?.id ?? 'unknown' }), flags: [MessageFlags.Ephemeral] });
 			return;
 		}
 		
@@ -452,7 +781,7 @@ async function commandVoiceJoin(interaction, context) {
 		}
 
 		try {
-			await joinVoice(optionChannel, voiceConnections, guildPlayers);
+			await joinVoice(optionVoiceChannel, voiceConnections, guildPlayers);
 		} catch (err) {
 			consoleLog(`[${getTimestamp()}] ${err.message}`);
 			await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
@@ -460,8 +789,8 @@ async function commandVoiceJoin(interaction, context) {
 		}
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 
-		consoleLog(`[${getTimestamp()}] Successfully joined the voice channel '${optionChannel.name}' (${optionChannel.id}) by @${interaction.user.tag} (${interaction.user.id})`);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyVoiceJoinSuccess', { channelName: optionChannel.name }), flags: [MessageFlags.Ephemeral] });
+		consoleLog(`[${getTimestamp()}] Successfully joined the voice channel '${optionVoiceChannel.name}' (${optionVoiceChannel.id}) by @${interaction.user.tag} (${interaction.user.id})`);
+		await safeReply(interaction, { content: getLocText(interaction, 'replyVoiceJoinSuccess', { channelName: optionVoiceChannel.name }), flags: [MessageFlags.Ephemeral] });
 	} catch (err) {
 		if (isIgnorableInteractionError(err)) return;
 		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, err);
@@ -470,12 +799,12 @@ async function commandVoiceJoin(interaction, context) {
 }
 
 async function commandVoiceLeave(interaction, context) {
-	const { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume } = context;
+	const { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, isWhitelistNot, isSelectedRoleNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume } = context;
 	
 	try {
-		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
 		if (await isVoiceNot(interaction)) return;
+		if (await isSelectedRoleNot(interaction)) return;
 		
 		const connection = voiceConnections.get(interaction.guildId);
 		const activePlayer = guildPlayers.get(interaction.guildId);
@@ -495,12 +824,12 @@ async function commandVoiceLeave(interaction, context) {
 }
 
 async function commandSoundboardPlay(interaction, context) {
-	const { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, getSoundFilePath, setupPlayerEvents, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildVolumes, guildPlayers, currentVolume, getCurrentVolume } = context;
+	const { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, getSoundFilePath, setupPlayerEvents, isWhitelistNot, isSelectedRoleNot, isGuildNot, isVoiceNot, voiceConnections, guildVolumes, guildPlayers, currentVolume, getCurrentVolume } = context;
 	
 	try {
-		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
 		if (await isVoiceNot(interaction)) return;
+		if (await isSelectedRoleNot(interaction)) return;
 
 		const soundChoice = interaction.options.getString('sound');
 		const soundPath = getSoundFilePath(soundChoice);
@@ -553,12 +882,12 @@ async function commandSoundboardPlay(interaction, context) {
 }
 
 async function commandSoundboardStop(interaction, context) {
-	const { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume } = context;
+	const { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, isWhitelistNot, isSelectedRoleNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume } = context;
 	
 	try {
-		if (await isWhitelistNot(interaction)) return;
 		if (await isGuildNot(interaction)) return;
 		if (await isVoiceNot(interaction)) return;
+		if (await isSelectedRoleNot(interaction)) return;
 		
 		const activeEntry = guildPlayers.get(interaction.guildId);
 		if (activeEntry?.player) {
@@ -577,10 +906,10 @@ async function commandSoundboardStop(interaction, context) {
 }
 
 async function commandSoundboardVolume(interaction, context) {
-	const { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, isWhitelistNot, isGuildNot, voiceConnections, guildVolumes, guildPlayers, currentVolume } = context;
+	const { getLocText, saveVoiceState, safeReply, consoleLog, getTimestamp, isWhitelistNot, isSelectedRoleNot, isGuildNot, voiceConnections, guildVolumes, guildPlayers, currentVolume } = context;
 	try {
 		if (await isGuildNot(interaction)) return;
-		if (await isWhitelistNot(interaction)) return;
+		if (await isSelectedRoleNot(interaction)) return;
 		
 		const volumePercent = interaction.options.getInteger('level');
 		const volume = volumePercent / 100;

@@ -10,6 +10,7 @@ const { spawn } = require('child_process');
 const dataDir = path.join(__dirname, '../data');
 const voiceStateFile = path.join(dataDir, 'voice-state.json');
 const volumesFile = path.join(dataDir, 'volumes.json');
+const rolesFile = path.join(dataDir, 'roles.js');
 const logsDir = path.join(__dirname, '../logs');
 const loresDir = path.join(__dirname, '../lores');
 const soundsDir = path.join(__dirname, '../sounds');
@@ -18,12 +19,28 @@ const FATAL_LOGIN_ERRORS = ['TokenInvalid', 'TokenMissing', 'DisallowedIntents']
 const GUILD_ID_REGEX = /^(\d{5,25}|default)$/;
 const LANG_CODE_REGEX = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
 const TIMESTAMP_PREFIX_REGEX = /^\[\d{2}:\d{2}:\d{2} \d{2}\.\d{2}\.\d{4} UTC\]/;
+const SNOWFLAKE_REGEX = /^\d{5,25}$/;
 const REJOIN_DELAYS_MS = [5000, 10000, 20000, 40000, 60000];
+const ROLE_FORBIDDEN_PERMISSIONS = [PermissionFlagsBits.Administrator, PermissionFlagsBits.ManageGuild, PermissionFlagsBits.ManageRoles];
 
 const LOG_MAX_FILE_BYTES = parseInt(process.env.LOG_MAX_SIZE_BYTES, 10) || (2 ** 25); // 32 MiB.
 const LOG_RETENTION_DAYS = parseInt(process.env.LOG_RETENTION_DAYS, 10) || 30;
 const LOG_FILE_REGEX = /^(\d{4})-(\d{2})-(\d{2})(?:\.\d+)?\.log$/;
 const LORE_MAX_FILE_BYTES = parseInt(process.env.LORE_MAX_SIZE_BYTES, 10) || (2 ** 20); // 1 MiB.
+const ROLES_MAX_PER_GUILD = 250;
+const ROLES_MAX_FILE_BYTES = 2 ** 20;
+
+const COLOR_EMOJIS = [
+	{ emoji: '🔴', rgb: [221, 46, 68] },
+	{ emoji: '🟠', rgb: [244, 144, 12] },
+	{ emoji: '🟡', rgb: [253, 203, 88] },
+	{ emoji: '🟢', rgb: [120, 177, 89] },
+	{ emoji: '🔵', rgb: [85, 172, 238] },
+	{ emoji: '🟣', rgb: [170, 142, 214] },
+	{ emoji: '🟤', rgb: [193, 105, 79] },
+	{ emoji: '⚫', rgb: [49, 55, 61] },
+	{ emoji: '⚪', rgb: [230, 231, 232] }
+];
 
 const resolveVolume = (v) => (typeof v === 'function' ? v() : v);
 let isExiting = false;
@@ -44,6 +61,7 @@ function loadSafeModule(filePath, fallbackValue) {
 		}
 		return mod;
 	} catch (err) {
+		consoleLog(`[${getTimestamp()}] [loadSafeModule] Failed to load ${filePath}: `, err);
 		return fallbackValue;
 	}
 	return fallbackValue;
@@ -389,6 +407,179 @@ function writeLoreFile(filePath, snippets) {
 	try { delete require.cache[require.resolve(filePath)]; } catch (err) {}
 }
 
+function assertSnowflake(...ids) {
+	for (const id of ids) {
+		if (!SNOWFLAKE_REGEX.test(String(id))) throw new Error('Invalid guild or role ID.');
+	}
+}
+
+function getAllGuildRoles() {
+	if (!fs.existsSync(rolesFile)) return Object.create(null);
+	const absolutePath = require.resolve(rolesFile);
+	delete require.cache[absolutePath];
+	const mod = require(absolutePath);
+	if (!mod || typeof mod !== 'object' || Array.isArray(mod)) {
+		throw new Error(`'roles.js' does not export an object.`);
+	}
+	const data = Object.create(null);
+	for (const [guildId, roleIds] of Object.entries(mod)) {
+		if (!SNOWFLAKE_REGEX.test(guildId) || !Array.isArray(roleIds) || !roleIds.every(id => typeof id === 'string' && SNOWFLAKE_REGEX.test(id))) {
+			throw new Error(`'roles.js' has an invalid entry for '${guildId}'.`);
+		}
+		data[guildId] = [...new Set(roleIds)];
+	}
+	return data;
+}
+
+function writeAllGuildRoles(data) {
+	const clean = {};
+	for (const [guildId, ids] of Object.entries(data)) {
+		if (ids.length > 0) clean[guildId] = ids;
+	}
+	// Only validated digit strings are serialized.
+	const content = `module.exports = ${JSON.stringify(clean, null, '\t')};\n`;
+	if (Buffer.byteLength(content, 'utf8') > ROLES_MAX_FILE_BYTES) {
+		throw new Error(`'roles.js' would exceed ${ROLES_MAX_FILE_BYTES} bytes.`);
+	}
+	fs.mkdirSync(dataDir, { recursive: true });
+	if (fs.existsSync(rolesFile)) {
+		try { fs.copyFileSync(rolesFile, `${rolesFile}.bak`); } catch (err) {}
+	}
+	const tmpPath = `${rolesFile}.tmp`;
+	fs.writeFileSync(tmpPath, content, 'utf8');
+	fs.renameSync(tmpPath, rolesFile);
+	try { delete require.cache[require.resolve(rolesFile)]; } catch (err) {}
+}
+
+function getGuildRoles(guildId) {
+	assertSnowflake(guildId);
+	return [...(getAllGuildRoles()[guildId] ?? [])];
+}
+
+function addGuildRole(guildId, roleId) {
+	assertSnowflake(guildId, roleId);
+	const data = getAllGuildRoles();
+	const list = data[guildId] ?? [];
+	if (list.includes(roleId)) return 'exists';
+	if (list.length >= ROLES_MAX_PER_GUILD) return 'limit';
+	data[guildId] = [...list, roleId];
+	writeAllGuildRoles(data);
+	return 'added';
+}
+
+function removeGuildRole(guildId, roleId) {
+	assertSnowflake(guildId, roleId);
+	const data = getAllGuildRoles();
+	const list = data[guildId] ?? [];
+	if (!list.includes(roleId)) return 'missing';
+	data[guildId] = list.filter(id => id !== roleId);
+	writeAllGuildRoles(data);
+	return 'removed';
+}
+
+function validateRoleSelection(guild, role, actorMember = null) {
+	if (!role) return 'notFound';
+	if (role.id === guild.id) return 'everyone';
+	if (role.managed) return 'managed';
+	if (ROLE_FORBIDDEN_PERMISSIONS.some(perm => role.permissions.has(perm))) return 'dangerous';
+
+	const me = guild.members.me;
+	if (!me?.permissions.has(PermissionFlagsBits.ManageRoles)) return 'botPermission';
+	if (me.roles.highest.comparePositionTo(role) <= 0) return 'botHierarchy';
+
+	if (actorMember && actorMember.id !== guild.ownerId) {
+		const actorHighest = actorMember.roles?.highest;
+		if (!actorHighest || actorHighest.comparePositionTo(role) <= 0) return 'userHierarchy';
+	}
+	return null;
+}
+
+async function createSelectedRole(guild, { name, color = null, hoist = false, mentionable = false, reason = null } = {}) {
+	if (!guild) return { status: 'notFound' };
+
+	const existing = getGuildRoles(guild.id);
+	if (existing.length >= ROLES_MAX_PER_GUILD) return { status: 'limit' };
+
+	const me = guild.members.me;
+	if (!me?.permissions.has(PermissionFlagsBits.ManageRoles)) return { status: 'botPermission' };
+
+	const cleanName = String(name ?? '').trim().slice(0, 100);
+	if (!cleanName) return { status: 'invalidName' };
+
+	const role = await guild.roles.create({
+		name: cleanName,
+		permissions: [],
+		color: color ?? undefined,
+		hoist: Boolean(hoist),
+		mentionable: Boolean(mentionable),
+		reason: reason || 'Created as a bot selected role.'
+	});
+
+	const addStatus = addGuildRole(guild.id, role.id);
+	if (addStatus !== 'added') {
+		try { await role.delete('Rollback: failed to register selected role'); } catch (err) {}
+		return { status: addStatus };
+	}
+
+	return { status: 'created', role };
+}
+
+async function giveGuildRole(guild, targetMember, role, actorMember = null, reason = null) {
+	if (!guild) return 'notFound';
+	if (!targetMember || targetMember.guild?.id !== guild.id) return 'memberNotFound';
+	if (!role) return 'notFound';
+
+	if (!getGuildRoles(guild.id).includes(role.id)) return 'notSelected';
+
+	const problem = validateRoleSelection(guild, role, actorMember);
+	if (problem) return problem;
+
+	if (actorMember && actorMember.id !== guild.ownerId && targetMember.id !== actorMember.id) {
+		if (targetMember.id === guild.ownerId || actorMember.roles.highest.comparePositionTo(targetMember.roles.highest) <= 0) {
+			return 'targetHierarchy';
+		}
+	}
+
+	if (targetMember.roles.cache.has(role.id)) return 'already';
+
+	await targetMember.roles.add(role, String(reason ?? 'Role given via bot.').slice(0, 512));
+	return 'given';
+}
+
+async function takeGuildRole(guild, targetMember, role, actorMember = null, reason = null) {
+	if (!guild) return 'notFound';
+	if (!targetMember || targetMember.guild?.id !== guild.id) return 'memberNotFound';
+	if (!role) return 'notFound';
+
+	if (!getGuildRoles(guild.id).includes(role.id)) return 'notSelected';
+
+	const problem = validateRoleSelection(guild, role, actorMember);
+	if (problem) return problem;
+
+	if (actorMember && actorMember.id !== guild.ownerId && targetMember.id !== actorMember.id) {
+		if (targetMember.id === guild.ownerId || actorMember.roles.highest.comparePositionTo(targetMember.roles.highest) <= 0) {
+			return 'targetHierarchy';
+		}
+	}
+
+	if (!targetMember.roles.cache.has(role.id)) return 'missing';
+
+	await targetMember.roles.remove(role, String(reason ?? 'Role taken via bot.').slice(0, 512));
+	return 'taken';
+}
+
+function roleColorEmoji(role) {
+	if (!role.color) return '⚪';
+	const rgb = [(role.color >> 16) & 255, (role.color >> 8) & 255, role.color & 255];
+	let best = COLOR_EMOJIS[0];
+	let bestDist = Infinity;
+	for (const candidate of COLOR_EMOJIS) {
+		const dist = candidate.rgb.reduce((sum, v, i) => sum + (v - rgb[i]) ** 2, 0);
+		if (dist < bestDist) { bestDist = dist; best = candidate; }
+	}
+	return best.emoji;
+}
+
 function setupPlayerEvents(guildId, player, voiceConnections, guildPlayers, guildVolumes, currentVolume) {
 	const isCurrent = () => guildPlayers.get(guildId)?.player === player;
 
@@ -404,6 +595,25 @@ function setupPlayerEvents(guildId, player, voiceConnections, guildPlayers, guil
 		guildPlayers.delete(guildId);
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, resolveVolume(currentVolume));
 	});
+}
+
+function hasSelectedRole(interaction) {
+	if (!interaction?.inGuild() || !interaction.guildId) return false;
+
+	const selectedRoleIds = getGuildRoles(interaction.guildId);
+	if (selectedRoleIds.length === 0) return false;
+
+	const member = interaction.member ?? interaction.guild?.members.cache.get(interaction.user.id);
+	const roles = member?.roles;
+	if (!roles) return false;
+
+	if (roles.cache) {
+		return selectedRoleIds.some(roleId => roles.cache.has(roleId));
+	}
+	if (Array.isArray(roles)) {
+		return selectedRoleIds.some(roleId => roles.includes(roleId));
+	}
+	return false;
 }
 
 async function isWhitelist(interaction, CONFIG, locales) {
@@ -443,6 +653,29 @@ async function isAdminManageServer(interaction, locales) {
 	if (!interaction.member?.permissions.has(PermissionFlagsBits.ManageGuild)) {
 		await safeReply(interaction, {
 			content: getLocText(interaction, 'replyNoPermissionAdminManageServer', {}, locales),
+			flags: [MessageFlags.Ephemeral]
+		});
+		return true;
+	}
+	return false;
+}
+
+async function isRoleManagerNot(interaction, CONFIG, locales) {
+	if (CONFIG.whitelist.includes(interaction.user.id)) return false;
+	const perms = interaction.memberPermissions;
+	if (perms && (perms.has(PermissionFlagsBits.Administrator) || perms.has(PermissionFlagsBits.ManageGuild))) return false;
+
+	await safeReply(interaction, {
+		content: getLocText(interaction, 'replyNoPermissionRoleManage', {}, locales),
+		flags: [MessageFlags.Ephemeral]
+	});
+	return true;
+}
+
+async function isSelectedRoleNot(interaction, locales) {
+	if (!hasSelectedRole(interaction)) {
+		await safeReply(interaction, {
+			content: getLocText(interaction, 'replyNoSelectedRole', {}, locales),
 			flags: [MessageFlags.Ephemeral]
 		});
 		return true;
@@ -852,9 +1085,10 @@ async function loginWithRetry(client, attempt = 1) {
 module.exports = {
 	loadSafeModule, getCmdText, getLocText, getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
 	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply, getFormattedDate, writeLogToFile, writeCenteredLog, setLogReadline,
-	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isGuildNot, isVoiceNot,
+	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isRoleManagerNot, isSelectedRoleNot, isGuildNot, isVoiceNot,
 	saveVoiceState, restoreVoiceState, loadVolumes,
 	readLoreFileStrict, writeLoreFile, exceedsLoreLimit, LORE_MAX_FILE_BYTES,
+	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, roleColorEmoji, ROLES_MAX_PER_GUILD,
 	getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown, restart, loginWithRetry
 };

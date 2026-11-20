@@ -18,7 +18,13 @@ BOT:
 - clear: Clear the terminal screen.
 \nSERVER:
 - echo: Send a message to a specific channel by ID or edit a message by ID.
-- info: Show bot info and links.
+- info: Show bot info.
+- role-create: Create a role and add it to a server's selected roles.
+- role-give: Give a selected role to a member.
+- role-take: Take a selected role from a member.
+- role-add: Add a role to a server's selected roles.
+- role-remove: Remove a role from server's selected roles.
+- role-list: List server's selected roles.
 - lore: Print a random lore snippet.
 - lore-list: Lists lore snippets.
 - lore-create: Create lore file for a guild.
@@ -31,12 +37,41 @@ BOT:
 \nCheck command formats in file 'formats.md'.`;
 
 const loresDir = path.join(__dirname, '../lores');
+const stripControl = (text) => String(text).replace(/[\x00-\x1f\x7f]/g, '');
+
+const LANG_CODE_REGEX = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
+const SNOWFLAKE_REGEX = /^\d{5,25}$/;
+
+const ROLE_ERRORS = {
+	notFound: 'Role not found in that guild.',
+	everyone: 'The @everyone role cannot be selected.',
+	managed: 'Bot/integration roles cannot be selected.',
+	dangerous: 'Roles with Administrator, Manage Server or Manage Roles cannot be selected.',
+	botPermission: 'The bot needs the Manage Roles permission.',
+	botHierarchy: 'That role is not below the bot\'s highest role.',
+	userHierarchy: 'That role is not below your highest role.'
+};
+const ROLE_CREATE_ERRORS = {
+	limit: 'Limit of roles per guild reached.',
+	botPermission: ROLE_ERRORS.botPermission,
+	invalidName: 'The role name cannot be empty.'
+};
+const ROLE_GIVE_ERRORS = {
+	...ROLE_ERRORS,
+	memberNotFound: 'Member not found in that guild.',
+	notSelected: 'That role is not in the guild\'s selected roles.',
+	targetHierarchy: 'You do not outrank that member.',
+	already: 'The member already has that role.'
+};
+const ROLE_TAKE_ERRORS = {
+	...ROLE_GIVE_ERRORS,
+	missing: 'The member does not have that role.'
+};
+
 const getLoreFiles = () => {
 	try { return fs.readdirSync(loresDir).filter(file => file.endsWith('.js')); }
 	catch (err) { return []; }
 };
-
-const LANG_CODE_REGEX = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
 
 function restAfter(text, n) {
 	let rest = text.trimStart();
@@ -83,7 +118,9 @@ async function runTerminalLine(line, context) {
 
 		// Commands that are allowed to have more than 1 argument.
 		const multiArgCommands = new Set([
-			'echo', 'lore', 'lore-list', 'lore-create', 'lore-remove',
+			'echo',
+			'role-create', 'role-give', 'role-take', 'role-add', 'role-remove', 'role-list',
+			'lore', 'lore-list', 'lore-create', 'lore-remove',
 			'voice-join', 'voice-leave', 'soundboard-play', 'soundboard-stop', 'soundboard-volume'
 		]);
 
@@ -150,6 +187,36 @@ async function runTerminalLine(line, context) {
 
 			case 'info': {
 				await terminalInfo(subCmd, args, context);
+				break;
+			}
+			
+			case 'role-create': {
+				await terminalRoleCreate(subCmd, args, context);
+				break;
+			}
+			
+			case 'role-give': {
+				await terminalRoleGive(subCmd, args, context);
+				break;
+			}
+			
+			case 'role-take': {
+				await terminalRoleTake(subCmd, args, context);
+				break;
+			}
+			
+			case 'role-add': {
+				await terminalRoleAdd(subCmd, args, context);
+				break;
+			}
+
+			case 'role-remove': {
+				await terminalRoleRemove(subCmd, args, context);
+				break;
+			}
+
+			case 'role-list': {
+				await terminalRoleList(subCmd, args, context);
 				break;
 			}
 
@@ -227,12 +294,13 @@ const TERMINAL_COMMANDS = [
 	'help', 'status', 'ping', 'clear',
 	'exit', 'stop', 'shutdown', 'restart', 'reboot',
 	'echo', 'info',
+	'role-create', 'role-give', 'role-take', 'role-add', 'role-remove', 'role-list',
 	'lore', 'lore-list', 'lore-create', 'lore-remove',
 	'voice-join', 'voice-leave',
 	'soundboard-play', 'soundboard-stop', 'soundboard-volume'
 ];
  
-function completeTerminalLine(line, { client, locales, voiceConnections, guildPlayers, loadSafeModule }) {
+function completeTerminalLine(line, { client, locales, voiceConnections, guildPlayers, loadSafeModule, getAllGuildRoles, validateRoleSelection }) {
 	const lastSep = line.lastIndexOf('&&');
 	const currentSegment = lastSep === -1 ? line : line.slice(lastSep + 2);
 	const [cmd, ...args] = currentSegment.trimStart().split(/\s+/);
@@ -248,12 +316,49 @@ function completeTerminalLine(line, { client, locales, voiceConnections, guildPl
 	};
 	const lores = () => names(loresDir, '.js');
 	const sounds = () => names(path.join(__dirname, '../sounds'), '.mp3');
+	const storedRoles = () => { try { return getAllGuildRoles(); } catch (err) { return {}; } };
  
 	const slots = (...fns) => (a) => fns[a.length - 1]?.(a) ?? [];
  
 	const completers = {
 		__proto__: null,
 		'echo': slots(() => ['-e', ...channels(c => c.isTextBased())]),
+		'role-create': slots(guilds),
+		'role-give': slots(
+			guilds,
+			() => [],
+			([guild, user]) => {
+				const g = client.guilds.cache.get(guild);
+				const member = g?.members.cache.get(user);
+				return (storedRoles()[guild] ?? []).filter(id => !member?.roles.cache.has(id));
+			}
+		),
+		'role-take': slots(
+			guilds,
+			() => [],
+			([guild, user]) => {
+				const g = client.guilds.cache.get(guild);
+				const member = g?.members.cache.get(user);
+				return (storedRoles()[guild] ?? []).filter(id => member?.roles.cache.has(id));
+			}
+		),
+		'role-add': slots(
+			guilds,
+			([guild]) => {
+				const g = client.guilds.cache.get(guild);
+				if (!g) return [];
+				const selected = new Set(storedRoles()[guild] ?? []);
+				return [...g.roles.cache.values()]
+					.filter(r => !selected.has(r.id) && !validateRoleSelection(g, r))
+					.sort((a, b) => b.position - a.position)
+					.map(r => r.id);
+			}
+		),
+		'role-remove': slots(
+			() => Object.keys(storedRoles()),
+			([guild]) => storedRoles()[guild] ?? []
+		),
+		'role-list': slots(() => Object.keys(storedRoles())),
 		'lore': slots(
 			() => [...lores().map(f => f.split('_')[0]), ...langs()],
 			([guild]) => lores().filter(f => f.startsWith(`${guild}_`)).map(f => f.slice(guild.length + 1)),
@@ -298,7 +403,6 @@ function completeTerminalLine(line, { client, locales, voiceConnections, guildPl
 
 // Terminal commands.
 // Bot.
-// Terminal commands. Handlers that return true stop the whole command line (shutdown, stop, reboot).
 async function terminalHelp(subCmd, args, { consoleLog, getTimestamp }) {
 	consoleLog(`[${getTimestamp()}] ${HELP_TEXT}`);
 }
@@ -445,6 +549,171 @@ async function terminalEcho(subCmd, args, { client, consoleLog, getTimestamp }) 
 async function terminalInfo(subCmd, args, { locales, defaultLang, packageJson, consoleLog, getTimestamp }) {
 	const infoText = locales[defaultLang]?.infoText || locales['uk']?.infoText || 'Info text unavailable';
 	consoleLog(`[${getTimestamp()}] Bot Info:\nNarrator | ${packageJson.version}\n\n${infoText}`);
+}
+
+async function terminalRoleCreate(subCmd, args, { client, createSelectedRole, consoleLog, getTimestamp }) {
+	// Usage: role-create [GUILD_ID] [ROLE_NAME]
+	const guildId = args[1];
+	const roleName = stripControl(restAfter(subCmd, 2)).trim();
+	if (!guildId || !SNOWFLAKE_REGEX.test(guildId) || !roleName) {
+		consoleLog(`[${getTimestamp()}] Error: Usage -> role-create [GUILD_ID] [ROLE_NAME]`);
+		return;
+	}
+
+	const guild = client.guilds.cache.get(guildId);
+	if (!guild) {
+		consoleLog(`[${getTimestamp()}] Error: Guild '${guildId}' not found.`);
+		return;
+	}
+
+	try {
+		const result = await createSelectedRole(guild, { name: roleName, reason: 'Created via terminal.' });
+		if (result.status !== 'created') {
+			consoleLog(`[${getTimestamp()}] Error: ${ROLE_CREATE_ERRORS[result.status] ?? `Could not create role (${result.status}).`}`);
+			return;
+		}
+		consoleLog(`[${getTimestamp()}] Success: Created selected role '${stripControl(result.role.name)}' (${result.role.id}) in guild '${guildId}' via terminal.`);
+	} catch (err) {
+		consoleLog(`[${getTimestamp()}] Error creating role:`, err.message);
+	}
+}
+
+async function terminalRoleGive(subCmd, args, { client, giveGuildRole, consoleLog, getTimestamp }) {
+	// Usage: role-give [GUILD_ID] [USER_ID] [ROLE_ID]
+	const [, guildId, userId, roleId] = args;
+	if (args.length !== 4 || !SNOWFLAKE_REGEX.test(guildId) || !SNOWFLAKE_REGEX.test(userId) || !SNOWFLAKE_REGEX.test(roleId)) {
+		consoleLog(`[${getTimestamp()}] Error: Usage -> role-give [GUILD_ID] [USER_ID] [ROLE_ID]`);
+		return;
+	}
+
+	const guild = client.guilds.cache.get(guildId);
+	if (!guild) {
+		consoleLog(`[${getTimestamp()}] Error: Guild '${guildId}' not found.`);
+		return;
+	}
+
+	try {
+		const member = await guild.members.fetch(userId).catch(() => null);
+		const role = guild.roles.cache.get(roleId);
+		const status = await giveGuildRole(guild, member, role, null, 'Given via terminal.');
+
+		if (status !== 'given') {
+			consoleLog(`[${getTimestamp()}] Error: ${ROLE_GIVE_ERRORS[status] ?? `Could not give role (${status}).`}`);
+			return;
+		}
+		consoleLog(`[${getTimestamp()}] Success: Gave role '${stripControl(role.name)}' (${roleId}) to '${stripControl(member.user.tag)}' (${userId}) in guild '${guildId}' via terminal.`);
+	} catch (err) {
+		consoleLog(`[${getTimestamp()}] Error giving role:`, err.message);
+	}
+}
+
+async function terminalRoleTake(subCmd, args, { client, takeGuildRole, consoleLog, getTimestamp }) {
+	// Usage: role-take [GUILD_ID] [USER_ID] [ROLE_ID]
+	const [, guildId, userId, roleId] = args;
+	if (args.length !== 4 || !SNOWFLAKE_REGEX.test(guildId) || !SNOWFLAKE_REGEX.test(userId) || !SNOWFLAKE_REGEX.test(roleId)) {
+		consoleLog(`[${getTimestamp()}] Error: Usage -> role-take [GUILD_ID] [USER_ID] [ROLE_ID]`);
+		return;
+	}
+
+	const guild = client.guilds.cache.get(guildId);
+	if (!guild) {
+		consoleLog(`[${getTimestamp()}] Error: Guild '${guildId}' not found.`);
+		return;
+	}
+
+	try {
+		const member = await guild.members.fetch(userId).catch(() => null);
+		const role = guild.roles.cache.get(roleId);
+		const status = await takeGuildRole(guild, member, role, null, 'Taken via terminal.');
+
+		if (status !== 'taken') {
+			consoleLog(`[${getTimestamp()}] Error: ${ROLE_TAKE_ERRORS[status] ?? `Could not take role (${status}).`}`);
+			return;
+		}
+		consoleLog(`[${getTimestamp()}] Success: Took role '${stripControl(role.name)}' (${roleId}) from '${stripControl(member.user.tag)}' (${userId}) in guild '${guildId}' via terminal.`);
+	} catch (err) {
+		consoleLog(`[${getTimestamp()}] Error taking role:`, err.message);
+	}
+}
+
+async function terminalRoleAdd(subCmd, args, { client, validateRoleSelection, addGuildRole, ROLES_MAX_PER_GUILD, consoleLog, getTimestamp }) {
+	// Usage: role-add [GUILD_ID] [ROLE_ID]
+	const [, guildId, roleId] = args;
+	if (args.length !== 3 || !SNOWFLAKE_REGEX.test(guildId) || !SNOWFLAKE_REGEX.test(roleId)) {
+		consoleLog(`[${getTimestamp()}] Error: Usage -> role-add [GUILD_ID] [ROLE_ID]`);
+		return;
+	}
+
+	const guild = client.guilds.cache.get(guildId);
+	if (!guild) {
+		consoleLog(`[${getTimestamp()}] Error: Guild '${guildId}' not found.`);
+		return;
+	}
+
+	const role = guild.roles.cache.get(roleId);
+	const problem = validateRoleSelection(guild, role);
+	if (problem) {
+		consoleLog(`[${getTimestamp()}] Error: ${ROLE_ERRORS[problem]}`);
+		return;
+	}
+
+	try {
+		const result = addGuildRole(guildId, roleId);
+		if (result === 'exists') consoleLog(`[${getTimestamp()}] Role '${roleId}' is already selected in guild '${guildId}'.`);
+		else if (result === 'limit') consoleLog(`[${getTimestamp()}] Error: Limit of ${ROLES_MAX_PER_GUILD} roles per guild reached.`);
+		else consoleLog(`[${getTimestamp()}] Success: Selected role '${stripControl(role.name)}' (${roleId}) in guild '${guildId}' via terminal.`);
+	} catch (err) {
+		consoleLog(`[${getTimestamp()}] Error writing roles file:`, err.message);
+	}
+}
+
+async function terminalRoleRemove(subCmd, args, { removeGuildRole, consoleLog, getTimestamp }) {
+	// Usage: role-remove [GUILD_ID] [ROLE_ID]
+	const [, guildId, roleId] = args;
+	if (args.length !== 3 || !SNOWFLAKE_REGEX.test(guildId) || !SNOWFLAKE_REGEX.test(roleId)) {
+		consoleLog(`[${getTimestamp()}] Error: Usage -> role-remove [GUILD_ID] [ROLE_ID]`);
+		return;
+	}
+
+	try {
+		const result = removeGuildRole(guildId, roleId);
+		if (result === 'missing') consoleLog(`[${getTimestamp()}] Error: Role '${roleId}' is not selected in guild '${guildId}'.`);
+		else consoleLog(`[${getTimestamp()}] Success: Unselected role '${roleId}' in guild '${guildId}' via terminal.`);
+	} catch (err) {
+		consoleLog(`[${getTimestamp()}] Error writing roles file:`, err.message);
+	}
+}
+
+async function terminalRoleList(subCmd, args, { client, getAllGuildRoles, consoleLog, getTimestamp }) {
+	// Usage: role-list [GUILD_ID]
+	const guildId = args[1];
+	if (args.length > 2 || (guildId && !SNOWFLAKE_REGEX.test(guildId))) {
+		consoleLog(`[${getTimestamp()}] Error: Usage -> role-list [GUILD_ID]`);
+		return;
+	}
+
+	let all;
+	try {
+		all = getAllGuildRoles();
+	} catch (err) {
+		consoleLog(`[${getTimestamp()}] Error reading roles file:`, err.message);
+		return;
+	}
+
+	let hasEntries = false;
+	consoleLog(`[${getTimestamp()}] Selected roles:`);
+	for (const gId of (guildId ? [guildId] : Object.keys(all))) {
+		const ids = all[gId] ?? [];
+		if (ids.length === 0) continue;
+		hasEntries = true;
+		const guild = client.guilds.cache.get(gId);
+		consoleLog(`\n--- Guild: '${gId}'${guild ? ` (${stripControl(guild.name)})` : ''} ---`);
+		for (const id of ids) {
+			const role = guild?.roles.cache.get(id);
+			consoleLog(`	${id}: ${role ? stripControl(role.name) : '(unknown or deleted)'}`);
+		}
+	}
+	if (!hasEntries) consoleLog(`[${getTimestamp()}] No roles selected.`);
 }
 
 async function terminalLore(subCmd, args, { locales, defaultLang, loadSafeModule, consoleLog, getTimestamp }) {

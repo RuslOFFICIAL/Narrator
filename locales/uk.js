@@ -26,6 +26,42 @@ module.exports = {
 	replyNotInVoice: `Бот зараз не в голосовому каналі. Спробуйте спершу запустити команду "/voice-join".`,
 	replyLoreSnippetsUnavailable: `Уривки з лору наразі недоступні.`,
 	replyNoPermissionAdminManageServer: `У Вас немає прав для використання цієї команди (Потрібні права "Керування сервером" або "Адміністратор").`,
+	replyNoPermissionRoleManage: `Ви маєте бути у білому списку або мати право "Керувати сервером" чи "Адміністратор".`,
+	replyNoSelectedRole: `Для використання цієї команди Вам потрібна одна з вибраних ролей сервера.`,
+	
+	replyRoleNotFound: `Цю роль не знайдено на цьому сервері.`,
+	replyRoleInvalidEveryone: `Роль '@everyone' не можна вибрати.`,
+	replyRoleInvalidManaged: `Ролі Ботів та інтеграцій не можна вибрати.`,
+	replyRoleInvalidDangerous: `Ролі з правами "Адміністратор", "Керувати сервером" або "Керувати ролями" не можна вибрати.`,
+	replyRoleInvalidBotPermission: `Боту потрібне право "Керувати ролями".`,
+	replyRoleInvalidBotHierarchy: `Ця роль не нижча за найвищу роль Бота.`,
+	replyRoleInvalidUserHierarchy: `Ця роль не нижча за вашу найвищу роль.`,
+	
+	replyRoleCreateSuccess: 'Роль {role} створено та додано до вибраних.',
+	replyRoleCreateInvalidName: 'Назва ролі не може бути порожньою.',
+	replyRoleCreateFailed: 'Не вдалося створити вибрану роль.',
+	
+	replyRoleGiveSuccess: `Видано роль {role} учаснику {member}.`,
+	replyRoleGiveMemberNotFound: `Цього учасника не знайдено на цьому сервері.`,
+	replyRoleGiveNotSelected: `Ролі {role} немає серед вибраних ролей цього сервера.`,
+	replyRoleGiveTargetHierarchy: `Ваша найвища роль не вища за роль цього учасника.`,
+	replyRoleGiveAlready: `Учасник {member} уже має роль {role}.`,
+	replyRoleGiveFailed: `Не вдалося видати роль.`,
+	
+	replyRoleTakeSuccess: `Забрано роль {role} в учасника {member}.`,
+	replyRoleTakeMissing: `Учасник {member} не має ролі {role}.`,
+	replyRoleTakeFailed: `Не вдалося забрати роль.`,
+	
+	replyRoleAddSuccess: `Роль {role} додано до вибраних.`,
+	replyRoleAddExists: `Роль {role} уже вибрана.`,
+	replyRoleAddLimit: `Досягнуто ліміту: не більше {limit} ролей на сервер.`,
+	
+	replyRoleRemoveSuccess: `Роль {role} прибрано з вибраних.`,
+	replyRoleRemoveNotFound: `Ролі {role} немає серед вибраних.`,
+	
+	replyRoleListHeader: `Вибрані ролі ({count}):`,
+	replyRoleListEmpty: `На цьому сервері немає вибраних ролей.`,
+	replyRoleListDeleted: `(видалена)`,
 	
 	replyWhitelistYes: `Ця команда недоступна Вам, бо вона може зробити Вам щось. Спробуйте використати іншу команду або пізніше.`,
 	replyWhitelistNo: `Ця команда недоступна Вам. Спробуйте використати іншу команду або пізніше.`,
@@ -67,6 +103,12 @@ module.exports = {
 	// Commands.
 	descHelp: `Показує команди бота.`,
 	descInfo: `Інформація про лор.`,
+	descRoleCreate: `Створити роль і додати її до вибраних ролей сервера.`,
+	descRoleGive: `Видати вибрану роль учаснику.`,
+	descRoleTake: `Забрати вибрану роль в учасника.`,
+	descRoleAdd: `Додати роль до вибраних ролей цього сервера.`,
+	descRoleRemove: `Прибрати роль із вибраних ролей цього сервера.`,
+	descRoleList: `Показати вибрані ролі цього сервера.`,
 	descLotteryKick: `{kickChance}% на кік з серверу. Удачі!`,
 	descLore: `Команда для лору.`,
 	descLoreList: `Перелік уривків лору.`,
@@ -77,8 +119,11 @@ module.exports = {
 	descSoundboardPlay: `Запускає обраний звук в голосовому каналі.`,
 	descSoundboardStop: `Припиняє звук в голосовому каналі.`,
 	descSoundboardVolume: `Змінити гучність відтворення бота.`,
-
-	optionChannel: `Виберіть голосовий канал.`,
+	
+	optionRole: `Роль.`,
+	optionRoleName: `Назва нової вибраної ролі.`,
+	optionMember: `Учасник.`,
+	optionVoiceChannel: `Виберіть голосовий канал.`,
 	optionSound: `Виберіть звук для відтворення.`,
 	optionVolumeLevel: `Рівень гучності від 0 до 100.`,
 	optionLanguageCode: `Код мови (наприклад: en, uk).`,
