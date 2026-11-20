@@ -7,7 +7,7 @@ const packageJson = require('./package.json');
 
 // Import modularized commands and helpers.
 const { getCommands, handleDiscordInteraction } = require('./commands/discord.js');
-const { handleTerminalLine, completeTerminalLine  } = require('./commands/terminal.js');
+const { handleTerminalLine, completeTerminalLine } = require('./commands/terminal.js');
 const {
 	loadSafeModule,	getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
 	consoleLog: _consoleLog, getTimestamp, formatUptime, makeLogMessage: _makeLogMessage, safeReply: _safeReply, writeLogToFile, writeCenteredLog, setLogReadline,
@@ -193,11 +193,11 @@ client.on('interactionCreate', async interaction => {
 		await handleDiscordInteraction(interaction, executionContext);
 	} catch (err) {
 		// Ignore "Unknown interaction" (10062) or "Interaction has already been acknowledged" (40060).
-        if (err.code === 10062 || err.code === 40060) {
-            return;
-        }
-        consoleLog(`[${getTimestamp()}] Interaction handling error: `, err);
-    }
+		if (err.code === 10062 || err.code === 40060) {
+			return;
+		}
+		consoleLog(`[${getTimestamp()}] Interaction handling error: `, err);
+	}
 });
 
 // Terminal.

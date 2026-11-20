@@ -4,6 +4,8 @@ const path = require('path');
 const readline = require('readline');
 const util = require('util');
 const { MessageFlags, TextChannel, ThreadChannel, PermissionFlagsBits } = require('discord.js');
+const { joinVoiceChannel, VoiceConnectionStatus, VoiceConnectionDisconnectReason, AudioPlayerStatus, createAudioPlayer, createAudioResource, StreamType, entersState } = require('@discordjs/voice');
+const { spawn } = require('child_process');
 
 const dataDir = path.join(__dirname, '../data');
 const voiceStateFile = path.join(dataDir, 'voice-state.json');
@@ -16,6 +18,7 @@ const FATAL_LOGIN_ERRORS = ['TokenInvalid', 'TokenMissing', 'DisallowedIntents']
 const GUILD_ID_REGEX = /^(\d{5,25}|default)$/;
 const LANG_CODE_REGEX = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
 const TIMESTAMP_PREFIX_REGEX = /^\[\d{2}:\d{2}:\d{2} \d{2}\.\d{2}\.\d{4} UTC\]/;
+const REJOIN_DELAYS_MS = [5000, 10000, 20000, 40000, 60000];
 
 const LOG_MAX_FILE_BYTES = parseInt(process.env.LOG_MAX_SIZE_BYTES, 10) || (2 ** 25); // 32 MiB.
 const LOG_RETENTION_DAYS = parseInt(process.env.LOG_RETENTION_DAYS, 10) || 30;
@@ -27,6 +30,7 @@ let isExiting = false;
 let defaultRl = null;
 let logWriteWarned = false;
 let logState = { date: null, part: 0, size: null };
+const rejoinTimers = new Map();
 
 // Functions.
 function loadSafeModule(filePath, fallbackValue) {
@@ -192,7 +196,7 @@ function consoleLog(rl, ...args) {
 	}
 	const logString = util.format(...args);
 	console.log(...args);
-	  writeLogToFile(logString, { raw: logString === '' });
+	writeLogToFile(logString, { raw: logString === '' });
 	
 	try {
 		if (rl && typeof rl.prompt === 'function' && !rl.closed) {
@@ -386,7 +390,6 @@ function writeLoreFile(filePath, snippets) {
 }
 
 function setupPlayerEvents(guildId, player, voiceConnections, guildPlayers, guildVolumes, currentVolume) {
-	const { AudioPlayerStatus } = require('@discordjs/voice');
 	const isCurrent = () => guildPlayers.get(guildId)?.player === player;
 
 	player.on(AudioPlayerStatus.Idle, () => {
@@ -497,9 +500,6 @@ async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPl
 
 		consoleLog(`[${getTimestamp()}] [Voice] Restoring previous voice states...`);
 
-		const { joinVoiceChannel, VoiceConnectionStatus, AudioPlayerStatus, createAudioPlayer, createAudioResource, StreamType } = require('@discordjs/voice');
-		const { spawn } = require('child_process');
-
 		for (const [guildId, stateData] of Object.entries(data)) {
 			try {
 				const guild = client.guilds.cache.get(guildId);
@@ -515,7 +515,7 @@ async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPl
 					guildId: guild.id,
 					adapterCreator: guild.voiceAdapterCreator,
 				});
-				attachConnectionHandlers(connection, guild.id, voiceConnections, guildPlayers);
+				attachConnectionHandlers(connection, guild.id, voiceConnections, guildPlayers, guild);
 				voiceConnections.set(guild.id, connection);
 				consoleLog(`[${getTimestamp()}] [Voice] Rejoined voice channel '${channel.name}' in guild ID '${guildId}'.`);
 
@@ -621,21 +621,70 @@ function getSoundFilePath(name) {
 	return path.dirname(filePath) === resolvedDir ? filePath : null;
 }
 
-function attachConnectionHandlers(connection, guildId, voiceConnections, guildPlayers) {
-	const { VoiceConnectionStatus, entersState } = require('@discordjs/voice');
+function cancelRejoin(guildId) {
+	const timer = rejoinTimers.get(guildId);
+	if (timer) {
+		clearTimeout(timer);
+		rejoinTimers.delete(guildId);
+	}
+}
+
+function scheduleRejoin(guild, channelId, voiceConnections, guildPlayers, attempt = 0) {
+	const guildId = guild.id;
+	cancelRejoin(guildId);
+	if (isExiting || !channelId) return;
+
+	if (attempt >= REJOIN_DELAYS_MS.length) {
+		consoleLog(`[${getTimestamp()}] [Voice] Giving up rejoining in guild ID '${guildId}' after ${attempt} attempt(s). Use /voice-join to reconnect.`);
+		return;
+	}
+
+	const delay = REJOIN_DELAYS_MS[attempt];
+	consoleLog(`[${getTimestamp()}] [Voice] Connection lost in guild ID '${guildId}'. Rejoin attempt ${attempt + 1}/${REJOIN_DELAYS_MS.length} in ${delay / 1000}s...`);
+
+	const timer = setTimeout(async () => {
+		rejoinTimers.delete(guildId);
+		if (isExiting) return;
+		// Already reconnected manually.
+		if (voiceConnections.has(guildId)) return;
+
+		const channel = guild.channels.cache.get(channelId);
+		if (!channel || !channel.isVoiceBased()) {
+			consoleLog(`[${getTimestamp()}] [Voice] Rejoin cancelled: channel ID '${channelId}' no longer exists.`);
+			return;
+		}
+
+		try {
+			await joinVoice(channel, voiceConnections, guildPlayers);
+			consoleLog(`[${getTimestamp()}] [Voice] Rejoined voice channel '${channel.name}' in guild ID '${guildId}'.`);
+		} catch (err) {
+			consoleLog(`[${getTimestamp()}] [Voice] Rejoin attempt failed: `, err.message);
+			scheduleRejoin(guild, channelId, voiceConnections, guildPlayers, attempt + 1);
+		}
+	}, delay);
+
+	rejoinTimers.set(guildId, timer);
+}
+
+function attachConnectionHandlers(connection, guildId, voiceConnections, guildPlayers, guild) {
+	let wasKicked = false;
 
 	connection.on('error', (err) => {
 		consoleLog(`[${getTimestamp()}] Voice connection error: `, err.message);
 		try { connection.destroy(); } catch (e) {}
 	});
 
-	connection.on(VoiceConnectionStatus.Disconnected, async () => {
+	connection.on(VoiceConnectionStatus.Disconnected, async (oldState, newState) => {
 		try {
 			await Promise.race([
 				entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
 				entersState(connection, VoiceConnectionStatus.Connecting, 5_000)
 			]);
 		} catch (err) {
+			// 4014 = bot was disconnected/kicked from the channel by a moderator.
+			if (newState.reason === VoiceConnectionDisconnectReason.WebSocketClose && newState.closeCode === 4014) {
+				wasKicked = true;
+			}
 			if (connection.state.status !== VoiceConnectionStatus.Destroyed) {
 				try { connection.destroy(); } catch (e) {}
 			}
@@ -644,14 +693,18 @@ function attachConnectionHandlers(connection, guildId, voiceConnections, guildPl
 
 	connection.on(VoiceConnectionStatus.Destroyed, () => {
 		if (voiceConnections.get(guildId) === connection) {
+			const channelId = connection.joinConfig?.channelId;
 			voiceConnections.delete(guildId);
 			guildPlayers.delete(guildId);
+			
+			if (guild && !wasKicked && !isExiting) {
+				scheduleRejoin(guild, channelId, voiceConnections, guildPlayers);
+			}
 		}
 	});
 }
 
 async function joinVoice(channel, voiceConnections, guildPlayers) {
-	const { joinVoiceChannel, VoiceConnectionStatus, entersState } = require('@discordjs/voice');
 	const guildId = channel.guild.id;
 
 	const existing = voiceConnections.get(guildId);
@@ -668,7 +721,7 @@ async function joinVoice(channel, voiceConnections, guildPlayers) {
 		guildId,
 		adapterCreator: channel.guild.voiceAdapterCreator,
 	});
-	attachConnectionHandlers(connection, guildId, voiceConnections, guildPlayers);
+	attachConnectionHandlers(connection, guildId, voiceConnections, guildPlayers, channel.guild);
 
 	try {
 		await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
