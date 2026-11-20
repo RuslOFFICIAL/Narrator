@@ -26,6 +26,7 @@ const {
 	saveVoiceState, restoreVoiceState, loadVolumes,
 	readLoreFileStrict, writeLoreFile, exceedsLoreLimit,
 	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, roleColorEmoji,
+	getRolesMaxPerGuild, getRolesMaxFileBytes,
 	getLoreMaxBytes, getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown: _shutdown, restart: _restart, loginWithRetry
 } = require('./commands/helpers.js');
@@ -164,6 +165,7 @@ const executionContext = {
 	saveVoiceState, restoreVoiceState,
 	readLoreFileStrict, writeLoreFile, exceedsLoreLimit,
 	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, roleColorEmoji,
+	getRolesMaxPerGuild, getRolesMaxFileBytes,
 	getLoreMaxBytes: () => CONFIG.loreMaxFileBytes, getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown, restart, rl, loadSafeModule
 };

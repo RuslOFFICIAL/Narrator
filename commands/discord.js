@@ -334,11 +334,11 @@ async function commandInfo(interaction, context) {
 }
 
 async function commandRoleCreate(interaction, context) {
-	const { CONFIG, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, createSelectedRole } = context;
+	const { CONFIG, locales, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, createSelectedRole } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
-		if (await isRoleManagerNot(interaction)) return;
+		if (await isRoleManagerNot(interaction, CONFIG, locales)) return;
 
 		const roleName = interaction.options.getString('name', true);
 		const result = await createSelectedRole(interaction.guild, {
@@ -366,11 +366,11 @@ async function commandRoleCreate(interaction, context) {
 }
 
 async function commandRoleGive(interaction, context) {
-	const { CONFIG, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, giveGuildRole } = context;
+	const { CONFIG, locales, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, giveGuildRole } = context;
 
 	try {
 		if (await isGuildNot(interaction)) return;
-		if (await isRoleManagerNot(interaction)) return;
+		if (await isRoleManagerNot(interaction, CONFIG, locales)) return;
 
 		const guild = interaction.guild;
 		const member = interaction.options.getMember('member');
@@ -400,11 +400,11 @@ async function commandRoleGive(interaction, context) {
 }
 
 async function commandRoleTake(interaction, context) {
-	const { CONFIG, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, takeGuildRole } = context;
+	const { CONFIG, locales, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, takeGuildRole } = context;
 
 	try {
 		if (await isGuildNot(interaction)) return;
-		if (await isRoleManagerNot(interaction)) return;
+		if (await isRoleManagerNot(interaction, CONFIG, locales)) return;
 
 		const guild = interaction.guild;
 		const member = interaction.options.getMember('member');
@@ -438,11 +438,11 @@ async function commandRoleTake(interaction, context) {
 }
 
 async function commandRoleAdd(interaction, context) {
-	const { CONFIG, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, validateRoleSelection, addGuildRole } = context;
+	const { CONFIG, locales, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, validateRoleSelection, addGuildRole } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
-		if (await isRoleManagerNot(interaction)) return;
+		if (await isRoleManagerNot(, CONFIG, locales)) return;
 
 		const guild = interaction.guild;
 		const optionRoleId = interaction.options.getString('role', true);
@@ -475,11 +475,11 @@ async function commandRoleAdd(interaction, context) {
 }
 
 async function commandRoleRemove(interaction, context) {
-	const { getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, removeGuildRole } = context;
+	const { CONFIG, locales, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, removeGuildRole } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
-		if (await isRoleManagerNot(interaction)) return;
+		if (await isRoleManagerNot(interaction, CONFIG, locales)) return;
 
 		const roleId = interaction.options.getString('role', true);
 		const result = removeGuildRole(interaction.guildId, roleId);
@@ -498,11 +498,11 @@ async function commandRoleRemove(interaction, context) {
 }
 
 async function commandRoleList(interaction, context) {
-	const { getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, getGuildRoles } = context;
+	const { CONFIG, locales, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, getGuildRoles } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
-		if (await isRoleManagerNot(interaction)) return;
+		if (await isRoleManagerNot(interaction, CONFIG, locales)) return;
 
 		const ids = getGuildRoles(interaction.guildId);
 		if (ids.length === 0) {
