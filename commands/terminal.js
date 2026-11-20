@@ -89,14 +89,14 @@ async function runTerminalLine(line, context) {
 
 		// If the command is not in the multi-arg list, enforce strict single-word usage.
 		if (!multiArgCommands.has(command) && TERMINAL_COMMANDS.includes(command) && args.length > 1) {
-			consoleLog(`Error: '${command}' does not take any arguments.`);
+			consoleLog(`[${getTimestamp()}] Error: '${command}' does not take any arguments.`);
 			break;
 		}
 
 		// Terminal commands.
 		switch (command) {
 			default: {
-				consoleLog(`Unknown terminal command: "${command}".`);
+				consoleLog(`[${getTimestamp()}] Unknown terminal command: "${command}".`);
 				break;
 			}
 
@@ -211,6 +211,7 @@ async function runTerminalLine(line, context) {
 }
 
 async function handleTerminalLine(line, context) {
+	const { rl, consoleLog, getTimestamp } = context;
 	try {
 		await runTerminalLine(line, context);
 	} catch (err) {
@@ -726,7 +727,7 @@ async function terminalLoreRemove(subCmd, args, { removeDuplicateLoreInFiles, re
 }
 
 async function terminalVoiceJoin(subCmd, args, context) {
-	const { client, voiceConnections, guildPlayers, guildVolumes, saveVoiceState, joinVoice, consoleLog, getTimestamp } = context;
+	const { client, voiceConnections, guildPlayers, guildVolumes, saveVoiceState, joinVoice, getCurrentVolume, consoleLog, getTimestamp } = context;
 	// Usage: voice-join [CHANNEL_ID]
 	const targetChannelId = args[1];
 	if (!targetChannelId) {
@@ -754,13 +755,13 @@ async function terminalVoiceJoin(subCmd, args, context) {
 		consoleLog(`[${getTimestamp()}] Error: ${err.message}`);
 		return;
 	}
-	saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+	saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
 	consoleLog(`[${getTimestamp()}] Successfully joined voice channel: '${targetChannel.name}'`);
 }
 
 async function terminalVoiceLeave(subCmd, args, context) {
-	const { voiceConnections, guildPlayers, guildVolumes, saveVoiceState, consoleLog, getTimestamp } = context;
+	const { voiceConnections, guildPlayers, guildVolumes, saveVoiceState, getCurrentVolume, consoleLog, getTimestamp } = context;
 	const leaveGuildId = args[1];
 	const leaveGuild = (gId) => {
 		const conn = voiceConnections.get(gId);
@@ -776,7 +777,7 @@ async function terminalVoiceLeave(subCmd, args, context) {
 		for (const gId of [...voiceConnections.keys()]) {
 			leaveGuild(gId);
 		}
-		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
 		consoleLog(`[${getTimestamp()}] Left all voice channels.`);
 		return;
@@ -788,13 +789,13 @@ async function terminalVoiceLeave(subCmd, args, context) {
 		return;
 	}
 	leaveGuild(leaveGuildId);
-	saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+	saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
 	consoleLog(`[${getTimestamp()}] Left voice channel for guild ID '${leaveGuildId}'.`);
 }
 
 async function terminalSoundboardPlay(subCmd, args, context) {
-	const { voiceConnections, guildPlayers, guildVolumes, saveVoiceState, getSoundFilePath, setupPlayerEvents, consoleLog, getTimestamp } = context;
+	const { voiceConnections, guildPlayers, guildVolumes, saveVoiceState, getSoundFilePath, setupPlayerEvents, getCurrentVolume, consoleLog, getTimestamp } = context;
 	let playGuildId = null, rawTargetSound = '';
 	if (args[1] && voiceConnections.has(args[1])) {
 		// Specific Guild: soundboard-play [GUILD_ID] [SOUND_NAME]
@@ -827,7 +828,7 @@ async function terminalSoundboardPlay(subCmd, args, context) {
 
 		const player = createAudioPlayer();
 		const resource = createAudioResource(soundPath, { inlineVolume: true });
-		resource.volume.setVolume(guildVolumes.get(gId) ?? currentVolume);
+		resource.volume.setVolume(guildVolumes.get(gId) ?? getCurrentVolume());
 
 		guildPlayers.set(gId, {
 			player,
@@ -847,13 +848,13 @@ async function terminalSoundboardPlay(subCmd, args, context) {
 			conn.once(VoiceConnectionStatus.Ready, startPlayback);
 		}
 	}
-	saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+	saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
 	consoleLog(`[${getTimestamp()}] Played sound '${targetSound}'.`);
 }
 
 async function terminalSoundboardStop(subCmd, args, context) {
-	const { voiceConnections, guildPlayers, guildVolumes, saveVoiceState, consoleLog, getTimestamp } = context;
+	const { voiceConnections, guildPlayers, guildVolumes, saveVoiceState, getCurrentVolume, consoleLog, getTimestamp } = context;
 	const stopGuildId = args[1];
 	if (stopGuildId) {
 		// Specific Guild: soundboard-stop [GUILD_ID]
@@ -861,7 +862,7 @@ async function terminalSoundboardStop(subCmd, args, context) {
 		if (entry) {
 			entry.player.stop();
 			guildPlayers.delete(stopGuildId);
-			saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+			saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
 			consoleLog(`[${getTimestamp()}] Stopped playback for guild ID '${stopGuildId}'.`);
 		} else {
@@ -873,14 +874,14 @@ async function terminalSoundboardStop(subCmd, args, context) {
 			entry?.player?.stop();
 		}
 		guildPlayers.clear();
-		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
 		consoleLog(`[${getTimestamp()}] Stopped playback on all guilds.`);
 	}
 }
 
 async function terminalSoundboardVolume(subCmd, args, context) {
-	const { voiceConnections, guildPlayers, guildVolumes, saveVoiceState, consoleLog, getTimestamp } = context;
+	const { voiceConnections, guildPlayers, guildVolumes, saveVoiceState, getCurrentVolume, setCurrentVolume, consoleLog, getTimestamp } = context;
 	if (args.length === 2) {
 		// Global: soundboard-volume [VOLUME]
 		const volumePercent = parseInt(args[1], 10);
@@ -889,14 +890,14 @@ async function terminalSoundboardVolume(subCmd, args, context) {
 			return;
 		}
 		const volume = volumePercent / 100;
-		currentVolume = volume;
+		setCurrentVolume(volume);
 
 		guildVolumes.clear();
 		for (const entry of guildPlayers.values()) {
 			try { entry?.resource?.volume?.setVolume(volume); } catch (err) {}
 		}
 
-		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
 		consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}% on all guilds.`);
 	} else if (args.length >= 3) {
@@ -914,7 +915,7 @@ async function terminalSoundboardVolume(subCmd, args, context) {
 		if (entry?.resource?.volume) {
 			try { entry.resource.volume.setVolume(volume); } catch (err) {}
 		}
-		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
+		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
 		consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}% for guild ID '${guildId}'.`);
 	} else {
