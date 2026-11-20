@@ -610,13 +610,16 @@ function setupPlayerEvents(guildId, player, voiceConnections, guildPlayers, guil
 	});
 }
 
-function hasSelectedRole(interaction) {
+async function hasSelectedRole(interaction) {
 	if (!interaction?.inGuild() || !interaction.guildId) return false;
 
 	const selectedRoleIds = getGuildRoles(interaction.guildId);
 	if (selectedRoleIds.length === 0) return false;
 
-	const member = interaction.member ?? interaction.guild?.members.cache.get(interaction.user.id);
+	let member = interaction.member ?? interaction.guild?.members.cache.get(interaction.user.id);
+	if (!member && interaction.guild) {
+		member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+	}
 	const roles = member?.roles;
 	if (!roles) return false;
 
@@ -686,7 +689,7 @@ async function isRoleManagerNot(interaction, CONFIG, locales) {
 }
 
 async function isSelectedRoleNot(interaction, locales) {
-	if (!hasSelectedRole(interaction)) {
+	if (!(await hasSelectedRole(interaction))) {
 		await safeReply(interaction, {
 			content: getLocText(interaction, 'replyNoSelectedRole', {}, locales),
 			flags: [MessageFlags.Ephemeral]

@@ -641,7 +641,7 @@ async function terminalRoleTake(subCmd, args, { client, takeGuildRole, consoleLo
 	}
 }
 
-async function terminalRoleAdd(subCmd, args, { client, CONFIG, validateRoleSelection, addGuildRole, consoleLog, getTimestamp }) {
+async function terminalRoleAdd(subCmd, args, { client, validateRoleSelection, addGuildRole, getRolesMaxPerGuild, consoleLog, getTimestamp }) {
 	// Usage: role-add [GUILD_ID] [ROLE_ID]
 	const [, guildId, roleId] = args;
 	if (args.length !== 3 || !SNOWFLAKE_REGEX.test(guildId) || !SNOWFLAKE_REGEX.test(roleId)) {
@@ -665,7 +665,7 @@ async function terminalRoleAdd(subCmd, args, { client, CONFIG, validateRoleSelec
 	try {
 		const result = addGuildRole(guildId, roleId);
 		if (result === 'exists') consoleLog(`[${getTimestamp()}] Role '${roleId}' is already selected in guild '${guildId}'.`);
-		else if (result === 'limit') consoleLog(`[${getTimestamp()}] Error: Limit of ${CONFIG.rolesMaxPerGuild} roles per guild reached.`);
+		else if (result === 'limit') consoleLog(`[${getTimestamp()}] Error: Limit of ${getRolesMaxPerGuild()} roles per guild reached.`);
 		else consoleLog(`[${getTimestamp()}] Success: Selected role '${stripControl(role.name)}' (${roleId}) in guild '${guildId}' via terminal.`);
 	} catch (err) {
 		consoleLog(`[${getTimestamp()}] Error writing roles file: `, err.message);
@@ -924,7 +924,7 @@ async function terminalLoreList(subCmd, args, { loadSafeModule, consoleLog, getT
 	}
 }
 
-async function terminalLoreCreate(subCmd, args, { CONFIG, removeDuplicateLoreInFiles, readLoreFileStrict, writeLoreFile, exceedsLoreLimit, getLoreFilePath, getLoreMaxBytes, consoleLog, getTimestamp }) {
+async function terminalLoreCreate(subCmd, args, { removeDuplicateLoreInFiles, readLoreFileStrict, writeLoreFile, exceedsLoreLimit, getLoreFilePath, getLoreMaxBytes, consoleLog, getTimestamp }) {
 	// Usage: lore-create [GUILD_ID] [LANGUAGE] [LORE_SNIPPET]
 	const guildIdArg = args[1];
 	const langArg = args[2];
