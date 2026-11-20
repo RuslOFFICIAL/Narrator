@@ -181,6 +181,7 @@ async function handleDiscordInteraction(interaction, context) {
 					return;
 				}
 				
+				fs.mkdirSync(soundsDir, { recursive: true });
 				const files = fs.readdirSync(soundsDir);
 				const choices = files
 					.filter(file => file.endsWith('.mp3'))
@@ -314,7 +315,7 @@ async function commandHelp(interaction, context) {
 		await safeReply(interaction, HELP_TEXT);
 	} catch (err) {
 		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] :`, err);
+		consoleLog(`[${getTimestamp()}] Failed to execute command [/${interaction.commandName}] : `, err);
 		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
 	}
 }
@@ -333,7 +334,7 @@ async function commandInfo(interaction, context) {
 }
 
 async function commandRoleCreate(interaction, context) {
-	const { getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, createSelectedRole, ROLES_MAX_PER_GUILD } = context;
+	const { CONFIG, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, createSelectedRole } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -347,7 +348,7 @@ async function commandRoleCreate(interaction, context) {
 
 		if (result.status !== 'created') {
 			const key = ROLE_CREATE_ERROR_KEYS[result.status] ?? 'replyRoleCreateFailed';
-			await safeReply(interaction, { content: getLocText(interaction, key, { limit: ROLES_MAX_PER_GUILD }), flags: [MessageFlags.Ephemeral] });
+			await safeReply(interaction, { content: getLocText(interaction, key, { limit: CONFIG.rolesMaxPerGuild }), flags: [MessageFlags.Ephemeral] });
 			return;
 		}
 
@@ -437,7 +438,7 @@ async function commandRoleTake(interaction, context) {
 }
 
 async function commandRoleAdd(interaction, context) {
-	const { CONFIG, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, validateRoleSelection, addGuildRole, ROLES_MAX_PER_GUILD } = context;
+	const { CONFIG, getLocText, safeReply, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, validateRoleSelection, addGuildRole } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -460,7 +461,7 @@ async function commandRoleAdd(interaction, context) {
 			return;
 		}
 		if (result === 'limit') {
-			await safeReply(interaction, { content: getLocText(interaction, 'replyRoleAddLimit', { limit: ROLES_MAX_PER_GUILD }), flags: [MessageFlags.Ephemeral] });
+			await safeReply(interaction, { content: getLocText(interaction, 'replyRoleAddLimit', { limit: CONFIG.rolesMaxPerGuild }), flags: [MessageFlags.Ephemeral] });
 			return;
 		}
 
@@ -680,7 +681,7 @@ async function commandLoreList(interaction, context) {
 }
 
 async function commandLoreCreate(interaction, context) {
-	const { getLocText, removeDuplicateLoreInFiles, safeReply, consoleLog, getTimestamp, getLoreFilePath, readLoreFileStrict, writeLoreFile, exceedsLoreLimit, LORE_MAX_FILE_BYTES, isGuildNot, isAdminManageServer } = context;
+	const { CONFIG, getLocText, removeDuplicateLoreInFiles, safeReply, consoleLog, getTimestamp, getLoreFilePath, getLoreMaxBytes, readLoreFileStrict, writeLoreFile, exceedsLoreLimit, isGuildNot, isAdminManageServer } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -704,7 +705,7 @@ async function commandLoreCreate(interaction, context) {
 		snippets.push(snippetText);
 
 		if (exceedsLoreLimit(snippets)) {
-			await safeReply(interaction, { content: getLocText(interaction, 'replyLoreCreateTooLarge', { limit: LORE_MAX_FILE_BYTES }), flags: [MessageFlags.Ephemeral] });
+			await safeReply(interaction, { content: getLocText(interaction, 'replyLoreCreateTooLarge', { limit: getLoreMaxBytes() }), flags: [MessageFlags.Ephemeral] });
 			return;
 		}
 

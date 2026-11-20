@@ -1,6 +1,17 @@
 // Dependencies.
-require('dotenv').config();
+const fs = require('fs');
 const path = require('path');
+const envPath = path.join(__dirname, '.env');
+let envFileMissing = false;
+if (fs.existsSync(envPath)) {
+	const result = require('dotenv').config({ path: envPath, quiet: true });
+	if (result.error) {
+		//consoleLog(`[Config] Failed to parse ".env" file (${result.error.message}). Using defaults.`);
+	}
+} else {
+	envFileMissing = true;
+}
+
 const readline = require('readline');
 const { Client, GatewayIntentBits, REST, Routes, ActivityType } = require('discord.js');
 const packageJson = require('./package.json');
@@ -10,12 +21,12 @@ const { getCommands, handleDiscordInteraction } = require('./commands/discord.js
 const { handleTerminalLine, completeTerminalLine } = require('./commands/terminal.js');
 const {
 	loadSafeModule, getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
-	consoleLog: _consoleLog, getTimestamp, formatUptime, makeLogMessage: _makeLogMessage, safeReply: _safeReply, writeLogToFile, writeCenteredLog, setLogReadline,
+	consoleLog: _consoleLog, getTimestamp, formatUptime, makeLogMessage: _makeLogMessage, safeReply: _safeReply, writeLogToFile, writeCenteredLog, setLogReadline, setConfig,
 	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTesterNot: _isAuthorizedTesterNot, isAdminManageServer: _isAdminManageServer, isRoleManagerNot: _isRoleManagerNot, isSelectedRoleNot: _isSelectedRoleNot, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
 	saveVoiceState, restoreVoiceState, loadVolumes,
-	readLoreFileStrict, writeLoreFile, exceedsLoreLimit, LORE_MAX_FILE_BYTES,
-	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, roleColorEmoji, ROLES_MAX_PER_GUILD,
-	getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
+	readLoreFileStrict, writeLoreFile, exceedsLoreLimit,
+	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, roleColorEmoji,
+	getLoreMaxBytes, getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown: _shutdown, restart: _restart, loginWithRetry
 } = require('./commands/helpers.js');
 
@@ -99,25 +110,45 @@ const rl = readline.createInterface({
 
 setLogReadline(rl);
 
-function parseIdList(value) {
-	return value ? value.split(',').map(id => id.trim()).filter(Boolean) : [];
-}
+// ".env" file.
+const parseEnv = (key, fallback, transform) => {
+	const raw = process.env[key];
+	if (raw === undefined || String(raw).trim() === '') return fallback;
+	try {
+		return transform ? transform(String(raw).trim()) : String(raw).trim();
+	} catch {
+		return fallback;
+	}
+};
 
-function parseChance(value, fallback) {
-	const parsed = parseInt(value, 10);
-	return Number.isNaN(parsed) ? fallback : Math.min(100, Math.max(0, parsed));
-}
+const parseList = (v) => v.split(',').map(s => s.trim()).filter(Boolean);
+const parseIntRange = (min, max) => (v) => {
+	const n = parseInt(v, 10);
+	if (Number.isNaN(n)) throw new Error('NaN');
+	return Math.min(max, Math.max(min, n));
+};
 
 const CONFIG = {
-	statusBot: process.env.STATUS,
-	statusName: process.env.STATUS_NAME,
-	statusType: process.env.STATUS_TYPE,
-	statusUrl: process.env.STATUS_URL,
+	envFileMissing,
+	discordToken: parseEnv('DISCORD_TOKEN', ''),
 
-	kickChance: parseChance(process.env.KICK_CHANCE, 10),
-	whitelist: parseIdList(process.env.WHITELIST),
-	authorizedTesters: parseIdList(process.env.AUTHORIZED_TESTERS)
+	statusBot: parseEnv('STATUS', 'online'),
+	statusName: parseEnv('STATUS_NAME', 'Narrator'),
+	statusType: parseEnv('STATUS_TYPE', 'Playing'),
+	statusUrl: parseEnv('STATUS_URL', ''),
+
+	kickChance: parseEnv('KICK_CHANCE', 10, parseIntRange(0, 100)),
+	whitelist: parseEnv('WHITELIST', [], parseList),
+	authorizedTesters: parseEnv('AUTHORIZED_TESTERS', [], parseList),
+
+	logMaxFileBytes: parseEnv('LOG_MAX_SIZE_BYTES', 2 ** 25, parseIntRange(1024, 2 ** 30)),
+	logRetentionDays: parseEnv('LOG_RETENTION_DAYS', 30, parseIntRange(1, 3650)),
+	loreMaxFileBytes: parseEnv('LORE_MAX_SIZE_BYTES', 2 ** 20, parseIntRange(1024, 2 ** 28)),
+	
+	rolesMaxPerGuild: parseEnv('ROLES_MAX_PER_GUILD', 250, parseIntRange(1, 1000)),
+	rolesMaxFileBytes: parseEnv('ROLES_MAX_FILE_BYTES', 2 ** 20, parseIntRange(1024, 2 ** 28))
 };
+setConfig(CONFIG);
 
 const commands = getCommands(CONFIG, getCmdText);
 
@@ -131,9 +162,9 @@ const executionContext = {
 	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply,
 	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isRoleManagerNot, isSelectedRoleNot, isGuildNot, isVoiceNot,
 	saveVoiceState, restoreVoiceState,
-	readLoreFileStrict, writeLoreFile, exceedsLoreLimit, LORE_MAX_FILE_BYTES,
-	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, roleColorEmoji, ROLES_MAX_PER_GUILD,
-	getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
+	readLoreFileStrict, writeLoreFile, exceedsLoreLimit,
+	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, roleColorEmoji,
+	getLoreMaxBytes: () => CONFIG.loreMaxFileBytes, getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown, restart, rl, loadSafeModule
 };
 
@@ -170,7 +201,7 @@ client.once('clientReady', async () => {
 	}
 
 	// Register slash (/).
-	const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+	const rest = new REST({ version: '10' }).setToken(CONFIG.discordToken);
 	try {
 		consoleLog(`[${getTimestamp()}] Refreshing application (/) commands... `);
 		await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
@@ -230,4 +261,15 @@ process.on('SIGINT', () => shutdown());
 process.on('SIGTERM', () => shutdown());
 process.on('SIGUSR2', () => shutdown());
 
-loginWithRetry(client);
+if (CONFIG.envFileMissing) {
+	consoleLog(`[${getTimestamp()}] [Config] No ".env" file found at '${envPath}'. Falling back to process environment and defaults.`);
+}
+
+if (CONFIG.discordToken) {
+	loginWithRetry(client, 1, CONFIG.discordToken);
+} else {
+	consoleLog(`[${getTimestamp()}] No 'DISCORD_TOKEN' found. Skipping Discord login.`);
+	if (!rl.closed) {
+		rl.prompt();
+	}
+}

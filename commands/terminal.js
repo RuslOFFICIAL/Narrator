@@ -34,9 +34,11 @@ BOT:
 - soundboard-play: Play the specified soundboard audio.
 - soundboard-stop: Stop playing the soundboard audio.
 - soundboard-volume: Set playback volume (0-100).
-\nCheck command formats in file 'formats.md'.`;
+\nCheck command formats in file "docs/formats.md".`;
 
 const loresDir = path.join(__dirname, '../lores');
+const soundsDir = path.join(__dirname, '../sounds');
+
 const stripControl = (text) => String(text).replace(/[\x00-\x1f\x7f]/g, '');
 
 const LANG_CODE_REGEX = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
@@ -315,7 +317,10 @@ function completeTerminalLine(line, { client, locales, voiceConnections, guildPl
 		catch { return []; }
 	};
 	const lores = () => names(loresDir, '.js');
-	const sounds = () => names(path.join(__dirname, '../sounds'), '.mp3');
+	const sounds = () => {
+		fs.mkdirSync(soundsDir, { recursive: true });
+		return names(soundsDir, '.mp3');
+	};
 	const storedRoles = () => { try { return getAllGuildRoles(); } catch (err) { return {}; } };
  
 	const slots = (...fns) => (a) => fns[a.length - 1]?.(a) ?? [];
@@ -385,15 +390,15 @@ function completeTerminalLine(line, { client, locales, voiceConnections, guildPl
 		),
 		'voice-join': slots(() => channels(c => c.isVoiceBased() && c.joinable)), // Only channels the bot can actually join.
 		'voice-leave': slots(() => keys(voiceConnections)),
+		'soundboard-play': (a) => {
+			partial = a.slice(a.length > 1 && voiceConnections.has(a[0]) ? 1 : 0).join(' ');
+			return a.length === 1 ? [...keys(voiceConnections), ...sounds()] : sounds();
+		},
 		'soundboard-stop': slots(() => keys(guildPlayers)),
 		'soundboard-volume': slots(
 			() => ['0', '25', '50', '75', '100', ...guilds()],
 			([g]) => client.guilds.cache.has(g) ? ['0', '25', '50', '75', '100'] : []
 		),
-		'soundboard-play': (a) => {
-			partial = a.slice(a.length > 1 && voiceConnections.has(a[0]) ? 1 : 0).join(' ');
-			return a.length === 1 ? [...keys(voiceConnections), ...sounds()] : sounds();
-		},
 	};
  
 	const candidates = args.length ? completers[cmd.toLowerCase()]?.(args) ?? [] : TERMINAL_COMMANDS.map(c => `${c} `); // Trailing space ready for arguments.
@@ -574,7 +579,7 @@ async function terminalRoleCreate(subCmd, args, { client, createSelectedRole, co
 		}
 		consoleLog(`[${getTimestamp()}] Success: Created selected role '${stripControl(result.role.name)}' (${result.role.id}) in guild '${guildId}' via terminal.`);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Error creating role:`, err.message);
+		consoleLog(`[${getTimestamp()}] Error creating role: `, err.message);
 	}
 }
 
@@ -603,7 +608,7 @@ async function terminalRoleGive(subCmd, args, { client, giveGuildRole, consoleLo
 		}
 		consoleLog(`[${getTimestamp()}] Success: Gave role '${stripControl(role.name)}' (${roleId}) to '${stripControl(member.user.tag)}' (${userId}) in guild '${guildId}' via terminal.`);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Error giving role:`, err.message);
+		consoleLog(`[${getTimestamp()}] Error giving role: `, err.message);
 	}
 }
 
@@ -632,11 +637,11 @@ async function terminalRoleTake(subCmd, args, { client, takeGuildRole, consoleLo
 		}
 		consoleLog(`[${getTimestamp()}] Success: Took role '${stripControl(role.name)}' (${roleId}) from '${stripControl(member.user.tag)}' (${userId}) in guild '${guildId}' via terminal.`);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Error taking role:`, err.message);
+		consoleLog(`[${getTimestamp()}] Error taking role: `, err.message);
 	}
 }
 
-async function terminalRoleAdd(subCmd, args, { client, validateRoleSelection, addGuildRole, ROLES_MAX_PER_GUILD, consoleLog, getTimestamp }) {
+async function terminalRoleAdd(subCmd, args, { client, CONFIG, validateRoleSelection, addGuildRole, consoleLog, getTimestamp }) {
 	// Usage: role-add [GUILD_ID] [ROLE_ID]
 	const [, guildId, roleId] = args;
 	if (args.length !== 3 || !SNOWFLAKE_REGEX.test(guildId) || !SNOWFLAKE_REGEX.test(roleId)) {
@@ -660,10 +665,10 @@ async function terminalRoleAdd(subCmd, args, { client, validateRoleSelection, ad
 	try {
 		const result = addGuildRole(guildId, roleId);
 		if (result === 'exists') consoleLog(`[${getTimestamp()}] Role '${roleId}' is already selected in guild '${guildId}'.`);
-		else if (result === 'limit') consoleLog(`[${getTimestamp()}] Error: Limit of ${ROLES_MAX_PER_GUILD} roles per guild reached.`);
+		else if (result === 'limit') consoleLog(`[${getTimestamp()}] Error: Limit of ${CONFIG.rolesMaxPerGuild} roles per guild reached.`);
 		else consoleLog(`[${getTimestamp()}] Success: Selected role '${stripControl(role.name)}' (${roleId}) in guild '${guildId}' via terminal.`);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Error writing roles file:`, err.message);
+		consoleLog(`[${getTimestamp()}] Error writing roles file: `, err.message);
 	}
 }
 
@@ -680,12 +685,13 @@ async function terminalRoleRemove(subCmd, args, { removeGuildRole, consoleLog, g
 		if (result === 'missing') consoleLog(`[${getTimestamp()}] Error: Role '${roleId}' is not selected in guild '${guildId}'.`);
 		else consoleLog(`[${getTimestamp()}] Success: Unselected role '${roleId}' in guild '${guildId}' via terminal.`);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Error writing roles file:`, err.message);
+		consoleLog(`[${getTimestamp()}] Error writing roles file: `, err.message);
 	}
 }
 
 async function terminalRoleList(subCmd, args, { client, getAllGuildRoles, consoleLog, getTimestamp }) {
-	// Usage: role-list [GUILD_ID]
+	// Global: role-list
+	// Specific Guild: role-list [GUILD_ID]
 	const guildId = args[1];
 	if (args.length > 2 || (guildId && !SNOWFLAKE_REGEX.test(guildId))) {
 		consoleLog(`[${getTimestamp()}] Error: Usage -> role-list [GUILD_ID]`);
@@ -696,7 +702,7 @@ async function terminalRoleList(subCmd, args, { client, getAllGuildRoles, consol
 	try {
 		all = getAllGuildRoles();
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Error reading roles file:`, err.message);
+		consoleLog(`[${getTimestamp()}] Error reading roles file: `, err.message);
 		return;
 	}
 
@@ -918,7 +924,7 @@ async function terminalLoreList(subCmd, args, { loadSafeModule, consoleLog, getT
 	}
 }
 
-async function terminalLoreCreate(subCmd, args, { removeDuplicateLoreInFiles, readLoreFileStrict, writeLoreFile, exceedsLoreLimit, LORE_MAX_FILE_BYTES, getLoreFilePath, consoleLog, getTimestamp }) {
+async function terminalLoreCreate(subCmd, args, { CONFIG, removeDuplicateLoreInFiles, readLoreFileStrict, writeLoreFile, exceedsLoreLimit, getLoreFilePath, getLoreMaxBytes, consoleLog, getTimestamp }) {
 	// Usage: lore-create [GUILD_ID] [LANGUAGE] [LORE_SNIPPET]
 	const guildIdArg = args[1];
 	const langArg = args[2];
@@ -944,7 +950,7 @@ async function terminalLoreCreate(subCmd, args, { removeDuplicateLoreInFiles, re
 		existingSnippets.push(snippetText);
 
 		if (exceedsLoreLimit(existingSnippets)) {
-			consoleLog(`[${getTimestamp()}] Error: Lore file would exceed the ${LORE_MAX_FILE_BYTES} Bytes limit. Snippet not added.`);
+			consoleLog(`[${getTimestamp()}] Error: Lore file would exceed the ${getLoreMaxBytes()} Bytes limit. Snippet not added.`);
 			return;
 		}
 
@@ -952,7 +958,7 @@ async function terminalLoreCreate(subCmd, args, { removeDuplicateLoreInFiles, re
 		removeDuplicateLoreInFiles(loresDir);
 		consoleLog(`[${getTimestamp()}] Success: Added snippet to '${filePath}'`);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Error writing lore file:`, err.message);
+		consoleLog(`[${getTimestamp()}] Error writing lore file: `, err.message);
 	}
 }
 
@@ -1074,6 +1080,7 @@ async function terminalSoundboardPlay(subCmd, args, context) {
 		// Global: soundboard-play [SOUND_NAME]
 		rawTargetSound = restAfter(subCmd, 1);
 	}
+	fs.mkdirSync(soundsDir, { recursive: true });
 	const soundPath = getSoundFilePath(rawTargetSound);
 	if (!soundPath || !fs.existsSync(soundPath)) {
 		consoleLog(`[${getTimestamp()}] Error: Sound file not found.`);

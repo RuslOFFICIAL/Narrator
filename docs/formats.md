@@ -4,39 +4,61 @@
 
 ## Commands with Command as Format:
 
-### help
+### /help
 
-### info
+### /info
 
-### lottery-kick
+### /role-list
 
-### lore
+### /lottery-kick
 
-### voice-leave
+### /lore
 
-### soundboard-stop
+### /voice-leave
+
+### /soundboard-stop
 
 -----
 
 ## Commands wth One Format:
 
-### lore-list:
-- To List current Guild and Specific Language Lore Snippets: lore-list [LANGUAGE]
+### /role-create
+- To Create a server Selected Role: /role-create [ROLE_NAME]
 
-### lore-create:
-- To Create Lore Snippet of current Guild: lore-create lore-create [LANGUAGE] [LORE_SNIPPET]
+### /role-add
+- To Add a server already Existing role as a Selected Role: /role-add [ROLE]
 
-### lore-remove:
-- To Remove Lore Snippet of current Guild: lore-remove [GUILD_ID] [LANGUAGE] [SNIPPET_NUMBER]
+### /role-give
+- To Give a server Selected Role to a User: /role-give [MEMBER] [ROLE]
 
-### voice-join:
-- To Join particular Voice Channel of current Guild: voice-join [CHANNEL]
+### /role-take
+- To Take a server Selected Role from a User: /role-take [MEMBER] [ROLE]
 
-### soundboard-play:
-- To play playback on current Guild: soundboard-play [SOUND]
+### /role-remove
+- To Remove a Role From server Selected Role: /role-remove [ROLE]
 
-### soundboard-volume:
-- To Change volume on current Guild: soundboard-volume [VOLUME]
+### /lore-create:
+- To Create Lore Snippet of current Guild: /lore-create [LANGUAGE] [LORE_SNIPPET]
+
+### /lore-remove:
+- To Remove Lore Snippet of current Guild: /lore-remove [GUILD_ID] [LANGUAGE] [SNIPPET_NUMBER]
+
+### /voice-join:
+- To Join particular Voice Channel of current Guild: /voice-join [CHANNEL]
+
+### /soundboard-play:
+- To play playback on current Guild: /soundboard-play [SOUND]
+
+### /soundboard-volume:
+- To Change volume on current Guild: /soundboard-volume [VOLUME]
+
+-----
+
+## Command with Few Formats:
+
+### /lore-list
+- To List current Guild Snippets in a User's language: /lore-list
+- To List current Guild Snippets in a Specific Language Lore: /lore-list [LANGUAGE]
 
 -----
 -----
@@ -70,6 +92,21 @@
 
 ## Commands with One Format:
 
+### role-create
+- To Create a particular guild Selected Role: role-create [GUILD_ID] [ROLE_NAME]
+
+### role-add
+- To Add a particular guild already Existing role as a Selected Role: role-add [GUILD_ID] [ROLE_ID]
+
+### role-give
+- To Give a particular guild Selected Role to a User: role-give [GUILD_ID] [USER_ID] [ROLE_ID]
+
+### role-take
+- To Take a particular guild Selected Role from a User: role-take [GUILD_ID] [USER_ID] [ROLE_ID]
+
+### role-remove
+- To Remove a Role From particular guild Selected Role: role-remove [GUILD_ID] [ROLE_ID]
+
 ### lore-create:
 - To Create Lore Snippet of particular Guild: lore-create [GUILD_ID] [LANGUAGE] [LORE_SNIPPET]
 
@@ -86,6 +123,10 @@
 ### echo:
 - To Send Message: echo [CHANNEL_ID] [MESSAGE]
 - To Edit Message: echo -e [CHANNEL_ID] [EDITED_TEXT]
+
+### role-list
+- To List All Selected Roles: role-list
+- To List particular Guild Selected Roles: role-list [GUILD_ID]
 
 ### lore:
 - To Get Random Lore Snippet: lore

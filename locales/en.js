@@ -5,6 +5,12 @@ General Commands:
 /help - Shows the bot commands.
 /info - Information about the lore.
 \nGuild Commands:
+/role-create: Create a role and add it to a server's selected roles.
+/role-give: Give a selected role to a member.
+/role-take: Take a selected role from a member.
+/role-add: Add a role to a server's selected roles.
+/role-remove: Remove a role from server's selected roles.
+/role-list: List server's selected roles.
 /lottery-kick - {kickChance}% chance to be kicked from the server. Good luck!
 /lore - Tells one of the parts of the server lore.
 /lore-list - Lists lore snippets.
@@ -18,7 +24,7 @@ General Commands:
 	infoText: `Servers' lores are written by members on server with the "Manage Server" or "Administrator" permission.
 They are not created by the creator of the "Narrator" bot.`,	
 	
-	// Messages.
+	// Bot texts.
 	replyBotLoading: `The bot is still loading. Please wait.`,
 	replyCommandError: `Failed to execute the command [{commandName}]. Try again later.`,
 	replyGuild: `This command can only be used on servers!`,
@@ -29,6 +35,7 @@ They are not created by the creator of the "Narrator" bot.`,
 	replyNoPermissionRoleManage: `You must be whitelisted or have the Manage Server or Administrator permission.`,
 	replyNoSelectedRole: `You need one of the server's selected roles to use this command.`,
 	
+	// Related texts.
 	replyRoleNotFound: `That role was not found on this server.`,
 	replyRoleInvalidEveryone: `The '@everyone' role cannot be selected.`,
 	replyRoleInvalidManaged: `Bot and integration roles cannot be selected.`,
@@ -37,6 +44,7 @@ They are not created by the creator of the "Narrator" bot.`,
 	replyRoleInvalidBotHierarchy: `That role is not below bot's highest role.`,
 	replyRoleInvalidUserHierarchy: `That role is not below Your highest role.`,
 	
+	// Commands texts.
 	replyWhitelistYes: `This command is not available to You because it might do something to You. Try using another command or try again later.`,
 	replyWhitelistNo: `This command is not available to You. Try using another command or try again later.`,
 	replyAuthorizedTesterNot: `This command is being tested. Try using another command or try again later.`,
@@ -120,6 +128,7 @@ They are not created by the creator of the "Narrator" bot.`,
 	descSoundboardStop: `Stops the sound in the voice channel.`,
 	descSoundboardVolume: `Adjust the playback volume of the bot.`,
 	
+	// Options.
 	optionRole: `The role.`,
 	optionRoleName: `Name of the new selected role.`,
 	optionMember: `The member.`,

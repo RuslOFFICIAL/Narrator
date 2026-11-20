@@ -5,6 +5,12 @@ module.exports = {
 /help - Показує команди бота.
 /info - Інформація про лор.
 \nКоманди Сервера:
+/role-create: Створити роль і додати її до вибраних ролей сервера.
+/role-give: Видати вибрану роль учаснику.
+/role-take: Забрати вибрану роль в учасника.
+/role-add: Додати роль до вибраних ролей сервера.
+/role-remove: Прибрати роль із вибраних ролей сервера.
+/role-list: Показати вибрані ролі сервера.
 /lottery-kick - {kickChance}% на кік з серверу. Удачі!
 /lore - Розказує одну з частин лору.
 /lore-list - Перелік уривків лору.
@@ -18,7 +24,7 @@ module.exports = {
 	infoText: `Лори серверів зроблені тими Учасниками серверу, які на сервері мають дозвіл "Керувати сервером" або "Адміністратор".
 Лор серверів не зроблений Творцем боту "Narrator".`,	
 	
-	// Messages.
+	// Bot texts..
 	replyBotLoading: `Бот ще завантажується. Почекайте, будь ласка.`,
 	replyCommandError: `Не вдалося виконати команду [{commandName}]. Спробуйте пізніше.`,
 	replyGuild: `Цю команду можна використовувати лише на серверах!`,
@@ -29,6 +35,7 @@ module.exports = {
 	replyNoPermissionRoleManage: `Ви маєте бути у білому списку або мати право "Керувати сервером" чи "Адміністратор".`,
 	replyNoSelectedRole: `Для використання цієї команди Вам потрібна одна з вибраних ролей сервера.`,
 	
+	// Related texts.
 	replyRoleNotFound: `Цю роль не знайдено на цьому сервері.`,
 	replyRoleInvalidEveryone: `Роль '@everyone' не можна вибрати.`,
 	replyRoleInvalidManaged: `Ролі Ботів та інтеграцій не можна вибрати.`,
@@ -37,6 +44,7 @@ module.exports = {
 	replyRoleInvalidBotHierarchy: `Ця роль не нижча за найвищу роль Бота.`,
 	replyRoleInvalidUserHierarchy: `Ця роль не нижча за вашу найвищу роль.`,
 	
+	// Commands texts.
 	replyRoleCreateSuccess: 'Роль {role} створено та додано до вибраних.',
 	replyRoleCreateInvalidName: 'Назва ролі не може бути порожньою.',
 	replyRoleCreateFailed: 'Не вдалося створити вибрану роль.',
@@ -106,9 +114,9 @@ module.exports = {
 	descRoleCreate: `Створити роль і додати її до вибраних ролей сервера.`,
 	descRoleGive: `Видати вибрану роль учаснику.`,
 	descRoleTake: `Забрати вибрану роль в учасника.`,
-	descRoleAdd: `Додати роль до вибраних ролей цього сервера.`,
-	descRoleRemove: `Прибрати роль із вибраних ролей цього сервера.`,
-	descRoleList: `Показати вибрані ролі цього сервера.`,
+	descRoleAdd: `Додати роль до вибраних ролей сервера.`,
+	descRoleRemove: `Прибрати роль із вибраних ролей сервера.`,
+	descRoleList: `Показати вибрані ролі сервера.`,
 	descLotteryKick: `{kickChance}% на кік з серверу. Удачі!`,
 	descLore: `Команда для лору.`,
 	descLoreList: `Перелік уривків лору.`,
@@ -120,6 +128,7 @@ module.exports = {
 	descSoundboardStop: `Припиняє звук в голосовому каналі.`,
 	descSoundboardVolume: `Змінити гучність відтворення бота.`,
 	
+	// Options.
 	optionRole: `Роль.`,
 	optionRoleName: `Назва нової вибраної ролі.`,
 	optionMember: `Учасник.`,

@@ -18,17 +18,17 @@ const soundsDir = path.join(__dirname, '../sounds');
 const FATAL_LOGIN_ERRORS = ['TokenInvalid', 'TokenMissing', 'DisallowedIntents'];
 const GUILD_ID_REGEX = /^(\d{5,25}|default)$/;
 const LANG_CODE_REGEX = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
+const LOG_FILE_REGEX = /^(\d{4})-(\d{2})-(\d{2})(?:\.\d+)?\.log$/;
 const TIMESTAMP_PREFIX_REGEX = /^\[\d{2}:\d{2}:\d{2} \d{2}\.\d{2}\.\d{4} UTC\]/;
 const SNOWFLAKE_REGEX = /^\d{5,25}$/;
 const REJOIN_DELAYS_MS = [5000, 10000, 20000, 40000, 60000];
 const ROLE_FORBIDDEN_PERMISSIONS = [PermissionFlagsBits.Administrator, PermissionFlagsBits.ManageGuild, PermissionFlagsBits.ManageRoles];
 
-const LOG_MAX_FILE_BYTES = parseInt(process.env.LOG_MAX_SIZE_BYTES, 10) || (2 ** 25); // 32 MiB.
-const LOG_RETENTION_DAYS = parseInt(process.env.LOG_RETENTION_DAYS, 10) || 30;
-const LOG_FILE_REGEX = /^(\d{4})-(\d{2})-(\d{2})(?:\.\d+)?\.log$/;
-const LORE_MAX_FILE_BYTES = parseInt(process.env.LORE_MAX_SIZE_BYTES, 10) || (2 ** 20); // 1 MiB.
+const LOG_MAX_FILE_BYTES = 2 ** 25; // 32 MiB.
+const LOG_RETENTION_DAYS = 30;
+const LORE_MAX_FILE_BYTES = 2 ** 20; // 1 MiB.
 const ROLES_MAX_PER_GUILD = 250;
-const ROLES_MAX_FILE_BYTES = 2 ** 20;
+const ROLES_MAX_FILE_BYTES = 2 ** 20; // 1 MiB.
 
 const COLOR_EMOJIS = [
 	{ emoji: '🔴', rgb: [221, 46, 68] },
@@ -43,11 +43,23 @@ const COLOR_EMOJIS = [
 ];
 
 const resolveVolume = (v) => (typeof v === 'function' ? v() : v);
+const rejoinTimers = new Map();
+
 let isExiting = false;
 let defaultRl = null;
 let logWriteWarned = false;
 let logState = { date: null, part: 0, size: null };
-const rejoinTimers = new Map();
+let activeConfig = null;
+
+function setConfig(config) {
+	activeConfig = config;
+}
+
+const getLogMaxBytes = () => activeConfig?.logMaxFileBytes ?? LOG_MAX_FILE_BYTES;
+const getLogRetentionDays = () => activeConfig?.logRetentionDays ?? LOG_RETENTION_DAYS;
+const getLoreMaxBytes = () => activeConfig?.loreMaxFileBytes ?? LORE_MAX_FILE_BYTES;
+const getRolesMaxPerGuild = () => activeConfig?.rolesMaxPerGuild ?? ROLES_MAX_PER_GUILD;
+const getRolesMaxFileBytes = () => activeConfig?.rolesMaxFileBytes ?? ROLES_MAX_FILE_BYTES;
 
 // Functions.
 function loadSafeModule(filePath, fallbackValue) {
@@ -142,7 +154,7 @@ function removeDuplicateLoreInFiles(loresDir) {
 				consoleLog(`[${getTimestamp()}] [Lore Cleanup] Removed ${snippets.length - uniqueSnippets.length} duplicate(s) from file '${file}'.`);
 			}
 		} catch (err) {
-			consoleLog(`[${getTimestamp()}] Failed to process lore file '${file}':`, err);
+			consoleLog(`[${getTimestamp()}] Failed to process lore file '${file}': `, err);
 		}
 	}
 	
@@ -309,7 +321,7 @@ function writeLogToFile(message, { raw = false } = {}) {
 function cleanOldLogs() {
 	try {
 		if (!fs.existsSync(logsDir)) return;
-		const cutoff = Date.now() - LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+		const cutoff = Date.now() - getLogRetentionDays() * 24 * 60 * 60 * 1000;
 		let removed = 0;
 
 		for (const file of fs.readdirSync(logsDir)) {
@@ -326,7 +338,7 @@ function cleanOldLogs() {
 		}
 
 		if (removed > 0) {
-			consoleLog(`[${getTimestamp()}] [Logger] Removed ${removed} log file(s) older than ${LOG_RETENTION_DAYS} days.`);
+			consoleLog(`[${getTimestamp()}] [Logger] Removed ${removed} log file(s) older than ${getLogRetentionDays()} days.`);
 		}
 	} catch (err) {
 		consoleLog(`[${getTimestamp()}] [Logger] Failed to clean old logs: `, err.message);
@@ -353,7 +365,7 @@ function appendToLog(text) {
 			try { logState.size = fs.statSync(filePath).size; } catch (err) { logState.size = 0; }
 		}
 
-		if (logState.size > 0 && logState.size + bytes > LOG_MAX_FILE_BYTES) {
+		if (logState.size > 0 && logState.size + bytes > getLogMaxBytes()) {
 			logState.part++;
 			logState.size = null;
 			continue;
@@ -390,7 +402,7 @@ function serializeLore(snippets) {
 }
 
 function exceedsLoreLimit(snippets) {
-	return Buffer.byteLength(serializeLore(snippets), 'utf8') > LORE_MAX_FILE_BYTES;
+	return Buffer.byteLength(serializeLore(snippets), 'utf8') > getLoreMaxBytes();
 }
 
 function writeLoreFile(filePath, snippets) {
@@ -432,14 +444,15 @@ function getAllGuildRoles() {
 }
 
 function writeAllGuildRoles(data) {
+	const maxBytes = getRolesMaxFileBytes();
 	const clean = {};
 	for (const [guildId, ids] of Object.entries(data)) {
 		if (ids.length > 0) clean[guildId] = ids;
 	}
 	// Only validated digit strings are serialized.
 	const content = `module.exports = ${JSON.stringify(clean, null, '\t')};\n`;
-	if (Buffer.byteLength(content, 'utf8') > ROLES_MAX_FILE_BYTES) {
-		throw new Error(`'roles.js' would exceed ${ROLES_MAX_FILE_BYTES} bytes.`);
+	if (Buffer.byteLength(content, 'utf8') > maxBytes) {
+		throw new Error(`'roles.js' would exceed ${maxBytes} bytes.`);
 	}
 	fs.mkdirSync(dataDir, { recursive: true });
 	if (fs.existsSync(rolesFile)) {
@@ -461,7 +474,7 @@ function addGuildRole(guildId, roleId) {
 	const data = getAllGuildRoles();
 	const list = data[guildId] ?? [];
 	if (list.includes(roleId)) return 'exists';
-	if (list.length >= ROLES_MAX_PER_GUILD) return 'limit';
+	if (list.length >= getRolesMaxPerGuild()) return 'limit';
 	data[guildId] = [...list, roleId];
 	writeAllGuildRoles(data);
 	return 'added';
@@ -498,7 +511,7 @@ async function createSelectedRole(guild, { name, color = null, hoist = false, me
 	if (!guild) return { status: 'notFound' };
 
 	const existing = getGuildRoles(guild.id);
-	if (existing.length >= ROLES_MAX_PER_GUILD) return { status: 'limit' };
+	if (existing.length >= getRolesMaxPerGuild()) return { status: 'limit' };
 
 	const me = guild.members.me;
 	if (!me?.permissions.has(PermissionFlagsBits.ManageRoles)) return { status: 'botPermission' };
@@ -849,6 +862,7 @@ function getLoreFilePath(guildId, lang) {
 function getSoundFilePath(name) {
 	const soundName = String(name ?? '').replace(/\.mp3$/i, '');
 	if (!soundName || /[\\/\0]/.test(soundName)) return null;
+	fs.mkdirSync(soundsDir, { recursive: true });
 	const resolvedDir = path.resolve(soundsDir);
 	const filePath = path.resolve(resolvedDir, `${soundName}.mp3`);
 	return path.dirname(filePath) === resolvedDir ? filePath : null;
@@ -1064,9 +1078,9 @@ async function restart(client, voiceConnections, guildPlayers, rl, scriptFilenam
 	}
 }
 
-async function loginWithRetry(client, attempt = 1) {
+async function loginWithRetry(client, attempt = 1, token = activeConfig?.discordToken || process.env.DISCORD_TOKEN) {
 	try {
-		await client.login(process.env.DISCORD_TOKEN);
+		await client.login(token);
 	} catch (err) {
 		consoleLog(`[${getTimestamp()}] Login failed (attempt ${attempt}): ${err.message}`);
 		if (FATAL_LOGIN_ERRORS.includes(err.code) || attempt >= 10) {
@@ -1078,17 +1092,18 @@ async function loginWithRetry(client, attempt = 1) {
 		
 		const delayMs = Math.min(60000, 5000 * attempt);
 		consoleLog(`[${getTimestamp()}] Retrying login in ${delayMs / 1000}s...`);
-		setTimeout(() => loginWithRetry(client, attempt + 1), delayMs);
+		setTimeout(() => loginWithRetry(client, attempt + 1, token), delayMs);
 	}
 }
 
 module.exports = {
 	loadSafeModule, getCmdText, getLocText, getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
-	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply, getFormattedDate, writeLogToFile, writeCenteredLog, setLogReadline,
+	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply, getFormattedDate, writeLogToFile, writeCenteredLog, setLogReadline, setConfig,
 	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isRoleManagerNot, isSelectedRoleNot, isGuildNot, isVoiceNot,
 	saveVoiceState, restoreVoiceState, loadVolumes,
-	readLoreFileStrict, writeLoreFile, exceedsLoreLimit, LORE_MAX_FILE_BYTES,
-	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, roleColorEmoji, ROLES_MAX_PER_GUILD,
-	getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
+	readLoreFileStrict, writeLoreFile, exceedsLoreLimit,
+	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, roleColorEmoji,
+	getRolesMaxPerGuild, getRolesMaxFileBytes,
+	getLoreMaxBytes, getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown, restart, loginWithRetry
 };
