@@ -37,7 +37,7 @@ jobs:
           import fs from "node:fs";
           import path from "node:path";
 
-          const ignoreDirs = new Set(["node_modules", ".git", "lores", "data", "logs", "sounds"]);
+          const ignoreDirs = new Set(["node_modules", ".git", "locales", "lores", "data", "logs", "sounds"]);
           const jsFiles = [];
 
           function walk(dir, depth = 0) {
@@ -58,24 +58,37 @@ jobs:
           	"setImmediate", "clearImmediate", "Promise", "Map", "Set", "Array", "Object",
           	"String", "Number", "Boolean", "RegExp", "Error", "JSON", "Math", "Date",
           	"BigInt", "Symbol", "WeakMap", "WeakSet", "URL", "URLSearchParams", "Intl",
+          	"parseInt", "parseFloat", "isNaN", "isFinite",
           	"NaN", "Infinity", "undefined", "null", "true", "false"
+          ]);
+
+          const keywords = new Set([
+          	"const", "let", "var", "function", "class", "get", "set",
+          	"if", "else", "for", "while", "do", "switch", "case", "default",
+          	"break", "continue", "return", "try", "catch", "finally", "throw",
+          	"new", "typeof", "void", "in", "of", "async", "await", "import", "from", "export"
           ]);
 
           let problems = 0;
 
           for (const file of jsFiles) {
           	const code = fs.readFileSync(file, "utf8");
+          	// Remove block comments, line comments, and all string/template literals
           	const stripped = code
-          		.replace(/\/\*[\s\S]*?\*\//g, "")
-          		.replace(/\/\/[^\n]*/g, "")
-          		.replace(/`(?:\\.|[^`])*`/g, '""')
-          		.replace(/"(?:\\.|[^"])*"/g, '""')
-          		.replace(/'(?:\\.|[^'])*'/g, '""');
+          		.replace(/\/\*[\s\S]*?\*\//g, " ")
+          		.replace(/\/\/[^\n]*/g, " ")
+          		.replace(/`(?:\\.|[^`])*`/g, ' "" ')
+          		.replace(/"(?:\\.|[^"])*"/g, ' "" ')
+          		.replace(/'(?:\\.|[^'])*'/g, ' "" ');
 
-          	const declared = new Set(allowedGlobals);
+          	const declared = new Set([...allowedGlobals, ...keywords]);
+
+          	// Declarations: const/let/var/function/class
           	for (const m of stripped.matchAll(/\b(?:const|let|var|function|class)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g)) {
           		declared.add(m[1]);
           	}
+
+          	// Object destructuring: const { a, b: c } = ...
           	for (const m of stripped.matchAll(/(?:const|let|var)\s*\{([^}]+)\}/g)) {
           		for (const part of m[1].split(",")) {
           			const clean = part.trim();
@@ -88,19 +101,44 @@ jobs:
           		}
           	}
 
+          	// Catch clauses: catch (err)
+          	for (const m of stripped.matchAll(/\bcatch\s*\(\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*\)/g)) {
+          		declared.add(m[1]);
+          	}
+
+          	// Function / arrow parameters inside (...) followed by { or =>
+          	for (const m of stripped.matchAll(/\(([^()]*)\)\s*(?::\s*[A-Za-z_$][A-Za-z0-9_$<>|&\s]*)?\s*(?:\{|=>)/g)) {
+          		for (const param of m[1].split(",")) {
+          			const clean = param.trim();
+          			if (!clean) continue;
+          			// Handle destructured param or simple param
+          			if (clean.startsWith("{")) {
+          				for (const sub of clean.replace(/^\{|\}$/g, "").split(",")) {
+          					const alias = sub.trim().match(/:\s*([A-Za-z_$][A-Za-z0-9_$]*)/);
+          					const name = (alias ? alias[1] : sub.split("=")[0]).trim().replace(/^\.\.\./, "");
+          					if (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name)) declared.add(name);
+          				}
+          			} else {
+          				const name = clean.split("=")[0].trim().replace(/^\.\.\./, "");
+          				if (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name)) declared.add(name);
+          			}
+          		}
+          	}
+
           	const tokenRegex = /(?<![.\w$])([A-Za-z_$][A-Za-z0-9_$]*)(?![\w$:])/g;
           	const counts = new Map();
           	for (const m of stripped.matchAll(tokenRegex)) {
           		const name = m[1];
           		counts.set(name, (counts.get(name) ?? 0) + 1);
-          		if (!declared.has(name) && !/^(if|else|for|while|do|switch|case|default|break|continue|return|try|catch|finally|throw|new|typeof|void|in|of|async|await|import|from|export)$/.test(name)) {
+          		if (!declared.has(name)) {
           			console.warn(`[WARN] Possible undeclared identifier "${name}" in ${file}`);
           			problems++;
           		}
           	}
 
           	for (const [name, count] of counts.entries()) {
-          		if (declared.has(name) && !allowedGlobals.has(name) && count === 1) {
+          		if (!declared.has(name) || allowedGlobals.has(name) || keywords.has(name)) continue;
+          		if (count === 1) {
           			console.warn(`[WARN] Possible unused declaration "${name}" in ${file}`);
           		}
           	}
