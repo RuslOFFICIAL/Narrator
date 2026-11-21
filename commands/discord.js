@@ -9,6 +9,9 @@ const path = require('path');
 const loresDir = path.join(__dirname, '../lores');
 const soundsDir = path.join(__dirname, '../sounds');
 
+const LORE_EXT = '.js';
+const SOUND_EXT = '.mp3';
+
 const ROLE_ERROR_KEYS = {
 	notFound: 'replyRoleNotFound',
 	everyone: 'replyRoleInvalidEveryone',
@@ -89,7 +92,7 @@ function getCommands(CONFIG, getCmdText) {
 		new SlashCommandBuilder().setName('lore-remove').setDescription(getCmdText('descLoreRemove'))
 			.setContexts([0]).setIntegrationTypes([0])
 			.addStringOption(option => option.setName('language_code').setDescription(getCmdText('optionLanguageCode')).setMaxLength(10).setRequired(true))
-			.addIntegerOption(option => option.setName('snippet_number').setDescription(getCmdText('optionSnippetNumber')).setRequired(true)),
+			.addIntegerOption(option => option.setName('snippet_number').setDescription(getCmdText('optionSnippetNumber')).setMinValue(1).setRequired(true)),
 		
 		new SlashCommandBuilder().setName('voice-join').setDescription(getCmdText('descVoiceJoin'))
 			.setContexts([0]).setIntegrationTypes([0])
@@ -140,6 +143,7 @@ async function handleDiscordInteraction(interaction, context) {
 				const selected = new Set(context.getGuildRoles(interaction.guildId));
 				const focusedValue = interaction.options.getFocused().toLowerCase();
 				let roles;
+				const deletedLabel = context.getLocText(interaction, 'replyRoleDeleted');
 
 				if (interaction.commandName === 'role-add') {
 					// Not selected roles.
@@ -150,7 +154,9 @@ async function handleDiscordInteraction(interaction, context) {
 						.sort((a, b) => b.position - a.position);
 				} else {
 					// Selected roles.
-					roles = [...selected].map(id => guild.roles.cache.get(id)).filter(Boolean);
+					roles = [...selected]
+						.map(id => guild.roles.cache.get(id) ?? (interaction.commandName === 'role-remove' ? { id, name: `${id} ${deletedLabel}`, color: 0 } : null))
+						.filter(Boolean);
 				}
 
 				const choices = roles
@@ -184,8 +190,9 @@ async function handleDiscordInteraction(interaction, context) {
 				fs.mkdirSync(soundsDir, { recursive: true });
 				const files = fs.readdirSync(soundsDir);
 				const choices = files
-					.filter(file => file.endsWith('.mp3'))
-					.map(file => file.slice(0, -'.mp3'.length));
+					.filter(file => file.endsWith(SOUND_EXT))
+					.map(file => file.slice(0, -SOUND_EXT.length))
+					.filter(name => name.length <= 100);
 				
 				const focusedValue = interaction.options.getFocused();
 				const filtered = choices.filter(choice => choice.toLowerCase().includes(focusedValue.toLowerCase()));
@@ -506,7 +513,7 @@ async function commandRoleRemove(interaction, context) {
 		if (await isRoleManagerNot(interaction, CONFIG, locales)) return;
 
 		const roleId = interaction.options.getString('role', true);
-		const result = removeGuildRole(interaction.guildId, roleId);
+		const result = /^\d{5,25}$/.test(roleId) ? removeGuildRole(interaction.guildId, roleId) : 'missing';
 		if (result === 'missing') {
 			await safeReply(interaction, {
 				content: getLocText(interaction, 'replyRoleRemoveNotFound', { role: `<@&${roleId}>` }),
@@ -542,7 +549,7 @@ async function commandRoleList(interaction, context) {
 			return;
 		}
 
-		const deleted = getLocText(interaction, 'replyRoleListDeleted');
+		const deleted = getLocText(interaction, 'replyRoleDeleted');
 		const rows = ids.map(id => {
 			const role = interaction.guild?.roles.cache.get(id);
 			return role
@@ -674,7 +681,7 @@ async function commandLoreList(interaction, context) {
 		
 		let outputLines = [];
 		for (const file of matchingFiles) {
-			const lang = file.replace(`${guildId}_`, '').replace('.js', '');
+			const lang = file.replace(`${guildId}_`, '').replace(LORE_EXT, '');
 			const snippets = loadSafeModule(path.join(loresDir, file), []);
 			if (snippets.length > 0) {
 				outputLines.push(getLocText(interaction, 'replyLoreListLanguage', { lang }));
@@ -742,7 +749,7 @@ async function commandLoreCreate(interaction, context) {
 		}
 
 		writeLoreFile(filePath, snippets);
-		removeDuplicateLoreInFiles(loresDir);
+		removeDuplicateLoreInFiles(loresDir, filePath);
 
 		consoleLog(`[${getTimestamp()}] Success: Added snippet via Discord to '${filePath}'`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replyLoreCreateSuccess', { guildId: guildIdArg, lang: langArg }), flags: [MessageFlags.Ephemeral] });
@@ -779,9 +786,9 @@ async function commandLoreRemove(interaction, context) {
 		if (snippetNumber > 0 && snippetNumber <= snippets.length) {
 			snippets.splice(snippetNumber - 1, 1);
 			writeLoreFile(filePath, snippets);
-			removeDuplicateLoreInFiles(loresDir);
+			removeDuplicateLoreInFiles(loresDir, filePath);
 
-			consoleLog(`[${getTimestamp()}] Success: Removed snippet #${snippetNumber} from '${guildId}_${langArg}.js' via Discord`);
+			consoleLog(`[${getTimestamp()}] Success: Removed snippet #${snippetNumber} from '${path.basename(filePath)}' via Discord`);
 			await safeReply(interaction, { content: getLocText(interaction, 'replyLoreRemoveSuccess', { number: snippetNumber }), flags: [MessageFlags.Ephemeral] });
 		} else {
 			await safeReply(interaction, { content: getLocText(interaction, 'replyLoreRemoveNotFound', { number: snippetNumber }), flags: [MessageFlags.Ephemeral] });
@@ -867,7 +874,7 @@ async function commandSoundboardPlay(interaction, context) {
 		const soundChoice = interaction.options.getString('sound');
 		const soundPath = getSoundFilePath(soundChoice);
 		if (!soundPath || !fs.existsSync(soundPath)) {
-			await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardPlayNotFound'), flags: [MessageFlags.Ephemeral] });
+			await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardPlayNotFound', { soundChoice }), flags: [MessageFlags.Ephemeral] });
 			return;
 		}
 
@@ -889,7 +896,7 @@ async function commandSoundboardPlay(interaction, context) {
 		guildPlayers.set(interaction.guildId, {
 			player,
 			resource,
-			soundName: path.basename(soundPath, '.mp3'),
+			soundName: path.basename(soundPath, SOUND_EXT),
 			startTime: Date.now()
 		});
 		setupPlayerEvents(interaction.guildId, player, voiceConnections, guildPlayers, guildVolumes, getCurrentVolume);

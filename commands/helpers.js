@@ -6,6 +6,9 @@ const util = require('util');
 const { MessageFlags, TextChannel, ThreadChannel, PermissionFlagsBits } = require('discord.js');
 const { joinVoiceChannel, VoiceConnectionStatus, VoiceConnectionDisconnectReason, AudioPlayerStatus, createAudioPlayer, createAudioResource, StreamType, entersState } = require('@discordjs/voice');
 const { spawn } = require('child_process');
+const FFMPEG_PATH = (() => {
+	try { return require('ffmpeg-static') || 'ffmpeg'; } catch (err) { return 'ffmpeg'; }
+})();
 
 const dataDir = path.join(__dirname, '../data');
 const voiceStateFile = path.join(dataDir, 'voice-state.json');
@@ -15,6 +18,8 @@ const logsDir = path.join(__dirname, '../logs');
 const loresDir = path.join(__dirname, '../lores');
 const soundsDir = path.join(__dirname, '../sounds');
 
+const LORE_EXT = '.js';
+const SOUND_EXT = '.mp3';
 const FATAL_LOGIN_ERRORS = ['TokenInvalid', 'TokenMissing', 'DisallowedIntents'];
 const GUILD_ID_REGEX = /^(\d{5,25}|default)$/;
 const LANG_CODE_REGEX = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
@@ -45,6 +50,7 @@ const COLOR_EMOJIS = [
 const resolveVolume = (v) => (typeof v === 'function' ? v() : v);
 const rejoinTimers = new Map();
 
+let rolesWarnedAt = 0;
 let isExiting = false;
 let defaultRl = null;
 let logWriteWarned = false;
@@ -63,20 +69,16 @@ const getRolesMaxFileBytes = () => activeConfig?.rolesMaxFileBytes ?? ROLES_MAX_
 
 // Functions.
 function loadSafeModule(filePath, fallbackValue) {
+	if (!fs.existsSync(filePath)) return fallbackValue;
 	try {
 		const absolutePath = require.resolve(filePath);
 		delete require.cache[absolutePath];
 		const mod = require(absolutePath);
-		
-		if (Array.isArray(mod)) {
-			return mod.map(s => String(s));
-		}
-		return mod;
+		return Array.isArray(mod) ? mod.map(s => String(s)) : mod;
 	} catch (err) {
 		consoleLog(`[${getTimestamp()}] [loadSafeModule] Failed to load ${filePath}: `, err);
 		return fallbackValue;
 	}
-	return fallbackValue;
 }
 
 function getCmdText(key, locales, defaultLang = 'en') {
@@ -95,49 +97,36 @@ function getLocText(interaction, key, variables = {}, locales) {
 
 function getLocalizedLoreSnippets(interaction, locales, defaultLang) {
 	const guildId = interaction.guildId;
-	const fullLocale = interaction.locale || 'en';
+	const fullLocale = interaction.locale || defaultLang;
 	const baseLocale = fullLocale.split('-')[0];
-	const localeCandidates = [...new Set([fullLocale, baseLocale])].filter(l => LANG_CODE_REGEX.test(l));
-	let filePath = localeCandidates
-		.map(l => `${loresDir}/${guildId}_${l}.js`)
-		.find(p => fs.existsSync(p)) || `${loresDir}/${guildId}_${baseLocale}.js`;
-	
-	// User's language.
-	if (!fs.existsSync(filePath)) {
-		// Fallback to English ('en') if user language is missing.
-		filePath = `${loresDir}/${guildId}_en.js`;
-		
-		if (!fs.existsSync(filePath)) {
-			// Fallback to a random available language file for this guild.
-			try {
-				if (fs.existsSync(loresDir)) {
-					const files = fs.readdirSync(loresDir);
-					const guildFiles = files.filter(file => file.startsWith(`${guildId}_`) && file.endsWith('.js'));
-					if (guildFiles.length > 0) {
-						const randomFile = guildFiles[Math.floor(Math.random() * guildFiles.length)];
-						filePath = `${loresDir}/${randomFile}`;
-					}
-				}
-			} catch (err) {
-				consoleLog(`[WARNING] Failed to scan lores directory for fallback: `, err);
-			}
-		}
+	const langs = [...new Set([fullLocale, baseLocale, defaultLang])].filter(l => LANG_CODE_REGEX.test(l));
+	const candidates = langs.map(l => path.join(loresDir, `${guildId}_${l}${LORE_EXT}`));
+
+	try {
+		const others = fs.readdirSync(loresDir)
+			.filter(f => f.startsWith(`${guildId}_`) && f.endsWith('.js'))
+			.map(f => path.join(loresDir, f))
+			.filter(p => !candidates.includes(p))
+			.sort(() => Math.random() - 0.5);
+		candidates.push(...others);
+	} catch (err) {}
+
+	for (const filePath of candidates) {
+		const snippets = loadSafeModule(filePath, null);
+		if (Array.isArray(snippets) && snippets.length > 0) return snippets;
 	}
-	
-	const rawSnippets = loadSafeModule(filePath, null);
-	if (!rawSnippets || rawSnippets.length === 0) {
-		return [getLocText(interaction, 'replyLoreSnippetsUnavailable', {}, locales)];
-	}
-	return rawSnippets;
+	return [getLocText(interaction, 'replyLoreSnippetsUnavailable', {}, locales)];
 }
 
-function removeDuplicateLoreInFiles(loresDir) {
+function removeDuplicateLoreInFiles(loresDir, onlyFilePath = null) {
 	if (!fs.existsSync(loresDir)) {
 		consoleLog(`[${getTimestamp()}] Lores directory not found: '${loresDir}'`);
 		return { success: false, modifiedFilesCount: 0 };
 	}
 	
-	const files = fs.readdirSync(loresDir).filter(file => file.endsWith('.js'));
+	const files = onlyFilePath
+		? [path.basename(onlyFilePath)]
+		: fs.readdirSync(loresDir).filter(file => file.endsWith(LORE_EXT));
 	let modifiedFilesCount = 0;
 	
 	for (const file of files) {
@@ -425,20 +414,40 @@ function assertSnowflake(...ids) {
 	}
 }
 
-function getAllGuildRoles() {
-	if (!fs.existsSync(rolesFile)) return Object.create(null);
-	const absolutePath = require.resolve(rolesFile);
+function loadRolesModule(file) {
+	const absolutePath = require.resolve(file);
 	delete require.cache[absolutePath];
-	const mod = require(absolutePath);
+	return require(absolutePath);
+}
+
+function getAllGuildRoles({ strict = false } = {}) {
+	if (!fs.existsSync(rolesFile)) return Object.create(null);
+	
+	let mod;
+	try {
+		mod = loadRolesModule(rolesFile);
+	} catch (err) {
+		const bakFile = `${rolesFile}.bak`;
+		if (strict || !fs.existsSync(bakFile)) throw err;
+		if (Date.now() - rolesWarnedAt > 60_000) {
+			rolesWarnedAt = Date.now();
+			consoleLog(`[${getTimestamp()}] [Roles] Failed to load "${path.basename(rolesFile)}", using "${path.basename(bakFile)}" (read-only) until it is fixed: `, err);
+		}
+		mod = loadRolesModule(bakFile);
+	}
+	
 	if (!mod || typeof mod !== 'object' || Array.isArray(mod)) {
-		throw new Error(`'roles.js' does not export an object.`);
+		throw new Error(`"${path.basename(rolesFile)}" does not export an object.`);
 	}
 	const data = Object.create(null);
 	for (const [guildId, roleIds] of Object.entries(mod)) {
-		if (!SNOWFLAKE_REGEX.test(guildId) || !Array.isArray(roleIds) || !roleIds.every(id => typeof id === 'string' && SNOWFLAKE_REGEX.test(id))) {
-			throw new Error(`'roles.js' has an invalid entry for '${guildId}'.`);
+		if (!SNOWFLAKE_REGEX.test(guildId) || !Array.isArray(roleIds)) {
+			continue;
 		}
-		data[guildId] = [...new Set(roleIds)];
+		const validRoleIds = roleIds.filter(id => typeof id === 'string' && SNOWFLAKE_REGEX.test(id));
+		if (validRoleIds.length > 0) {
+			data[guildId] = [...new Set(validRoleIds)];
+		}
 	}
 	return data;
 }
@@ -452,7 +461,7 @@ function writeAllGuildRoles(data) {
 	// Only validated digit strings are serialized.
 	const content = `module.exports = ${JSON.stringify(clean, null, '\t')};\n`;
 	if (Buffer.byteLength(content, 'utf8') > maxBytes) {
-		throw new Error(`'roles.js' would exceed ${maxBytes} bytes.`);
+		throw new Error(`"${path.basename(rolesFile)}" would exceed ${maxBytes} bytes.`);
 	}
 	fs.mkdirSync(dataDir, { recursive: true });
 	if (fs.existsSync(rolesFile)) {
@@ -471,7 +480,7 @@ function getGuildRoles(guildId) {
 
 function addGuildRole(guildId, roleId) {
 	assertSnowflake(guildId, roleId);
-	const data = getAllGuildRoles();
+	const data = getAllGuildRoles({ strict: true });
 	const list = data[guildId] ?? [];
 	if (list.includes(roleId)) return 'exists';
 	if (list.length >= getRolesMaxPerGuild()) return 'limit';
@@ -482,7 +491,7 @@ function addGuildRole(guildId, roleId) {
 
 function removeGuildRole(guildId, roleId) {
 	assertSnowflake(guildId, roleId);
-	const data = getAllGuildRoles();
+	const data = getAllGuildRoles({ strict: true });
 	const list = data[guildId] ?? [];
 	if (!list.includes(roleId)) return 'missing';
 	data[guildId] = list.filter(id => id !== roleId);
@@ -510,7 +519,7 @@ function validateRoleSelection(guild, role, actorMember = null) {
 async function createSelectedRole(guild, { name, color = null, hoist = false, mentionable = false, reason = null } = {}) {
 	if (!guild) return { status: 'notFound' };
 
-	const existing = getGuildRoles(guild.id);
+	const existing = getAllGuildRoles({ strict: true })[guild.id] ?? [];
 	if (existing.length >= getRolesMaxPerGuild()) return { status: 'limit' };
 
 	const me = guild.members.me;
@@ -528,7 +537,14 @@ async function createSelectedRole(guild, { name, color = null, hoist = false, me
 		reason: reason || 'Created as a bot selected role.'
 	});
 
-	const addStatus = addGuildRole(guild.id, role.id);
+	let addStatus;
+	try {
+		addStatus = addGuildRole(guild.id, role.id);
+	} catch (err) {
+		try { await role.delete('Rollback: failed to register selected role'); } catch (e) {}
+		throw err;
+	}
+
 	if (addStatus !== 'added') {
 		try { await role.delete('Rollback: failed to register selected role'); } catch (err) {}
 		return { status: addStatus };
@@ -780,7 +796,7 @@ async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPl
 					}
 					ffmpegArgs.push('-i', soundPath, '-loglevel', '0', '-f', 's16le', '-ar', '48000', '-ac', '2', 'pipe:1');
 
-					const ffmpegProcess = spawn('ffmpeg', ffmpegArgs, { stdio: ['ignore', 'pipe', 'ignore'] });
+					const ffmpegProcess = spawn(FFMPEG_PATH, ffmpegArgs, { stdio: ['ignore', 'pipe', 'ignore'] });
 					const killFfmpeg = () => { try { ffmpegProcess.kill('SIGKILL'); } catch (e) {} };
 					ffmpegProcess.on('error', (err) => {
 						consoleLog(`[${getTimestamp()}] [Voice] Could not run ffmpeg to resume '${stateData.playingSound}': `, err.message);
@@ -863,11 +879,12 @@ function getLoreFilePath(guildId, lang) {
 }
 
 function getSoundFilePath(name) {
-	const soundName = String(name ?? '').replace(/\.mp3$/i, '');
+	const extRegex = new RegExp(`${SOUND_EXT.replace('.', '\\.')}$`, 'i');
+	const soundName = String(name ?? '').replace(extRegex, '');
 	if (!soundName || /[\\/\0]/.test(soundName)) return null;
 	fs.mkdirSync(soundsDir, { recursive: true });
 	const resolvedDir = path.resolve(soundsDir);
-	const filePath = path.resolve(resolvedDir, `${soundName}.mp3`);
+	const filePath = path.resolve(resolvedDir, `${soundName}${SOUND_EXT}`);
 	return path.dirname(filePath) === resolvedDir ? filePath : null;
 }
 

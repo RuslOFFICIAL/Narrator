@@ -1,24 +1,4 @@
-// Dependencies.
-const fs = require('fs');
-const path = require('path');
-const envPath = path.join(__dirname, '.env');
-let envFileMissing = false;
-if (fs.existsSync(envPath)) {
-	const result = require('dotenv').config({ path: envPath, quiet: true });
-	if (result.error) {
-		//consoleLog(`[Config] Failed to parse ".env" file (${result.error.message}). Using defaults.`);
-	}
-} else {
-	envFileMissing = true;
-}
-
-const readline = require('readline');
-const { Client, GatewayIntentBits, REST, Routes, ActivityType } = require('discord.js');
-const packageJson = require('./package.json');
-
-// Import modularized commands and helpers.
-const { getCommands, handleDiscordInteraction } = require('./commands/discord.js');
-const { handleTerminalLine, completeTerminalLine } = require('./commands/terminal.js');
+// Import functions.
 const {
 	loadSafeModule, getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
 	consoleLog: _consoleLog, getTimestamp, formatUptime, makeLogMessage: _makeLogMessage, safeReply: _safeReply, writeLogToFile, writeCenteredLog, setLogReadline, setConfig,
@@ -30,17 +10,6 @@ const {
 	getLoreMaxBytes, getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown: _shutdown, restart: _restart, loginWithRetry
 } = require('./commands/helpers.js');
-
-const localesDir = path.join(__dirname, 'locales');
-const languages = ['en', 'uk'];
-
-const locales = {};
-for (const lang of languages) {
-	const filePath = `${localesDir}/${lang}.js`;
-	locales[lang] = loadSafeModule(filePath, {});
-}
-
-const defaultLang = 'en';
 
 // Wrapper functions to keep context clean for "executionContext".
 const consoleLog = (...args) => _consoleLog(undefined, ...args);
@@ -59,6 +28,39 @@ const isGuildNot = (interaction) => _isGuildNot(interaction, locales);
 const isVoiceNot = (interaction) => _isVoiceNot(interaction, voiceConnections, locales);
 const shutdown = (exitCode = 0) => _shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume, exitCode);
 const restart = (exitCode = 0) => _restart(client, voiceConnections, guildPlayers, rl, __filename, guildVolumes, currentVolume, exitCode);
+
+// Dependencies.
+const fs = require('fs');
+const path = require('path');
+const envPath = path.join(__dirname, '.env');
+let envFileMissing = false;
+if (fs.existsSync(envPath)) {
+	const result = require('dotenv').config({ path: envPath, quiet: true });
+	if (result.error) {
+		consoleLog(`[Config] Failed to parse "${path.basename(envPath)}" file (${result.error.message}). Using defaults.`);
+	}
+} else {
+	envFileMissing = true;
+}
+
+const readline = require('readline');
+const { Client, GatewayIntentBits, REST, Routes, ActivityType } = require('discord.js');
+const packageJson = require('./package.json');
+
+// Import modularized commands and helpers.
+const { getCommands, handleDiscordInteraction } = require('./commands/discord.js');
+const { handleTerminalLine, completeTerminalLine } = require('./commands/terminal.js');
+
+const localesDir = path.join(__dirname, 'locales');
+const languages = ['en', 'uk'];
+
+const locales = {};
+for (const lang of languages) {
+	const filePath = `${localesDir}/${lang}.js`;
+	locales[lang] = loadSafeModule(filePath, {});
+}
+
+const defaultLang = 'en';
 
 process.on('unhandledRejection', err => {
 	consoleLog(`[${getTimestamp()}] Unhandled promise rejection: `, err);
@@ -264,7 +266,7 @@ process.on('SIGTERM', () => shutdown());
 process.on('SIGUSR2', () => shutdown());
 
 if (CONFIG.envFileMissing) {
-	consoleLog(`[${getTimestamp()}] [Config] No ".env" file found at '${envPath}'. Falling back to process environment and defaults.`);
+	consoleLog(`[${getTimestamp()}] [Config] No "${path.basename(envPath)}" file found at '${envPath}'. Falling back to process environment and defaults.`);
 }
 
 if (CONFIG.discordToken) {

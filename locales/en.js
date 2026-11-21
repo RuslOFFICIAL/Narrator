@@ -19,7 +19,8 @@ General Commands:
 /voice-join - Joins the selected voice channel.
 /voice-leave - Leaves the voice channel.
 /soundboard-play - Plays the selected sound in the voice channel.
-/soundboard-stop - Stops the sound in the voice channel.`,
+/soundboard-stop - Stops the sound in the voice channel.
+/soundboard-volume - Sets the playback volume.`,
 	
 	infoText: `Servers' lores are written by members on server with the "Manage Server" or "Administrator" permission.
 They are not created by the creator of the "Narrator" bot.`,	
@@ -30,12 +31,14 @@ They are not created by the creator of the "Narrator" bot.`,
 	replyGuild: `This command can only be used on servers!`,
 	replyVoiceNotFound: `Failed to find a voice channel with ID "{channelId}". Make sure the bot is on that server.`,
 	replyNotInVoice: `The bot is not currently in a voice channel. Try running the "/voice-join" command first.`,
+	replyLoreInvalidLanguage: `Invalid language code. Use a code like "en" or "uk".`,
 	replyLoreSnippetsUnavailable: `Lore snippets are currently unavailable.`,
 	replyNoPermissionAdminManageServer: `You don't have permission to use this command (Requires "Manage Server" or "Administrator" permission).`,
 	replyNoPermissionRoleManage: `You must be whitelisted or have the Manage Server or Administrator permission.`,
 	replyNoSelectedRole: `You need one of the server's selected roles to use this command.`,
 	
 	// Related texts.
+	replyRoleDeleted: `(deleted)`,
 	replyRoleNotFound: `That role was not found on this server.`,
 	replyRoleInvalidEveryone: `The '@everyone' role cannot be selected.`,
 	replyRoleInvalidManaged: `Bot and integration roles cannot be selected.`,
@@ -73,7 +76,6 @@ They are not created by the creator of the "Narrator" bot.`,
 	
 	replyRoleListHeader: `Selected roles ({count}):`,
 	replyRoleListEmpty: `No roles are selected on this server.`,
-	replyRoleListDeleted: `(deleted)`,
 	
 	replyLotteryKickYes: `<@{userId}>\n\nOh, it seems luck is not on Your side today. Too bad... actually, not really.\n\nYour kick is in 30 seconds. Write Your last words.`,
 	replyLotteryKickDm: `Hey! You were just kicked from the server, unfortunately. Here is the link to the server:\nhttps://discord.gg/{inviteCode}`,

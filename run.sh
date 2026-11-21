@@ -6,6 +6,7 @@ cd "$(dirname "$0")" || exit
 SCRIPT_NAME="$(basename "$0")"
 SCRIPT_PATH="./$SCRIPT_NAME"
 FILE_PACKAGE="package.json"
+FILE_NODEMON="nodemon.json"
 
 DATA_DIR="data"
 CONF_FILE="$DATA_DIR/run.conf"
@@ -96,7 +97,7 @@ main() {
 
 	# Add watched files.
 	add_watch "$SCRIPT_NAME"
-	[ -f "nodemon.json" ] && add_watch "nodemon.json"
+	[ -f "$FILE_NODEMON" ] && add_watch "$FILE_NODEMON"
 	
 	# Take the snapshot first.
 	INITIAL_SNAPSHOT=$(get_snapshot)

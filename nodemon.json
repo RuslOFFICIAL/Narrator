@@ -5,6 +5,7 @@
 	"ignore": [
 		"data/",
 		"lores/",
+		"logs/",
 		"sounds/",
 		"node_modules/",
 		"run.sh",
