@@ -370,9 +370,9 @@ function writeCenteredLog(title, width = 40) {
 	const padding = Math.max(0, Math.floor((width - title.length) / 2));
 	const line = '-'.repeat(width);
 
-	writeLogToFile(line, { raw: true });
+	writeLogToFile(`\n${line}`, { raw: true });
 	writeLogToFile(`${' '.repeat(padding)}${title}`, { raw: true });
-	writeLogToFile(line, { raw: true });
+	writeLogToFile(`${line}\n`, { raw: true });
 }
 
 function readLoreFileStrict(filePath) {
