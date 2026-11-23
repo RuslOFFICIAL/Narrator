@@ -1,7 +1,7 @@
 // Import functions.
 const {
 	loadSafeModule, getCmdText: _getCmdText, getLocText: _getLocText, getLocalizedLoreSnippets: _getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
-	consoleLog: _consoleLog, getTimestamp, formatUptime, makeLogMessage: _makeLogMessage, safeReply: _safeReply, writeLogToFile, writeCenteredLog, setLogReadline, setConfig,
+	consoleLog: _consoleLog, getTimestamp, formatUptime, makeLogMessage: _makeLogMessage, safeReply: _safeReply, writeLogToFile, writeCenteredLog, setLogReadline, setConfig, handleCommandError,
 	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTesterNot: _isAuthorizedTesterNot, isAdminManageServer: _isAdminManageServer, isRoleManagerNot: _isRoleManagerNot, isSelectedRoleNot: _isSelectedRoleNot, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
 	saveVoiceState, restoreVoiceState, loadVolumes,
 	readLoreFileStrict, writeLoreFile, exceedsLoreLimit,
@@ -162,7 +162,7 @@ const executionContext = {
 	get currentVolume() { return currentVolume; }, set currentVolume(v) { currentVolume = v; },
 	getCurrentVolume: () => currentVolume,
 	getCmdText, getLocText, getLocalizedLoreSnippets, removeDuplicateLoreInFiles,
-	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply,
+	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply, handleCommandError,
 	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isRoleManagerNot, isSelectedRoleNot, isGuildNot, isVoiceNot,
 	saveVoiceState, restoreVoiceState,
 	readLoreFileStrict, writeLoreFile, exceedsLoreLimit,

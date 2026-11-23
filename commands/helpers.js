@@ -59,6 +59,7 @@ const COLOR_EMOJIS = [
 	{ emoji: '⚪', rgb: [230, 231, 232] }
 ];
 
+const isIgnorableInteractionError = (err) => err?.code === 10062 || err?.code === 40060;
 const resolveVolume = (v) => (typeof v === 'function' ? v() : v);
 const rejoinTimers = new Map();
 
@@ -240,6 +241,12 @@ function consoleLog(rl, ...args) {
 
 function setLogReadline(rl) {
 	defaultRl = rl;
+}
+
+async function handleCommandError(interaction, err, context) {
+	if (isIgnorableInteractionError(err)) return;
+	consoleLog(`${getTimestamp()} ${colorize('red', `Failed to execute command [/${interaction.commandName}]`)} : `, err);
+	await safeReply(interaction, { content: context.getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
 }
 
 function getFormattedDate() {
@@ -1130,7 +1137,7 @@ async function loginWithRetry(client, attempt = 1, token = activeConfig?.discord
 
 module.exports = {
 	loadSafeModule, getCmdText, getLocText, getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
-	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply, getFormattedDate, writeLogToFile, writeCenteredLog, setLogReadline, setConfig,
+	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply, getFormattedDate, writeLogToFile, writeCenteredLog, setLogReadline, setConfig, handleCommandError,
 	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isRoleManagerNot, isSelectedRoleNot, isGuildNot, isVoiceNot,
 	saveVoiceState, restoreVoiceState, loadVolumes,
 	readLoreFileStrict, writeLoreFile, exceedsLoreLimit,

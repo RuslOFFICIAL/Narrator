@@ -573,7 +573,7 @@ async function terminalRoleCreate(subCmd, args, { client, createSelectedRole, co
 			consoleLog(`${getTimestamp()} ${colorize('red', 'Error')}: ${colorize('red', `${ROLE_CREATE_ERRORS[result.status] ?? `Could not create role (${result.status}).`}`)}`);
 			return;
 		}
-		consoleLog(`${getTimestamp()} ${colorize('green', `Success: Created selected role '${stripControl(result.role.name)}' (${result.role.id}) in guild '${guildId}' via terminal.`)}`);
+		consoleLog(`${getTimestamp()} ${colorize('green', 'Success')}: ${colorize('green', `Created selected role '${stripControl(result.role.name)}' (${result.role.id}) in guild '${guildId}' via terminal.`)}`);
 	} catch (err) {
 		consoleLog(`${getTimestamp()} ${colorize('red', 'Error creating role')}: `, err);
 	}
@@ -602,7 +602,7 @@ async function terminalRoleGive(subCmd, args, { client, giveGuildRole, colorize,
 			consoleLog(`${getTimestamp()} ${colorize('red', 'Error')}: ${colorize('red', `${ROLE_GIVE_ERRORS[status] ?? `Could not give role (${status}).`}`)}`);
 			return;
 		}
-		consoleLog(`${getTimestamp()} ${colorize('green', `Success: Gave role '${stripControl(role.name)}' (${roleId}) to '${stripControl(member.user.tag)}' (${userId}) in guild '${guildId}' via terminal.`)}`);
+		consoleLog(`${getTimestamp()} ${colorize('green', 'Success')}: ${colorize('green', `Gave role '${stripControl(role.name)}' (${roleId}) to '${stripControl(member.user.tag)}' (${userId}) in guild '${guildId}' via terminal.`)}`);
 	} catch (err) {
 		consoleLog(`${getTimestamp()} ${colorize('red', 'Error giving role')}: `, err);
 	}
@@ -631,7 +631,7 @@ async function terminalRoleTake(subCmd, args, { client, takeGuildRole, colorize,
 			consoleLog(`${getTimestamp()} ${colorize('red', 'Error')}: ${colorize('red', `${ROLE_TAKE_ERRORS[status] ?? `Could not take role (${status}).`}`)}`);
 			return;
 		}
-		consoleLog(`${getTimestamp()} ${colorize('green', `Success: Took role '${stripControl(role.name)}' (${roleId}) from '${stripControl(member.user.tag)}' (${userId}) in guild '${guildId}' via terminal.`)}`);
+		consoleLog(`${getTimestamp()} ${colorize('green', 'Success')}: ${colorize('green', `Took role '${stripControl(role.name)}' (${roleId}) from '${stripControl(member.user.tag)}' (${userId}) in guild '${guildId}' via terminal.`)}`);
 	} catch (err) {
 		consoleLog(`${getTimestamp()} ${colorize('red', 'Error taking role')}: `, err);
 	}
@@ -662,7 +662,7 @@ async function terminalRoleAdd(subCmd, args, { client, validateRoleSelection, ad
 		const result = addGuildRole(guildId, roleId);
 		if (result === 'exists') consoleLog(`${getTimestamp()} ${colorize('cyan', `Role '${roleId}' is already selected in guild '${guildId}'.`)}`);
 		else if (result === 'limit') consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Limit of ${getRolesMaxPerGuild()} roles per guild reached.`)}`);
-		else consoleLog(`${getTimestamp()} ${colorize('green', `Success: Selected role '${stripControl(role.name)}' (${roleId}) in guild '${guildId}' via terminal.`)}`);
+		else consoleLog(`${getTimestamp()} ${colorize('green', 'Success')}: ${colorize('green', `Selected role '${stripControl(role.name)}' (${roleId}) in guild '${guildId}' via terminal.`)}`);
 	} catch (err) {
 		consoleLog(`${getTimestamp()} ${colorize('red', 'Error writing roles file')}: `, err);
 	}
@@ -679,7 +679,7 @@ async function terminalRoleRemove(subCmd, args, { removeGuildRole, colorize, con
 	try {
 		const result = removeGuildRole(guildId, roleId);
 		if (result === 'missing') consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Role '${roleId}' is not selected in guild '${guildId}'.`)}`);
-		else consoleLog(`${getTimestamp()} ${colorize('green', `Success: Unselected role '${roleId}' in guild '${guildId}' via terminal.`)}`);
+		else consoleLog(`${getTimestamp()} ${colorize('green', 'Success')}: ${colorize('green', `Unselected role '${roleId}' in guild '${guildId}' via terminal.`)}`);
 	} catch (err) {
 		consoleLog(`${getTimestamp()} ${colorize('red', 'Error writing roles file')}: `, err);
 	}
@@ -952,7 +952,7 @@ async function terminalLoreCreate(subCmd, args, { removeDuplicateLoreInFiles, re
 
 		writeLoreFile(filePath, existingSnippets);
 		removeDuplicateLoreInFiles(loresDir, filePath);
-		consoleLog(`${getTimestamp()} ${colorize('green', `Success: Added snippet to '${filePath}'`)}`);
+		consoleLog(`${getTimestamp()} ${colorize('green', 'Success')}: ${colorize('green', `Added snippet to '${filePath}'`)}`);
 	} catch (err) {
 		consoleLog(`${getTimestamp()} $colorize('red', 'Error writing lore file')}: `, err);
 	}
@@ -991,7 +991,7 @@ async function terminalLoreRemove(subCmd, args, { removeDuplicateLoreInFiles, re
 		writeLoreFile(filePath, snippets);
 		removeDuplicateLoreInFiles(loresDir, filePath);
 
-		consoleLog(`${getTimestamp()} ${colorize('green', `Success: Removed snippet #${removeIndex} from '${path.basename(filePath)}' via terminal.`)}`);
+		consoleLog(`${getTimestamp()} ${colorize('green', 'Success')}: ${colorize('green', `Removed snippet #${removeIndex} from '${path.basename(filePath)}' via terminal.`)}`);
 	} else {
 		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Snippet number #${removeIndex} not found in '${path.basename(filePath)}'.`)}`);
 	}

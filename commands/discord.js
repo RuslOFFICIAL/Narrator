@@ -1,7 +1,7 @@
 // Dependencies.
 const { SlashCommandBuilder, ChannelType, MessageFlags, AttachmentBuilder } = require('discord.js');
 const { createAudioPlayer, createAudioResource, VoiceConnectionStatus } = require('@discordjs/voice');
-const isIgnorableInteractionError = (err) => err?.code === 10062 || err?.code === 40060;
+const { isIgnorableInteractionError } = require('./helpers');
 const fs = require('fs');
 const path = require('path');
 
@@ -167,7 +167,7 @@ async function handleDiscordInteraction(interaction, context) {
 				if (!interaction.responded) await interaction.respond(choices);
 			} catch (err) {
 				if (!isIgnorableInteractionError(err)) {
-					consoleLog(`${getTimestamp()} Error handling role autocomplete: `, err);
+					consoleLog(`${getTimestamp()} ${colorize('red', 'Error handling role autocomplete')}: `, err);
 				}
 			}
 		}
@@ -204,7 +204,7 @@ async function handleDiscordInteraction(interaction, context) {
 				}
 			} catch (err) {
 				if (err.code !== 10062 && err.code !== 40060) {
-					consoleLog(`${getTimestamp()} Error handling soundboard autocomplete: `, err);
+					consoleLog(`${getTimestamp()} ${colorize('red', 'Error handling soundboard autocomplete')}: `, err);
 				}
 			}
 		}
@@ -309,39 +309,35 @@ async function handleDiscordInteraction(interaction, context) {
 		}
 	} catch (err) {
 		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Interaction handling error: `, err);
+		consoleLog(`${getTimestamp()} ${colorize('red', 'Interaction handling error')}: `, err);
 	}
 }
 
 // Discord commands.
 async function commandHelp(interaction, context) {
-	const { CONFIG, getLocText, safeReply, colorize, consoleLog, getTimestamp } = context;
+	const { CONFIG, getLocText, safeReply, handleCommandError, colorize, consoleLog, getTimestamp } = context;
 	
 	try {
 		const HELP_TEXT = getLocText(interaction, 'helpText', { kickChance: CONFIG.kickChance });
 		await safeReply(interaction, HELP_TEXT);
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandInfo(interaction, context) {
-	const { getLocText, safeReply, colorize, consoleLog, getTimestamp, packageJson } = context;
+	const { getLocText, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, packageJson } = context;
 	
 	try {
 		const INFO_TEXT = getLocText(interaction, 'infoText');
 		await safeReply(interaction, { content: `Narrator | ${packageJson.version}\n\n${INFO_TEXT}`, flags: [MessageFlags.Ephemeral] });
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandRoleCreate(interaction, context) {
-	const { CONFIG, locales, getLocText, safeReply, colorize, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, createSelectedRole } = context;
+	const { CONFIG, locales, getLocText, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, createSelectedRole } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -359,21 +355,19 @@ async function commandRoleCreate(interaction, context) {
 			return;
 		}
 
-		consoleLog(`${getTimestamp()} Success: Created selected role '${result.role.id}' in guild '${interaction.guildId}' by @${interaction.user.tag} (${interaction.user.id}) via Discord`);
+		consoleLog(`${getTimestamp()} ${colorize('green', 'Success')}: ${colorize('green', `Created selected role '${result.role.id}' in guild '${interaction.guildId}' by @${interaction.user.tag} (${interaction.user.id}) via Discord.`)}`);
 		await safeReply(interaction, {
 			content: getLocText(interaction, 'replyRoleCreateSuccess', { role: `<@&${result.role.id}>` }),
 			allowedMentions: { parse: [] },
 			flags: [MessageFlags.Ephemeral]
 		});
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandRoleGive(interaction, context) {
-	const { CONFIG, locales, getLocText, safeReply, colorize, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, giveGuildRole } = context;
+	const { CONFIG, locales, getLocText, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, giveGuildRole } = context;
 
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -399,21 +393,19 @@ async function commandRoleGive(interaction, context) {
 			return;
 		}
 
-		consoleLog(`${getTimestamp()} Success: Gave role '${role.id}' to '${member.id}' in guild '${guild.id}' by @${interaction.user.tag} (${interaction.user.id}) via Discord`);
+		consoleLog(`${getTimestamp()} ${colorize('green', 'Success')}: ${colorize('green', `Gave role '${role.id}' to '${member.id}' in guild '${guild.id}' by @${interaction.user.tag} (${interaction.user.id}) via Discord.`)}`);
 		await safeReply(interaction, {
 			content: getLocText(interaction, 'replyRoleGiveSuccess', { member: `<@${member.id}>`, role: `<@&${role.id}>` }),
 			allowedMentions: { parse: [] },
 			flags: [MessageFlags.Ephemeral]
 		});
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandRoleTake(interaction, context) {
-	const { CONFIG, locales, getLocText, safeReply, colorize, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, takeGuildRole } = context;
+	const { CONFIG, locales, getLocText, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, takeGuildRole } = context;
 
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -439,21 +431,19 @@ async function commandRoleTake(interaction, context) {
 			return;
 		}
 
-		consoleLog(`${getTimestamp()} Success: Took role '${role.id}' from '${member.id}' in guild '${guild.id}' by @${interaction.user.tag} (${interaction.user.id}) via Discord`);
+		consoleLog(`${getTimestamp()} ${colorize('green', 'Success')}: ${colorize('green', `Took role '${role.id}' from '${member.id}' in guild '${guild.id}' by @${interaction.user.tag} (${interaction.user.id}) via Discord.`)}`);
 		await safeReply(interaction, {
 			content: getLocText(interaction, 'replyRoleTakeSuccess', { member: `<@${member.id}>`, role: `<@&${role.id}>` }),
 			allowedMentions: { parse: [] },
 			flags: [MessageFlags.Ephemeral]
 		});
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandRoleAdd(interaction, context) {
-	const { CONFIG, locales, getLocText, safeReply, colorize, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, validateRoleSelection, addGuildRole } = context;
+	const { CONFIG, locales, getLocText, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, validateRoleSelection, addGuildRole } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -492,21 +482,19 @@ async function commandRoleAdd(interaction, context) {
 			return;
 		}
 
-		consoleLog(`${getTimestamp()} Success: Selected role '${role.id}' in guild '${guild.id}' by @${interaction.user.tag} (${interaction.user.id}) via Discord`);
+		consoleLog(`${getTimestamp()} ${colorize('green', 'Success')}: ${colorize('green', `Selected role '${role.id}' in guild '${guild.id}' by @${interaction.user.tag} (${interaction.user.id}) via Discord.`)}`);
 		await safeReply(interaction, {
 			content: getLocText(interaction, 'replyRoleAddSuccess', { role: `<@&${role.id}>` }),
 			allowedMentions: { parse: [] },
 			flags: [MessageFlags.Ephemeral]
 		});
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandRoleRemove(interaction, context) {
-	const { CONFIG, locales, getLocText, safeReply, colorize, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, removeGuildRole } = context;
+	const { CONFIG, locales, getLocText, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, removeGuildRole } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -523,21 +511,19 @@ async function commandRoleRemove(interaction, context) {
 			return;
 		}
 
-		consoleLog(`${getTimestamp()} Success: Unselected role '${roleId}' in guild '${interaction.guildId}' by @${interaction.user.tag} (${interaction.user.id}) via Discord`);
+		consoleLog(`${getTimestamp()} ${colorize('green', 'Success')}: ${colorize('green', `Unselected role '${roleId}' in guild '${interaction.guildId}' by @${interaction.user.tag} (${interaction.user.id}) via Discord.`)}`);
 		await safeReply(interaction, {
 			content: getLocText(interaction, 'replyRoleRemoveSuccess', { role: `<@&${roleId}>` }),
 			allowedMentions: { parse: [] },
 			flags: [MessageFlags.Ephemeral]
 		});
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandRoleList(interaction, context) {
-	const { CONFIG, locales, getLocText, safeReply, colorize, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, getGuildRoles } = context;
+	const { CONFIG, locales, getLocText, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, isGuildNot, isRoleManagerNot, getGuildRoles } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -566,14 +552,12 @@ async function commandRoleList(interaction, context) {
 			await safeReply(interaction, { content: text, allowedMentions: { parse: [] }, flags: [MessageFlags.Ephemeral] });
 		}
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandLotteryKick(interaction, context) {
-	const { CONFIG, getLocText, safeReply, colorize, consoleLog, getTimestamp, isWhitelist, isGuildNot } = context;
+	const { CONFIG, getLocText, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, isWhitelist, isGuildNot } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -598,20 +582,20 @@ async function commandLotteryKick(interaction, context) {
 					const invite = await interaction.channel.createInvite({ maxAge: 86400, maxUses: 1, unique: true });
 					inviteCode = invite.code;
 				} catch (err) {
-					consoleLog(`${getTimestamp()} WARNING: Couldn't create invite for @${interaction.user.tag}: `, err.message);
+					consoleLog(`${getTimestamp()} ${colorize('yellow', 'WARNING')}: ${colorize('yellow', `Couldn't create invite for @${interaction.user.tag}`)}: `, err.message);
 				}
 
 				if (inviteCode) {
 					try {
 						await interaction.user.send(getLocText(interaction, 'replyLotteryKickDm', { inviteCode }));
 					} catch (err) {
-						consoleLog(`${getTimestamp()} WARNING: Couldn't DM @${interaction.user.tag}: `, err.message);
+						consoleLog(`${getTimestamp()} ${colorize('yellow', 'WARNING')}: ${colorize('yellow', `Couldn't DM @${interaction.user.tag}`)}: `, err.message);
 					}
 				}
 
 				await interaction.member.kick(getLocText(interaction, 'replyLotteryKickReason'));
 			} catch (err) {
-				consoleLog(`${getTimestamp()} ERROR: Couldn't kick user @${interaction.user.tag}: `, err.message);
+				consoleLog(`${getTimestamp()} ${colorize('red', 'ERROR')}: ${colorize('red', `Couldn't kick user @${interaction.user.tag}`)}: `, err.message);
 				const errorKick = getLocText(interaction, 'replyLotteryKickError', { userId: interaction.user.id });
 				await interaction.followUp({ content: errorKick, flags: [MessageFlags.Ephemeral] });
 			}
@@ -620,14 +604,12 @@ async function commandLotteryKick(interaction, context) {
 			await safeReply(interaction, noKickMsg);
 		}
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandLore(interaction, context) {
-	const { getLocalizedLoreSnippets, getLocText, safeReply, colorize, consoleLog, getTimestamp, isGuildNot } = context;
+	const { getLocalizedLoreSnippets, getLocText, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, isGuildNot } = context;
 	try {
 		if (await isGuildNot(interaction)) return;
 		
@@ -646,14 +628,12 @@ async function commandLore(interaction, context) {
 		const replyText = getLocText(interaction, 'replyLore', { loreSnippet: safeSnippet });
 		await safeReply(interaction, replyText);
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);		
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandLoreList(interaction, context) {
-	const { getLocText, safeReply, colorize, consoleLog, getTimestamp, loadSafeModule, isGuildNot, isAdminManageServer } = context;
+	const { getLocText, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, loadSafeModule, isGuildNot, isAdminManageServer } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -713,14 +693,12 @@ async function commandLoreList(interaction, context) {
 			}
 		}
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandLoreCreate(interaction, context) {
-	const { getLocText, removeDuplicateLoreInFiles, safeReply, colorize, consoleLog, getTimestamp, getLoreFilePath, getLoreMaxBytes, readLoreFileStrict, writeLoreFile, exceedsLoreLimit, isGuildNot, isAdminManageServer } = context;
+	const { getLocText, removeDuplicateLoreInFiles, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, getLoreFilePath, getLoreMaxBytes, readLoreFileStrict, writeLoreFile, exceedsLoreLimit, isGuildNot, isAdminManageServer } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -751,17 +729,15 @@ async function commandLoreCreate(interaction, context) {
 		writeLoreFile(filePath, snippets);
 		removeDuplicateLoreInFiles(loresDir, filePath);
 
-		consoleLog(`${getTimestamp()} Success: Added snippet via Discord to '${filePath}'`);
+		consoleLog(`${getTimestamp()} ${colorize('green', 'Success')}: ${colorize('green', `Added snippet via Discord to: '${filePath}'`)}`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replyLoreCreateSuccess', { guildId: guildIdArg, lang: langArg }), flags: [MessageFlags.Ephemeral] });
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandLoreRemove(interaction, context) {
-	const { getLocText, removeDuplicateLoreInFiles, safeReply, colorize, consoleLog, getTimestamp, getLoreFilePath, readLoreFileStrict, writeLoreFile, isGuildNot, isAdminManageServer } = context;
+	const { getLocText, removeDuplicateLoreInFiles, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, getLoreFilePath, readLoreFileStrict, writeLoreFile, isGuildNot, isAdminManageServer } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -788,20 +764,18 @@ async function commandLoreRemove(interaction, context) {
 			writeLoreFile(filePath, snippets);
 			removeDuplicateLoreInFiles(loresDir, filePath);
 
-			consoleLog(`${getTimestamp()} Success: Removed snippet #${snippetNumber} from '${path.basename(filePath)}' via Discord`);
+			consoleLog(`${getTimestamp()} ${colorize('green', 'Success')}: ${colorize('green', `Removed snippet #${snippetNumber} from '${path.basename(filePath)}' via Discord.`)}`);
 			await safeReply(interaction, { content: getLocText(interaction, 'replyLoreRemoveSuccess', { number: snippetNumber }), flags: [MessageFlags.Ephemeral] });
 		} else {
 			await safeReply(interaction, { content: getLocText(interaction, 'replyLoreRemoveNotFound', { number: snippetNumber }), flags: [MessageFlags.Ephemeral] });
 		}
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandVoiceJoin(interaction, context) {
-	const { getLocText, saveVoiceState, safeReply, colorize, consoleLog, getTimestamp, joinVoice, isWhitelistNot, isSelectedRoleNot, isGuildNot, voiceConnections, guildPlayers, guildVolumes, currentVolume } = context;
+	const { getLocText, saveVoiceState, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, joinVoice, isWhitelistNot, isSelectedRoleNot, isGuildNot, voiceConnections, guildPlayers, guildVolumes, currentVolume } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -823,23 +797,21 @@ async function commandVoiceJoin(interaction, context) {
 		try {
 			await joinVoice(optionVoiceChannel, voiceConnections, guildPlayers);
 		} catch (err) {
-			consoleLog(`${getTimestamp()} ${err.message}`);
+			consoleLog(`${getTimestamp()} ${colorize('red', 'ERROR')}: ${colorize('red', `Couldn't join voice channel '${optionVoiceChannel.name}' (${optionVoiceChannel.id})`)}: ${err.message}`);
 			await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
 			return;
 		}
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 
-		consoleLog(`${getTimestamp()} Successfully joined the voice channel '${optionVoiceChannel.name}' (${optionVoiceChannel.id}) by @${interaction.user.tag} (${interaction.user.id})`);
+		consoleLog(`${getTimestamp()} ${colorize('green', `Successfully joined the voice channel '${optionVoiceChannel.name}' (${optionVoiceChannel.id}) by @${interaction.user.tag} (${interaction.user.id}).`)}`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replyVoiceJoinSuccess', { channelName: optionVoiceChannel.name }), flags: [MessageFlags.Ephemeral] });
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandVoiceLeave(interaction, context) {
-	const { getLocText, saveVoiceState, safeReply, colorize, consoleLog, getTimestamp, isWhitelistNot, isSelectedRoleNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume } = context;
+	const { getLocText, saveVoiceState, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, isWhitelistNot, isSelectedRoleNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -854,17 +826,15 @@ async function commandVoiceLeave(interaction, context) {
 		try { connection?.destroy(); } catch (err) {}
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 		
-		consoleLog(`${getTimestamp()} Successfully left voice channel for guild ID '${interaction.guildId}' by @${interaction.user.tag} (${interaction.user.id})`);
+		consoleLog(`${getTimestamp()} ${colorize('green', `Successfully left voice channel for guild ID '${interaction.guildId}' by @${interaction.user.tag} (${interaction.user.id})>`)}`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replyVoiceLeaveSuccess'), flags: [MessageFlags.Ephemeral] });
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandSoundboardPlay(interaction, context) {
-	const { getLocText, saveVoiceState, safeReply, colorize, consoleLog, getTimestamp, getSoundFilePath, setupPlayerEvents, isWhitelistNot, isSelectedRoleNot, isGuildNot, isVoiceNot, voiceConnections, guildVolumes, guildPlayers, currentVolume, getCurrentVolume } = context;
+	const { getLocText, saveVoiceState, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, getSoundFilePath, setupPlayerEvents, isWhitelistNot, isSelectedRoleNot, isGuildNot, isVoiceNot, voiceConnections, guildVolumes, guildPlayers, currentVolume, getCurrentVolume } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -912,17 +882,15 @@ async function commandSoundboardPlay(interaction, context) {
 			connection.once(VoiceConnectionStatus.Ready, startPlayback);
 		}
 
-		consoleLog(`${getTimestamp()} Played sound '${soundChoice}' for guild ID '${interaction.guildId}'.`);
+		consoleLog(`${getTimestamp()} ${colorize('green', `Played sound '${soundChoice}' for guild ID '${interaction.guildId}'.`)}`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardPlayPlaying', { soundChoice }), flags: [MessageFlags.Ephemeral] });
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandSoundboardStop(interaction, context) {
-	const { getLocText, saveVoiceState, safeReply, colorize, consoleLog, getTimestamp, isWhitelistNot, isSelectedRoleNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume } = context;
+	const { getLocText, saveVoiceState, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, isWhitelistNot, isSelectedRoleNot, isGuildNot, isVoiceNot, voiceConnections, guildPlayers, guildVolumes, currentVolume } = context;
 	
 	try {
 		if (await isGuildNot(interaction)) return;
@@ -936,17 +904,15 @@ async function commandSoundboardStop(interaction, context) {
 		}
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 		
-		consoleLog(`${getTimestamp()} Stopped playback for guild ID '${interaction.guildId}'.`);
+		consoleLog(`${getTimestamp()} ${colorize('green', `Stopped playback for guild ID '${interaction.guildId}'.`)}`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardStopSuccess'), flags: [MessageFlags.Ephemeral] });
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
 async function commandSoundboardVolume(interaction, context) {
-	const { getLocText, saveVoiceState, safeReply, colorize, consoleLog, getTimestamp, isWhitelistNot, isSelectedRoleNot, isGuildNot, voiceConnections, guildVolumes, guildPlayers, currentVolume } = context;
+	const { getLocText, saveVoiceState, safeReply, handleCommandError, colorize, consoleLog, getTimestamp, isWhitelistNot, isSelectedRoleNot, isGuildNot, voiceConnections, guildVolumes, guildPlayers, currentVolume } = context;
 	try {
 		if (await isGuildNot(interaction)) return;
 		if (await isSelectedRoleNot(interaction)) return;
@@ -960,12 +926,10 @@ async function commandSoundboardVolume(interaction, context) {
 		}
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 		
-		consoleLog(`${getTimestamp()} Volume set to ${volumePercent}% for guild ID '${interaction.guildId}'.`);
+		consoleLog(`${getTimestamp()} ${colorize('green', `Volume set to ${volumePercent}% for guild ID '${interaction.guildId}'.`)}`);
 		await safeReply(interaction, { content: getLocText(interaction, 'replySoundboardVolumeSuccess', { volume: volumePercent }), flags: [MessageFlags.Ephemeral] });
 	} catch (err) {
-		if (isIgnorableInteractionError(err)) return;
-		consoleLog(`${getTimestamp()} Failed to execute command [/${interaction.commandName}] : `, err);
-		await safeReply(interaction, { content: getLocText(interaction, 'replyCommandError', { commandName: `/${interaction.commandName}` }), flags: [MessageFlags.Ephemeral] });
+		await handleCommandError(interaction, err, context);
 	}
 }
 
