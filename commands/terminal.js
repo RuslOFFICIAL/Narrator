@@ -54,7 +54,7 @@ ${colorize('magenta', 'BOT')}:
 - ${colorize('blue', 'status')}: Status of the bot.
 - ${colorize('blue', 'ping')}: Check bot latency.
 - ${colorize('blue', 'clear')}: Clear the terminal screen.
-\n${colorize('blue', 'SERVER')}:
+\n${colorize('magenta', 'SERVER')}:
 - ${colorize('blue', 'echo')}: Send a message to a specific channel by ID or edit a message by ID.
 - ${colorize('blue', 'info')}: Show bot info.
 - ${colorize('blue', 'role-create')}: Create a role and add it to a server's selected roles.
