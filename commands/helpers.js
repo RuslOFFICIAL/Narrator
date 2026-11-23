@@ -24,7 +24,7 @@ const FATAL_LOGIN_ERRORS = ['TokenInvalid', 'TokenMissing', 'DisallowedIntents']
 const GUILD_ID_REGEX = /^(\d{5,25}|default)$/;
 const LANG_CODE_REGEX = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
 const LOG_FILE_REGEX = /^(\d{4})-(\d{2})-(\d{2})(?:\.\d+)?\.log$/;
-const TIMESTAMP_PREFIX_REGEX = /^\[\d{2}:\d{2}:\d{2} \d{2}\.\d{2}\.\d{4} UTC\]/;
+const TIMESTAMP_PREFIX_REGEX = /^\[\s?\d{2}:\d{2}:\d{2} \d{2}\.\d{2}\.\d{4} UTC\s?\]/;
 const SNOWFLAKE_REGEX = /^\d{5,25}$/;
 const REJOIN_DELAYS_MS = [5000, 10000, 20000, 40000, 60000];
 const ROLE_FORBIDDEN_PERMISSIONS = [PermissionFlagsBits.Administrator, PermissionFlagsBits.ManageGuild, PermissionFlagsBits.ManageRoles];
@@ -35,6 +35,18 @@ const LORE_MAX_FILE_BYTES = 2 ** 20; // 1 MiB.
 const ROLES_MAX_PER_GUILD = 250;
 const ROLES_MAX_FILE_BYTES = 2 ** 20; // 1 MiB.
 
+const ANSI = {
+	reset: '\x1b[0m',
+	bold: '\x1b[1m',
+	dim: '\x1b[2m',
+	red: '\x1b[31m',
+	green: '\x1b[32m',
+	yellow: '\x1b[33m',
+	blue: '\x1b[34m',
+	magenta: '\x1b[35m',
+	cyan: '\x1b[36m',
+	gray: '\x1b[90m'
+};
 const COLOR_EMOJIS = [
 	{ emoji: '🔴', rgb: [221, 46, 68] },
 	{ emoji: '🟠', rgb: [244, 144, 12] },
@@ -76,7 +88,7 @@ function loadSafeModule(filePath, fallbackValue) {
 		const mod = require(absolutePath);
 		return Array.isArray(mod) ? mod.map(s => String(s)) : mod;
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] [loadSafeModule] Failed to load ${filePath}: `, err);
+		consoleLog(`${getTimestamp()} ${colorize('gray', '[loadSafeModule]')} ${colorize('red', `Failed to load ${filePath}`)}: `, err);
 		return fallbackValue;
 	}
 }
@@ -120,7 +132,7 @@ function getLocalizedLoreSnippets(interaction, locales, defaultLang) {
 
 function removeDuplicateLoreInFiles(loresDir, onlyFilePath = null) {
 	if (!fs.existsSync(loresDir)) {
-		consoleLog(`[${getTimestamp()}] Lores directory not found: '${loresDir}'`);
+		consoleLog(`${getTimestamp()} ${colorize('red', `Lores directory not found: '${loresDir}'`)}`);
 		return { success: false, modifiedFilesCount: 0 };
 	}
 	
@@ -140,15 +152,15 @@ function removeDuplicateLoreInFiles(loresDir, onlyFilePath = null) {
 			if (uniqueSnippets.length !== snippets.length) {
 				writeLoreFile(filePath, uniqueSnippets);				
 				modifiedFilesCount++;
-				consoleLog(`[${getTimestamp()}] [Lore Cleanup] Removed ${snippets.length - uniqueSnippets.length} duplicate(s) from file '${file}'.`);
+				consoleLog(`${getTimestamp()} ${colorize('gray', '[Lore Cleanup]')} Removed ${snippets.length - uniqueSnippets.length} duplicate(s) from file '${file}'.`);
 			}
 		} catch (err) {
-			consoleLog(`[${getTimestamp()}] Failed to process lore file '${file}': `, err);
+			consoleLog(`${getTimestamp()} ${colorize('red', `Failed to process lore file '${file}'`)}: `, err);
 		}
 	}
 	
 	if (modifiedFilesCount > 0) {
-		consoleLog(`[${getTimestamp()}] [Lore Cleanup] Successfully cleaned duplicates across ${modifiedFilesCount} file(s).`);
+		consoleLog(`${getTimestamp()} ${colorize('gray', '[Lore Cleanup]')} ${colorize('green', `Successfully cleaned duplicates across ${modifiedFilesCount} file(s).`)}`);
 	}
 	
 	return { success: true, modifiedFilesCount };
@@ -238,7 +250,7 @@ function getFormattedDate() {
 	return `${year}-${month}-${day}`; // Format for sorting: "YYYY-MM-DD".
 }
 
-function getTimestamp() {
+function getTimestamp(color = true) {
 	const now = new Date();
 	const hours = String(now.getUTCHours()).padStart(2, '0');
 	const minutes = String(now.getUTCMinutes()).padStart(2, '0');
@@ -248,7 +260,8 @@ function getTimestamp() {
 		String(now.getUTCMonth() + 1).padStart(2, '0') + '.' + 
 		now.getUTCFullYear();
 		
-	return `${timeStr} ${dateStr} UTC`;
+	const text = `[ ${timeStr} ${dateStr} UTC ]`;
+	return color ? colorize('gray', text) : text;
 }
 
 function formatUptime(ms) {
@@ -267,7 +280,7 @@ function formatUptime(ms) {
 }
 
 function makeLogMessage(interaction, rl) {
-	const logMessage = `[${getTimestamp()}] [Command Used] '/${interaction.commandName}' was executed by @${interaction.user.tag} (${interaction.user.id})`;
+	const logMessage = `${getTimestamp()} ${colorize('gray', '[Command Used]')} '/${interaction.commandName}' was executed by @${interaction.user.tag} (${interaction.user.id})`;
 	consoleLog(rl, logMessage);
 }
 
@@ -283,26 +296,28 @@ function writeLogToFile(message, { raw = false } = {}) {
 			return;
 		}
 		
+		// Preserve up to 2 leading newlines.
+		const leadingBreaks = (normalized.match(/^\n+/)?.[0] || '').slice(0, 2);
+		const trailingBreaks = (normalized.match(/\s*$/)[0].match(/\n/g) || []).length;
+		
 		let cleanMessage = normalized
 			.replace(/\n{3,}/g, '\n\n')
 			.trim();
 		
 		if (!cleanMessage) return;
 		
-		const trailingBreaks = (normalized.match(/\s*$/)[0].match(/\n/g) || []).length;
-		
 		if (!TIMESTAMP_PREFIX_REGEX.test(cleanMessage)) {
-			cleanMessage = `[${getTimestamp()}] ${cleanMessage}`;
+			cleanMessage = `${getTimestamp(false)} ${cleanMessage}`;
 		}
 		
-		cleanMessage += '\n'.repeat(Math.min(trailingBreaks, 2));
+		cleanMessage = leadingBreaks + cleanMessage + '\n'.repeat(Math.min(trailingBreaks, 2));
 		
 		appendToLog(cleanMessage);
 		logWriteWarned = false;
 	} catch (err) {
 		if (!logWriteWarned) {
 			logWriteWarned = true;
-			try { consoleLog(`[LOGGER] Failed to write to log file: ${err.message}`); } catch (e) {}
+			try { consoleLog(`${colorize('gray', '[LOGGER]')} ${colorize('red', 'Failed to write to log file')}: ${err.message}`); } catch (e) {}
 		}
 	}
 }
@@ -327,10 +342,10 @@ function cleanOldLogs() {
 		}
 
 		if (removed > 0) {
-			consoleLog(`[${getTimestamp()}] [Logger] Removed ${removed} log file(s) older than ${getLogRetentionDays()} days.`);
+			consoleLog(`${getTimestamp()} ${colorize('gray', '[Logger]')} Removed ${removed} log file(s) older than ${getLogRetentionDays()} days.`);
 		}
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] [Logger] Failed to clean old logs: `, err.message);
+		consoleLog(`${getTimestamp()} ${colorize('gray', '[Logger]')} ${colorize('red', 'Failed to clean old logs')}: `, err.message);
 	}
 }
 
@@ -381,7 +396,7 @@ function readLoreFileStrict(filePath) {
 	delete require.cache[absolutePath];
 	const mod = require(absolutePath);
 	if (!Array.isArray(mod)) {
-		throw new Error(`Lore file '${path.basename(filePath)}' does not export an array.`);
+		throw new Error(colorize('red', `Lore file '${path.basename(filePath)}' does not export an array.`));
 	}
 	return mod.map(s => String(s));
 }
@@ -410,7 +425,7 @@ function writeLoreFile(filePath, snippets) {
 
 function assertSnowflake(...ids) {
 	for (const id of ids) {
-		if (!SNOWFLAKE_REGEX.test(String(id))) throw new Error('Invalid guild or role ID.');
+		if (!SNOWFLAKE_REGEX.test(String(id))) throw new Error(colorize('red', 'Invalid guild or role ID.'));
 	}
 }
 
@@ -431,13 +446,13 @@ function getAllGuildRoles({ strict = false } = {}) {
 		if (strict || !fs.existsSync(bakFile)) throw err;
 		if (Date.now() - rolesWarnedAt > 60_000) {
 			rolesWarnedAt = Date.now();
-			consoleLog(`[${getTimestamp()}] [Roles] Failed to load "${path.basename(rolesFile)}", using "${path.basename(bakFile)}" (read-only) until it is fixed: `, err);
+			consoleLog(`${getTimestamp()} ${colorize('gray', '[Roles]')} ${colorize('red', `Failed to load "${path.basename(rolesFile)}", using "${path.basename(bakFile)}" (read-only) until it is fixed`)}: `, err);
 		}
 		mod = loadRolesModule(bakFile);
 	}
 	
 	if (!mod || typeof mod !== 'object' || Array.isArray(mod)) {
-		throw new Error(`"${path.basename(rolesFile)}" does not export an object.`);
+		throw new Error(colorize('red', `"${path.basename(rolesFile)}" does not export an object.`));
 	}
 	const data = Object.create(null);
 	for (const [guildId, roleIds] of Object.entries(mod)) {
@@ -461,7 +476,7 @@ function writeAllGuildRoles(data) {
 	// Only validated digit strings are serialized.
 	const content = `module.exports = ${JSON.stringify(clean, null, '\t')};\n`;
 	if (Buffer.byteLength(content, 'utf8') > maxBytes) {
-		throw new Error(`"${path.basename(rolesFile)}" would exceed ${maxBytes} bytes.`);
+		throw new Error(colorize('red', `"${path.basename(rolesFile)}" would exceed ${maxBytes} bytes.`));
 	}
 	fs.mkdirSync(dataDir, { recursive: true });
 	if (fs.existsSync(rolesFile)) {
@@ -597,6 +612,11 @@ async function takeGuildRole(guild, targetMember, role, actorMember = null, reas
 	return 'taken';
 }
 
+function colorize(color, text) {
+	if (!process.stdout.isTTY || !ANSI[color]) return String(text);
+	return `${ANSI[color]}${text}${ANSI.reset}`;
+}
+
 function roleColorEmoji(role) {
 	if (!role.color) return '⚪';
 	const rgb = [(role.color >> 16) & 255, (role.color >> 8) & 255, role.color & 255];
@@ -619,7 +639,7 @@ function setupPlayerEvents(guildId, player, voiceConnections, guildPlayers, guil
 	});
 
 	player.on('error', err => {
-		consoleLog(`[${getTimestamp()}] Audio player error in guild '${guildId}': `, err.message);
+		consoleLog(`${getTimestamp()} ${colorize('red', `Audio player error in guild '${guildId}'`)}: `, err.message);
 		if (!isCurrent()) return;
 		guildPlayers.delete(guildId);
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, resolveVolume(currentVolume));
@@ -753,7 +773,7 @@ function saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVol
 		fs.mkdirSync(dataDir, { recursive: true });
 		fs.writeFileSync(voiceStateFile, fileContent, 'utf8');
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] [Voice] Failed to save voice state: `, err.message);
+		consoleLog(`${getTimestamp()} ${colorize('gray', '[Voice]')} ${colorize('red', 'Failed to save voice state')}: `, err.message);
 	}
 }
 
@@ -763,7 +783,7 @@ async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPl
 		const data = JSON.parse(fs.readFileSync(voiceStateFile, 'utf8'));
 		fs.unlinkSync(voiceStateFile);
 
-		consoleLog(`[${getTimestamp()}] [Voice] Restoring previous voice states...`);
+		consoleLog(`${getTimestamp()} ${colorize('gray', '[Voice]')} ${colorize('cyan', 'Restoring previous voice states...')}`);
 
 		for (const [guildId, stateData] of Object.entries(data)) {
 			try {
@@ -782,7 +802,7 @@ async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPl
 				});
 				attachConnectionHandlers(connection, guild.id, voiceConnections, guildPlayers, guild);
 				voiceConnections.set(guild.id, connection);
-				consoleLog(`[${getTimestamp()}] [Voice] Rejoined voice channel '${channel.name}' in guild ID '${guildId}'.`);
+				consoleLog(`${getTimestamp()} ${colorize('gray', '[Voice]')} ${colorize('green', `Rejoined voice channel '${channel.name}' in guild ID '${guildId}'.`)}`);
 
 				// Restore playing sound if available.
 				const soundPath = (typeof stateData === 'object' && stateData.playingSound) ? getSoundFilePath(stateData.playingSound) : null;
@@ -799,7 +819,7 @@ async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPl
 					const ffmpegProcess = spawn(FFMPEG_PATH, ffmpegArgs, { stdio: ['ignore', 'pipe', 'ignore'] });
 					const killFfmpeg = () => { try { ffmpegProcess.kill('SIGKILL'); } catch (e) {} };
 					ffmpegProcess.on('error', (err) => {
-						consoleLog(`[${getTimestamp()}] [Voice] Could not run ffmpeg to resume '${stateData.playingSound}': `, err.message);
+						consoleLog(`${getTimestamp()} ${colorize('gray', '[Voice]')} ${colorize('red', `Could not run ffmpeg to resume '${stateData.playingSound}'`)}: `, err.message);
 						try { player.stop(true); } catch (e) {}
 						if (guildPlayers.get(guild.id)?.player === player) {
 							guildPlayers.delete(guild.id);
@@ -835,14 +855,14 @@ async function restoreVoiceState(client, voiceConnections, guildVolumes, guildPl
 					} else {
 						connection.once(VoiceConnectionStatus.Ready, startPlayback);
 					}
-					consoleLog(`[${getTimestamp()}] [Voice] Resumed audio playback for '${stateData.playingSound}'.`);
+					consoleLog(`${getTimestamp()} ${colorize('gray', '[Voice]')} ${colorize('green', `Resumed audio playback for '${stateData.playingSound}'.`)}`);
 				}
 			} catch (err) {
-				consoleLog(`[${getTimestamp()}] [Voice] Failed to restore voice state for guild ID '${guildId}': `, err.message);
+				consoleLog(`${getTimestamp()} ${colorize('gray', '[Voice]')} ${colorize('red', `Failed to restore voice state for guild ID '${guildId}'`)}: `, err.message);
 			}
 		}
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] [Voice] Failed to restore voice state: `, err.message);
+		consoleLog(`${getTimestamp()} ${colorize('gray', '[Voice]')} ${colorize('red', 'Failed to restore voice state')}: `, err.message);
 	}
 }
 
@@ -852,7 +872,7 @@ function saveVolumes(guildVolumes, currentVolume = 1.0) {
 		fs.mkdirSync(dataDir, { recursive: true });
 		fs.writeFileSync(volumesFile, `${JSON.stringify(data, null, '\t')}\n`, 'utf8');
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] [Voice] Failed to save volumes: `, err.message);
+		consoleLog(`${getTimestamp()} ${colorize('gray', '[Voice]')} ${colorize('red', 'Failed to save volumes')}: `, err.message);
 	}
 }
 
@@ -866,7 +886,7 @@ function loadVolumes(guildVolumes) {
 		}
 		return valid(data.global) ? data.global : null;
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] [Voice] Failed to load volumes: `, err.message);
+		consoleLog(`${getTimestamp()} ${colorize('gray', '[Voice]')} ${colorize('red', 'Failed to load volumes')}: `, err.message);
 		return null;
 	}
 }
@@ -902,30 +922,31 @@ function scheduleRejoin(guild, channelId, voiceConnections, guildPlayers, attemp
 	if (isExiting || !channelId) return;
 
 	if (attempt >= REJOIN_DELAYS_MS.length) {
-		consoleLog(`[${getTimestamp()}] [Voice] Giving up rejoining in guild ID '${guildId}' after ${attempt} attempt(s). Use /voice-join to reconnect.`);
+		consoleLog(`${getTimestamp()} ${colorize('gray', '[Voice]')} ${colorize('yellow', `Giving up rejoining in guild ID '${guildId}' after ${attempt} attempt(s). Use 'voice-join' or '/voice-join' to reconnect.`)}`);
 		return;
 	}
 
 	const delay = REJOIN_DELAYS_MS[attempt];
-	consoleLog(`[${getTimestamp()}] [Voice] Connection lost in guild ID '${guildId}'. Rejoin attempt ${attempt + 1}/${REJOIN_DELAYS_MS.length} in ${delay / 1000}s...`);
+	consoleLog(`${getTimestamp()} ${colorize('gray', '[Voice]')} ${colorize('yellow', `Connection lost in guild ID '${guildId}'. Rejoin attempt ${attempt + 1}/${REJOIN_DELAYS_MS.length} in ${delay / 1000}s...`)}`);
 
 	const timer = setTimeout(async () => {
 		rejoinTimers.delete(guildId);
 		if (isExiting) return;
+		
 		// Already reconnected manually.
 		if (voiceConnections.has(guildId)) return;
 
 		const channel = guild.channels.cache.get(channelId);
 		if (!channel || !channel.isVoiceBased()) {
-			consoleLog(`[${getTimestamp()}] [Voice] Rejoin cancelled: channel ID '${channelId}' no longer exists.`);
+			consoleLog(`${getTimestamp()} ${colorize('gray', '[Voice]')} ${colorize('yellow', `Rejoin cancelled: channel ID '${channelId}' no longer exists.`)}`);
 			return;
 		}
 
 		try {
 			await joinVoice(channel, voiceConnections, guildPlayers);
-			consoleLog(`[${getTimestamp()}] [Voice] Rejoined voice channel '${channel.name}' in guild ID '${guildId}'.`);
+			consoleLog(`${getTimestamp()} ${colorize('gray', '[Voice]')} ${colorize('green', `Rejoined voice channel '${channel.name}' in guild ID '${guildId}'.`)}`);
 		} catch (err) {
-			consoleLog(`[${getTimestamp()}] [Voice] Rejoin attempt failed: `, err.message);
+			consoleLog(`${getTimestamp()} ${colorize('gray', '[Voice]')} ${colorize('red', 'Rejoin attempt failed')}: `, err.message);
 			scheduleRejoin(guild, channelId, voiceConnections, guildPlayers, attempt + 1);
 		}
 	}, delay);
@@ -937,7 +958,7 @@ function attachConnectionHandlers(connection, guildId, voiceConnections, guildPl
 	let wasKicked = false;
 
 	connection.on('error', (err) => {
-		consoleLog(`[${getTimestamp()}] Voice connection error: `, err.message);
+		consoleLog(`${getTimestamp()} ${colorize('red', 'Voice connection error')}: `, err.message);
 		try { connection.destroy(); } catch (e) {}
 	});
 
@@ -997,7 +1018,7 @@ async function joinVoice(channel, voiceConnections, guildPlayers) {
 		if (lastStatus !== VoiceConnectionStatus.Destroyed) {
 			try { connection.destroy(); } catch (e) {}
 		}
-		throw new Error(`Could not join '${channel.name}' (stuck at '${lastStatus}'). Check the bot's View/Connect permissions.`);
+		throw new Error(colorize('red', `Could not join '${channel.name}' (stuck at '${lastStatus}'). Check the bot's View/Connect permissions.`));
 	}
 
 	voiceConnections.set(guildId, connection);
@@ -1008,7 +1029,7 @@ async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes
 	if (isExiting) return;
 	isExiting = true;
 	
-	consoleLog(`\n[${getTimestamp()}] Shutting down the bot safely...`);
+	consoleLog(`\n${getTimestamp()} ${colorize('cyan', 'Shutting down the bot safely...')}`);
 	
 	try {
 		rl.close();
@@ -1020,18 +1041,18 @@ async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes
 				}
 
 				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
-				consoleLog(`[${getTimestamp()}] Leaving voice channels...`);
+				consoleLog(`${getTimestamp()} ${colorize('cyan', 'Leaving voice channels...')}`);
 				for (const [guildId, connection] of voiceConnections.entries()) {
 					try {
 						connection.destroy();
 					} catch (err) {}
 				}
 				voiceConnections.clear();
-				consoleLog(`[${getTimestamp()}] Successfully left all voice channels.`);
+				consoleLog(`${getTimestamp()} ${colorize('green', 'Successfully left all voice channels.')}`);
 				
 				await new Promise(resolve => setTimeout(resolve, 1000));
 			} catch (err) {
-				consoleLog(`[${getTimestamp()}] Failed to leave voice channels: `, err);
+				consoleLog(`${getTimestamp()} ${colorize('red', 'Failed to leave voice channels')}: `, err);
 			}
 		}
 		
@@ -1040,17 +1061,17 @@ async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes
 	} catch (err) {
 		consoleLog(err);
 	} finally {
-		writeCenteredLog(`End of the session`);
+		writeCenteredLog(`End of the session (Status ${exitCode})`);
 		try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) {}
 		process.exit(exitCode);
 	}
 }
 
-async function restart(client, voiceConnections, guildPlayers, rl, scriptFilename, guildVolumes, currentVolume = 1.0, exitCode = 0) {
+async function restart(client, voiceConnections, guildPlayers, rl, scriptFilename, guildVolumes, currentVolume = 1.0, exitCode = 42) {
 	if (isExiting) return;
 	isExiting = true;
 
-	consoleLog(`\n[${getTimestamp()}] Restarting the bot safely...`);
+	consoleLog(`\n${getTimestamp()} ${colorize('cyan', 'Restarting the bot safely...')}`);
 	
 	try {
 		rl.close();
@@ -1062,18 +1083,18 @@ async function restart(client, voiceConnections, guildPlayers, rl, scriptFilenam
 				}
 
 				saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
-				consoleLog(`[${getTimestamp()}] Leaving voice channels...`);
+				consoleLog(`${getTimestamp()} ${colorize('cyan', 'Leaving voice channels...')}`);
 				for (const [guildId, connection] of voiceConnections.entries()) {
 					try {
 						connection.destroy();
 					} catch (err) {}
 				}
 				voiceConnections.clear();
-				consoleLog(`[${getTimestamp()}] Successfully left all voice channels.`);
+				consoleLog(`${getTimestamp()} ${colorize('green', 'Successfully left all voice channels.')}`);
 				
 				await new Promise(resolve => setTimeout(resolve, 1000));
 			} catch (err) {
-				consoleLog(`[${getTimestamp()}] Failed to leave voice channels: `, err);
+				consoleLog(`${getTimestamp()} ${colorize('red', 'Failed to leave voice channels')}: `, err);
 			}
 		}
 		
@@ -1081,18 +1102,8 @@ async function restart(client, voiceConnections, guildPlayers, rl, scriptFilenam
 		await client.destroy();
 	} catch (err) {
 		consoleLog(err);
-	} finally {
-		consoleLog(`[${getTimestamp()}] Triggering restart...`);
-		
-		// Touch the main script file so nodemon detects a "file change" and restarts cleanly.
-		try {
-			const time = new Date();
-			fs.utimesSync(scriptFilename || __filename, time, time);
-		} catch (err) {
-			// Fallback if touching fails.
-		}
-		
-		writeCenteredLog(`End of the session`);
+	} finally {	
+		writeCenteredLog(`End of the session (Status ${exitCode})`);
 		try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch (err) {}
 		process.exit(exitCode);
 	}
@@ -1102,16 +1113,17 @@ async function loginWithRetry(client, attempt = 1, token = activeConfig?.discord
 	try {
 		await client.login(token);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Login failed (attempt ${attempt}): ${err.message}`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', `Login failed (attempt ${attempt})`)}: ${err.message}`);
 		if (FATAL_LOGIN_ERRORS.includes(err.code) || attempt >= 10) {
-			consoleLog(`[${getTimestamp()}] Giving up after ${attempt} attempt(s).`);
-			writeCenteredLog("End of the session");
-			process.exit(1);
-			return;
+			consoleLog(`${getTimestamp()} ${colorize('red', `Giving up after ${attempt} attempt(s).`)}`);
+			
+			const exitCode = 1;
+			writeCenteredLog(`End of the session (Status ${exitCode})`);
+			process.exit(exitCode);
 		}
 		
 		const delayMs = Math.min(60000, 5000 * attempt);
-		consoleLog(`[${getTimestamp()}] Retrying login in ${delayMs / 1000}s...`);
+		consoleLog(`${getTimestamp()} ${colorize('cyan', `Retrying login in ${delayMs / 1000}s...`)}`);
 		setTimeout(() => loginWithRetry(client, attempt + 1, token), delayMs);
 	}
 }
@@ -1122,7 +1134,7 @@ module.exports = {
 	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isRoleManagerNot, isSelectedRoleNot, isGuildNot, isVoiceNot,
 	saveVoiceState, restoreVoiceState, loadVolumes,
 	readLoreFileStrict, writeLoreFile, exceedsLoreLimit,
-	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, roleColorEmoji,
+	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, colorize, roleColorEmoji,
 	getRolesMaxPerGuild, getRolesMaxFileBytes,
 	getLoreMaxBytes, getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown, restart, loginWithRetry

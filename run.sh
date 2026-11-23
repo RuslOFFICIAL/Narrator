@@ -6,15 +6,30 @@ cd "$(dirname "$0")" || exit
 SCRIPT_NAME="$(basename "$0")"
 SCRIPT_PATH="./$SCRIPT_NAME"
 FILE_PACKAGE="package.json"
-FILE_NODEMON="nodemon.json"
 
 DATA_DIR="data"
 CONF_FILE="$DATA_DIR/run.conf"
-STOP_FILE="$DATA_DIR/run.stop"
-RESTART_FILE="$DATA_DIR/run.restart"
 
 WATCH_FILES=""
 NM_PID=""
+
+# Terminal colors.
+if [ -t 1 ]; then
+	C_RESET='\033[0m'
+	C_DIM='\033[2m'
+	C_RED='\033[0;31m'
+	C_GREEN='\033[0;32m'
+	C_YELLOW='\033[0;33m'
+	C_BLUE='\033[0;34m'
+	C_CYAN='\033[0;36m'
+else
+	C_RESET='' C_DIM='' C_RED='' C_GREEN='' C_YELLOW='' C_BLUE='' C_CYAN=''
+fi
+
+say_info()	{ echo -e "${C_CYAN}$*${C_RESET}"; }
+say_ok()	{ echo -e "${C_GREEN}$*${C_RESET}"; }
+say_warn()	{ echo -e "${C_YELLOW}$*${C_RESET}"; }
+say_err()	{ echo -e "${C_RED}$*${C_RESET}"; }
 
 # Functions.
 add_watch() {
@@ -91,13 +106,35 @@ kill_tree() {
 	fi
 }
 
+# Files that restart the bot when changed.
+get_bot_snapshot() {
+	{ echo narrator.js; echo package.json; echo .env; find commands locales -type f -name '*.js' 2>/dev/null; } | while read -r f; do
+		echo "$f $(get_mtime "$f")"
+	done
+}
+
+# Waits until a bot file or a watcher file changes.
+wait_for_changes() {
+	SNAP=$(get_bot_snapshot)
+	while true; do
+		CHANGED_FILE=$(get_changed)
+		if [ -n "$CHANGED_FILE" ]; then
+			stty sane 2>/dev/null
+			say_warn "\nChanges detected in '$CHANGED_FILE'. Restarting completely...\n"
+			trap - EXIT
+			exec sh "$SCRIPT_PATH"
+		fi
+		[ "$(get_bot_snapshot)" != "$SNAP" ] && return 0
+		sleep 1
+	done
+}
+
 main() {
 	# Keep a copy of the real stdin (console input) for nodemon.
 	exec 3<&0
 
 	# Add watched files.
 	add_watch "$SCRIPT_NAME"
-	[ -f "$FILE_NODEMON" ] && add_watch "$FILE_NODEMON"
 	
 	# Take the snapshot first.
 	INITIAL_SNAPSHOT=$(get_snapshot)
@@ -106,7 +143,7 @@ main() {
 	if [ -f "$CONF_FILE" ]; then
 		OLD_PID=$(get_conf PID)
 		if [ -n "$OLD_PID" ] && [ "$OLD_PID" != "$$" ] && kill -0 "$OLD_PID" 2>/dev/null && is_run_sh "$OLD_PID"; then
-			echo "Stopping previous instance (PID: $OLD_PID)..."
+			say_warn "Stopping previous instance (PID: $OLD_PID)..."
 			kill -15 "$OLD_PID" 2>/dev/null
 			sleep 1
 			kill -0 "$OLD_PID" 2>/dev/null && kill -9 "$OLD_PID" 2>/dev/null
@@ -116,26 +153,25 @@ main() {
 	# Write fresh config.
 	mkdir -p "$DATA_DIR"
 	echo "PID=$$" > "$CONF_FILE"
-	rm -f "$STOP_FILE" "$RESTART_FILE"
 	export RUN_SH_PID=$$
 	trap cleanup EXIT
 	trap 'exit 143' INT TERM HUP
 
-	echo "Make sure there is only one host of bot!"
+	say_warn "Make sure there is only one host of bot!"
 
 	# Install dependencies.
 	if [ ! -f "$FILE_PACKAGE" ]; then
-		printf "\nFile '%s' not found.\n" "$FILE_PACKAGE"
+		say_warn "\nFile '$FILE_PACKAGE' not found."
 		npm init -y
 	fi
 
-	printf '\nConfiguring npm...\n'
+	say_info "\nConfiguring npm..."
 	npm config set fund false --location=project
 
-	printf '\nInstalling dependencies...\n'
+	say_info "\nInstalling dependencies..."
 	npm install
 
-	printf '\nRunning vulnerability audit check...\n'
+	say_info "\nRunning vulnerability audit check..."
 	npm audit --omit=dev || true
 
 	echo
@@ -143,54 +179,69 @@ main() {
 	# A watched file may have changed while installing.
 	CHANGED_FILE=$(get_changed)
 	if [ -n "$CHANGED_FILE" ]; then
-		echo "Changes detected in '$CHANGED_FILE'. Restarting completely..."
+		say_warn "\nChanges detected in '$CHANGED_FILE'. Restarting completely...\n"
 		trap - EXIT
 		exec sh "$SCRIPT_PATH"
 	fi
 
-	# Start nodemon in the background.
-	npx --yes nodemon --no-stdin <&3 3<&- &
-	NM_PID=$!
+	# Run the bot in a loop and react to its exit code.
+	while true; do
+		node narrator.js <&3 3<&- &
+		NM_PID=$!
+		BOT_SNAPSHOT=$(get_bot_snapshot)
+		RESTART_BOT=""
 
-	CHANGED_FILE=""
-	while kill -0 "$NM_PID" 2>/dev/null; do
-		if [ -f "$STOP_FILE" ]; then
-			rm -f "$STOP_FILE"
-			printf '\nStop requested. Exiting...\n'
-			stop_nodemon
-			cleanup
-			exit 0
+		# Watch for file changes while the bot is running.
+		while kill -0 "$NM_PID" 2>/dev/null; do
+			CHANGED_FILE=$(get_changed)
+			if [ -n "$CHANGED_FILE" ]; then
+				stop_nodemon
+				stty sane 2>/dev/null
+				say_warn "\nChanges detected in '$CHANGED_FILE'. Restarting completely..."
+				trap - EXIT
+				exec sh "$SCRIPT_PATH"
+			fi
+			if [ "$(get_bot_snapshot)" != "$BOT_SNAPSHOT" ]; then
+				say_warn "\nBot files changed. Restarting bot..."
+				stop_nodemon
+				RESTART_BOT=1
+				break
+			fi
+			sleep 1
+		done
+
+		if [ -n "$RESTART_BOT" ]; then
+			STATUS=42
+		else
+			wait "$NM_PID" 2>/dev/null
+			STATUS=$?
 		fi
-		if [ -f "$RESTART_FILE" ]; then
-			rm -f "$RESTART_FILE"
-			stop_nodemon
-			stty sane 2>/dev/null
-			printf '\nReboot requested. Restarting completely...\n'
-			trap - EXIT
-			exec sh "$SCRIPT_PATH"
-		fi
-		
-		CHANGED_FILE=$(get_changed)
-		if [ -n "$CHANGED_FILE" ]; then
-			stop_nodemon
-			break
-		fi
-		sleep 1
-	done
-	
-	if [ -n "$CHANGED_FILE" ]; then
+		NM_PID=""
 		stty sane 2>/dev/null
-		printf "\nChanges detected in '%s'. Restarting completely...\n" "$CHANGED_FILE"
-		trap - EXIT
-		exec sh "$SCRIPT_PATH"
-	fi
 
-	wait "$NM_PID" 2>/dev/null
-	STATUS=$?
-	NM_PID=""
-	stty sane 2>/dev/null
-	printf "\nNodemon exited (Status %s).\n" "$STATUS"
-	return "$STATUS"
+		case "$STATUS" in
+			0)
+				say_ok "\nBot exited (Status 0). Exiting watcher...\n"
+				return 0
+				;;
+			42)
+				say_ok "\nRestarting bot (Status 42)...\n"
+				;;
+			43)
+				say_ok "\nBot shut down (Status 43). Waiting for changes...\n"
+				wait_for_changes
+				;;
+			44)
+				say_ok "\nRestarting watcher (Status 44)...\n"
+				trap - EXIT
+				exec sh "$SCRIPT_PATH"
+				;;
+			*)
+				say_err "\nBot crashed (Status $STATUS). Waiting for changes...\n"
+				wait_for_changes
+				;;
+		esac
+	done
 }
 
 main "$@"; exit $?

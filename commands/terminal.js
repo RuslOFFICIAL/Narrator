@@ -9,41 +9,9 @@ const { createAudioPlayer, createAudioResource, VoiceConnectionStatus } = requir
 const dataDir = path.join(__dirname, '../data');
 const loresDir = path.join(__dirname, '../lores');
 const soundsDir = path.join(__dirname, '../sounds');
-const stopFile = path.join(dataDir, 'run.stop');
-const restartFile = path.join(dataDir, 'run.restart');
 const formatsMd = 'docs/formats.md'
 
 const SOUND_EXT = '.mp3'
-
-const HELP_TEXT = `Commands:\n
-BOT:
-- help: Show terminal commands.
-- exit/shutdown: Shut down the bot.
-- stop: Completely end the process.
-- restart: Restart the bot.
-- reboot: Restart the bot and the watcher script.
-- status: Status of the bot.
-- ping: Check bot latency.
-- clear: Clear the terminal screen.
-\nSERVER:
-- echo: Send a message to a specific channel by ID or edit a message by ID.
-- info: Show bot info.
-- role-create: Create a role and add it to a server's selected roles.
-- role-give: Give a selected role to a member.
-- role-take: Take a selected role from a member.
-- role-add: Add a role to a server's selected roles.
-- role-remove: Remove a role from server's selected roles.
-- role-list: List server's selected roles.
-- lore: Print a random lore snippet.
-- lore-list: Lists lore snippets.
-- lore-create: Create lore file for a guild.
-- lore-remove: Remove a specific lore snippet.
-- voice-join: Connect bot to specified voice channel by ID.
-- voice-leave: Disconnect bot from voice channel.
-- soundboard-play: Play the specified soundboard audio.
-- soundboard-stop: Stop playing the soundboard audio.
-- soundboard-volume: Set playback volume (0-100).
-\nCheck command formats in file "${formatsMd}".`;
 
 const stripControl = (text) => String(text).replace(/[\x00-\x1f\x7f]/g, '');
 
@@ -52,11 +20,11 @@ const SNOWFLAKE_REGEX = /^\d{5,25}$/;
 
 const ROLE_ERRORS = {
 	notFound: 'Role not found in that guild.',
-	everyone: 'The @everyone role cannot be selected.',
+	everyone: "The '@everyone' role cannot be selected.",
 	managed: 'Bot/integration roles cannot be selected.',
 	dangerous: 'Roles with Administrator, Manage Server or Manage Roles cannot be selected.',
 	botPermission: 'The bot needs the Manage Roles permission.',
-	botHierarchy: 'That role is not below the bot\'s highest role.',
+	botHierarchy: "That role is not below the bot's highest role.",
 	userHierarchy: 'That role is not below your highest role.'
 };
 const ROLE_CREATE_ERRORS = {
@@ -67,7 +35,7 @@ const ROLE_CREATE_ERRORS = {
 const ROLE_GIVE_ERRORS = {
 	...ROLE_ERRORS,
 	memberNotFound: 'Member not found in that guild.',
-	notSelected: 'That role is not in the guild\'s selected roles.',
+	notSelected: "That role is not in the guild's selected roles.",
 	targetHierarchy: 'You do not outrank that member.',
 	already: 'The member already has that role.'
 };
@@ -75,6 +43,38 @@ const ROLE_TAKE_ERRORS = {
 	...ROLE_GIVE_ERRORS,
 	missing: 'The member does not have that role.'
 };
+
+function getHelpText(colorize) {
+	return `${colorize('magenta', 'Commands')}:\n
+${colorize('magenta', 'BOT')}:
+- ${colorize('blue', 'help')}: Show terminal commands.
+- ${colorize('blue', 'exit/shutdown')}: Shut down the bot.
+- ${colorize('blue', 'stop')}: Completely end the process.
+- ${colorize('blue', 'restart')}: Restart the bot.
+- ${colorize('blue', 'reboot')}: Restart the bot and the watcher script.
+- ${colorize('blue', 'status')}: Status of the bot.
+- ${colorize('blue', 'ping')}: Check bot latency.
+- ${colorize('blue', 'clear')}: Clear the terminal screen.
+\nSERVER:
+- ${colorize('blue', 'echo')}: Send a message to a specific channel by ID or edit a message by ID.
+- ${colorize('blue', 'info')}: Show bot info.
+- ${colorize('blue', 'role-create')}: Create a role and add it to a server's selected roles.
+- ${colorize('blue', 'role-give')}: Give a selected role to a member.
+- ${colorize('blue', 'role-take')}: Take a selected role from a member.
+- ${colorize('blue', 'role-add')}: Add a role to a server's selected roles.
+- ${colorize('blue', 'role-remove')}: Remove a role from server's selected roles.
+- ${colorize('blue', 'role-list')}: List server's selected roles.
+- ${colorize('blue', 'lore')}: Print a random lore snippet.
+- ${colorize('blue', 'lore-list')}: Lists lore snippets.
+- ${colorize('blue', 'lore-create')}: Create lore file for a guild.
+- ${colorize('blue', 'lore-remove')}: Remove a specific lore snippet.
+- ${colorize('blue', 'voice-join')}: Connect bot to specified voice channel by ID.
+- ${colorize('blue', 'voice-leave')}: Disconnect bot from voice channel.
+- ${colorize('blue', 'soundboard-play')}: Play the specified soundboard audio.
+- ${colorize('blue', 'soundboard-stop')}: Stop playing the soundboard audio.
+- ${colorize('blue', 'soundboard-volume')}: Set playback volume (0-100).
+\nCheck command formats in file ${colorize('magenta', `"${formatsMd}"`)}.`;
+}
 
 const getLoreFiles = () => {
 	try { return fs.readdirSync(loresDir).filter(file => file.endsWith('.js')); }
@@ -88,7 +88,7 @@ function restAfter(text, n) {
 }
 
 async function runTerminalLine(line, context) {
-	const { rl, consoleLog, getTimestamp } = context;
+	const { rl, colorize, consoleLog, getTimestamp } = context;
 	
 	const trimmedLine = line.trim();
 	if (!trimmedLine) {
@@ -134,14 +134,14 @@ async function runTerminalLine(line, context) {
 
 		// If the command is not in the multi-arg list, enforce strict single-word usage.
 		if (!multiArgCommands.has(command) && TERMINAL_COMMANDS.includes(command) && args.length > 1) {
-			consoleLog(`[${getTimestamp()}] Error: '${command}' does not take any arguments.`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `'${command}' does not take any arguments.`)}`);
 			break;
 		}
 
 		// Terminal commands.
 		switch (command) {
 			default: {
-				consoleLog(`[${getTimestamp()}] Unknown terminal command: "${command}".`);
+				consoleLog(`${getTimestamp()} Unknown terminal command: "${command}".`);
 				break;
 			}
 
@@ -286,11 +286,11 @@ async function runTerminalLine(line, context) {
 }
 
 async function handleTerminalLine(line, context) {
-	const { rl, consoleLog, getTimestamp } = context;
+	const { rl, colorize, consoleLog, getTimestamp } = context;
 	try {
 		await runTerminalLine(line, context);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Terminal command failed: `, err);
+		consoleLog(`${getTimestamp()} ${colorize('red', 'Terminal command failed')}: `, err);
 		try {
 			if (!rl.closed) rl.prompt();
 		} catch (e) {}
@@ -415,17 +415,17 @@ function completeTerminalLine(line, { client, locales, voiceConnections, guildPl
 
 // Terminal commands.
 // Bot.
-async function terminalHelp(subCmd, args, { consoleLog, getTimestamp }) {
-	consoleLog(`[${getTimestamp()}] ${HELP_TEXT}`);
+async function terminalHelp(subCmd, args, { colorize, consoleLog, getTimestamp }) {
+	consoleLog(`${getTimestamp()} ${getHelpText(colorize)}`);
 }
 
-async function terminalStatus(subCmd, args, { client, isBotReady, botStartTime, formatUptime, consoleLog, getTimestamp }) {
+async function terminalStatus(subCmd, args, { client, isBotReady, botStartTime, formatUptime, colorize, consoleLog, getTimestamp }) {
 	const uptimeFormatted = formatUptime(Date.now() - botStartTime);
-	consoleLog(`[${getTimestamp()}] Status:\n- Bot is ready: ${isBotReady}\n- Logged in as: ${client.user ? client.user.tag : 'Not yet'}\n- Uptime: ${uptimeFormatted}\n- Server count: ${client.guilds.cache.size}`);
+	consoleLog(`${getTimestamp()} ${colorize('magenta', 'Status')}:\n- ${colorize('blue', 'Bot is Ready')}: ${isBotReady}\n- ${colorize('blue', 'Logged in as')}: ${client.user ? client.user.tag : 'Not yet'}\n- ${colorize('blue', 'Uptime')}: ${uptimeFormatted}\n- ${colorize('blue', 'Server Count')}: ${client.guilds.cache.size}`);
 }
 
-async function terminalPing(subCmd, args, { consoleLog, getTimestamp }) {
-	consoleLog(`[${getTimestamp()}] Pinging...`);
+async function terminalPing(subCmd, args, { colorize, consoleLog, getTimestamp }) {
+	consoleLog(`${getTimestamp()} ${colorize('cyan', 'Pinging...')}`);
 	const host = '8.8.8.8';
 
 	// Platform-specific arguments.
@@ -456,13 +456,13 @@ async function terminalPing(subCmd, args, { consoleLog, getTimestamp }) {
 	});
 
 	if (result.time) {
-		consoleLog(`[${getTimestamp()}] Pong! Network latency: ${result.time}ms`);
+		consoleLog(`${getTimestamp()} ${colorize('green', `Pong! Network latency: ${result.time}ms`)}`);
 	} else {
 		try {
 			const ms = await tcpPing();
-			consoleLog(`[${getTimestamp()}] Pong! Network latency: ${ms}ms (TCP fallback, ping unavailable)`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', `Pong! Network latency: ${ms}ms (TCP fallback, ping unavailable)`)}`);
 		} catch (err) {
-			consoleLog(`[${getTimestamp()}] Failed to reach ${host}.`);
+			consoleLog(`${getTimestamp()} ${colorize('red', `Failed to reach ${host}.`)}`);
 		}
 	}
 }
@@ -471,46 +471,38 @@ async function terminalClear() {
 	console.clear();
 }
 
-async function terminalShutdown(subCmd, args, { shutdown, consoleLog, getTimestamp }) {
-	consoleLog(`[${getTimestamp()}] Stopping bot via terminal command...`);
-	shutdown();
+async function terminalShutdown(subCmd, args, { shutdown, colorize, consoleLog, getTimestamp }) {
+	consoleLog(`${getTimestamp()} ${colorize('cyan', 'Stopping bot via terminal command...')}`);
+	shutdown(43); // Shutdown with waiting for changes.
 	return true;
 }
 
-async function terminalStop(subCmd, args, { shutdown, consoleLog, getTimestamp }) {
-	consoleLog(`[${getTimestamp()}] Completely ending process via stop command...`);
-	try {
-		fs.mkdirSync(path.dirname(stopFile), { recursive: true });
-		fs.writeFileSync(stopFile, String(Date.now()));
-	} catch (err) {}
-	shutdown();
+async function terminalStop(subCmd, args, { shutdown, colorize, consoleLog, getTimestamp }) {
+	consoleLog(`${getTimestamp()} ${colorize('cyan', 'Completely ending process via stop command...')}`);
+	shutdown(0); // Full bot and watcher shutdown.
 	return true;
 }
 
-async function terminalRestart(subCmd, args, { restart, consoleLog, getTimestamp }) {
-	consoleLog(`[${getTimestamp()}] Restarting bot via terminal command...`);
-	restart();
+async function terminalRestart(subCmd, args, { restart, colorize, consoleLog, getTimestamp }) {
+	consoleLog(`${getTimestamp()} ${colorize('cyan', 'Restarting bot via terminal command...')}`);
+	restart(42); // Restart bot.
 	return true;
 }
 
-async function terminalReboot(subCmd, args, { shutdown, consoleLog, getTimestamp }) {
-	consoleLog(`[${getTimestamp()}] Rebooting bot and watcher script via terminal command...`);
-	try {
-		fs.mkdirSync(path.dirname(restartFile), { recursive: true });
-		fs.writeFileSync(restartFile, String(Date.now()));
-	} catch (err) {}
-	shutdown();
+async function terminalReboot(subCmd, args, { shutdown, colorize, consoleLog, getTimestamp }) {
+	consoleLog(`${getTimestamp()} ${colorize('cyan', 'Rebooting bot and watcher script via terminal command...')}`);
+	shutdown(44); // Full bot and watcher restart.
 	return true;
 }
 
-async function terminalEcho(subCmd, args, { client, consoleLog, getTimestamp }) {
+async function terminalEcho(subCmd, args, { client, colorize, consoleLog, getTimestamp }) {
 	if (args[1] === '-e') {
 		// Edit Message: echo -e [CHANNEL_ID] [MESSAGE_ID] [EDITED_TEXT]
 		const editChannelId = args[2];
 		const messageId = args[3];
 		const newText = restAfter(subCmd, 4).replace(/\\n/g, '\n');
 		if (!editChannelId || !messageId || !newText) {
-			consoleLog(`[${getTimestamp()}] Error: Please provide a channel ID, a message ID and new text.`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Please provide a channel ID, a message ID and new text.')}`);
 			return;
 		}
 
@@ -521,25 +513,25 @@ async function terminalEcho(subCmd, args, { client, consoleLog, getTimestamp }) 
 		}
 
 		if (!targetChannel || !targetChannel.isTextBased()) {
-			consoleLog(`[${getTimestamp()}] Error: Could not find text channel with ID '${editChannelId}'.`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Could not find text channel with ID '${editChannelId}'.`)}`);
 			return;
 		}
 
 		let targetMessage = null;
 		try { targetMessage = await targetChannel.messages.fetch(messageId); } catch (err) {}
 		if (!targetMessage) {
-			consoleLog(`[${getTimestamp()}] Error: Could not find message with ID '${messageId}' in #${targetChannel.name}.`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Could not find message with ID '${messageId}' in #${targetChannel.name}.`)}`);
 			return;
 		}
 
 		await targetMessage.edit(newText);
-		consoleLog(`[${getTimestamp()}] Message successfully edited in channel #${targetChannel.name}.`);
+		consoleLog(`${getTimestamp()} ${colorize('green', `Message successfully edited in channel #${targetChannel.name}.`)}`);
 	} else {
 		// Send Message: echo [CHANNEL_ID] [MESSAGE]
 		const channelId = args[1];
 		const messageText = restAfter(subCmd, 2).replace(/\\n/g, '\n');
 		if (!channelId || !messageText) {
-			consoleLog(`[${getTimestamp()}] Error: Please provide a channel ID and a message.`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Please provide a channel ID and a message.')}`);
 			return;
 		}
 		let targetEchoChannel = null;
@@ -548,57 +540,57 @@ async function terminalEcho(subCmd, args, { client, consoleLog, getTimestamp }) 
 			if (channel) { targetEchoChannel = channel; break; }
 		}
 		if (!targetEchoChannel || !targetEchoChannel.isTextBased()) {
-			consoleLog(`[${getTimestamp()}] Error: Could not find text channel with ID '${channelId}'.`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Could not find text channel with ID '${channelId}'.`)}`);
 			return;
 		}
 		await targetEchoChannel.send(messageText);
-		consoleLog(`[${getTimestamp()}] Message successfully sent to channel #${targetEchoChannel.name}.`);
+		consoleLog(`${getTimestamp()} ${colorize('green', `Message successfully sent to channel #${targetEchoChannel.name}.`)}`);
 	}
 }
 
-async function terminalInfo(subCmd, args, { locales, defaultLang, packageJson, consoleLog, getTimestamp }) {
+async function terminalInfo(subCmd, args, { locales, defaultLang, packageJson, colorize, consoleLog, getTimestamp }) {
 	const infoText = locales[defaultLang]?.infoText || locales['uk']?.infoText || 'Info text unavailable';
-	consoleLog(`[${getTimestamp()}] Bot Info:\nNarrator | ${packageJson.version}\n\n${infoText}`);
+	consoleLog(`${getTimestamp()} ${colorize('magenta', 'Bot Info')}:\n${colorize('blue', `Narrator | ${packageJson.version}`)}\n\n${infoText}`);
 }
 
-async function terminalRoleCreate(subCmd, args, { client, createSelectedRole, consoleLog, getTimestamp }) {
+async function terminalRoleCreate(subCmd, args, { client, createSelectedRole, colorize, consoleLog, getTimestamp }) {
 	// Usage: role-create [GUILD_ID] [ROLE_NAME]
 	const guildId = args[1];
 	const roleName = stripControl(restAfter(subCmd, 2)).trim();
 	if (!guildId || !SNOWFLAKE_REGEX.test(guildId) || !roleName) {
-		consoleLog(`[${getTimestamp()}] Error: Usage -> role-create [GUILD_ID] [ROLE_NAME]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} -> role-create [GUILD_ID] [ROLE_NAME]`);
 		return;
 	}
 
 	const guild = client.guilds.cache.get(guildId);
 	if (!guild) {
-		consoleLog(`[${getTimestamp()}] Error: Guild '${guildId}' not found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Guild '${guildId}' not found.`)}`);
 		return;
 	}
 
 	try {
 		const result = await createSelectedRole(guild, { name: roleName, reason: 'Created via terminal.' });
 		if (result.status !== 'created') {
-			consoleLog(`[${getTimestamp()}] Error: ${ROLE_CREATE_ERRORS[result.status] ?? `Could not create role (${result.status}).`}`);
+			consoleLog(`${getTimestamp()} ${colorize('red', 'Error')}: ${colorize('red', `${ROLE_CREATE_ERRORS[result.status] ?? `Could not create role (${result.status}).`}`)}`);
 			return;
 		}
-		consoleLog(`[${getTimestamp()}] Success: Created selected role '${stripControl(result.role.name)}' (${result.role.id}) in guild '${guildId}' via terminal.`);
+		consoleLog(`${getTimestamp()} ${colorize('green', `Success: Created selected role '${stripControl(result.role.name)}' (${result.role.id}) in guild '${guildId}' via terminal.`)}`);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Error creating role: `, err);
+		consoleLog(`${getTimestamp()} ${colorize('red', 'Error creating role')}: `, err);
 	}
 }
 
-async function terminalRoleGive(subCmd, args, { client, giveGuildRole, consoleLog, getTimestamp }) {
+async function terminalRoleGive(subCmd, args, { client, giveGuildRole, colorize, consoleLog, getTimestamp }) {
 	// Usage: role-give [GUILD_ID] [USER_ID] [ROLE_ID]
 	const [, guildId, userId, roleId] = args;
 	if (args.length !== 4 || !SNOWFLAKE_REGEX.test(guildId) || !SNOWFLAKE_REGEX.test(userId) || !SNOWFLAKE_REGEX.test(roleId)) {
-		consoleLog(`[${getTimestamp()}] Error: Usage -> role-give [GUILD_ID] [USER_ID] [ROLE_ID]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} ->role-give [GUILD_ID] [USER_ID] [ROLE_ID]`);
 		return;
 	}
 
 	const guild = client.guilds.cache.get(guildId);
 	if (!guild) {
-		consoleLog(`[${getTimestamp()}] Error: Guild '${guildId}' not found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Guild '${guildId}' not found.`)}`);
 		return;
 	}
 
@@ -608,26 +600,26 @@ async function terminalRoleGive(subCmd, args, { client, giveGuildRole, consoleLo
 		const status = await giveGuildRole(guild, member, role, null, 'Given via terminal.');
 
 		if (status !== 'given') {
-			consoleLog(`[${getTimestamp()}] Error: ${ROLE_GIVE_ERRORS[status] ?? `Could not give role (${status}).`}`);
+			consoleLog(`${getTimestamp()} ${colorize('red', 'Error')}: ${colorize('red', `${ROLE_GIVE_ERRORS[status] ?? `Could not give role (${status}).`}`)}`);
 			return;
 		}
-		consoleLog(`[${getTimestamp()}] Success: Gave role '${stripControl(role.name)}' (${roleId}) to '${stripControl(member.user.tag)}' (${userId}) in guild '${guildId}' via terminal.`);
+		consoleLog(`${getTimestamp()} ${colorize('green', `Success: Gave role '${stripControl(role.name)}' (${roleId}) to '${stripControl(member.user.tag)}' (${userId}) in guild '${guildId}' via terminal.`)}`);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Error giving role: `, err);
+		consoleLog(`${getTimestamp()} ${colorize('red', 'Error giving role')}: `, err);
 	}
 }
 
-async function terminalRoleTake(subCmd, args, { client, takeGuildRole, consoleLog, getTimestamp }) {
+async function terminalRoleTake(subCmd, args, { client, takeGuildRole, colorize, consoleLog, getTimestamp }) {
 	// Usage: role-take [GUILD_ID] [USER_ID] [ROLE_ID]
 	const [, guildId, userId, roleId] = args;
 	if (args.length !== 4 || !SNOWFLAKE_REGEX.test(guildId) || !SNOWFLAKE_REGEX.test(userId) || !SNOWFLAKE_REGEX.test(roleId)) {
-		consoleLog(`[${getTimestamp()}] Error: Usage -> role-take [GUILD_ID] [USER_ID] [ROLE_ID]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} ->role-take [GUILD_ID] [USER_ID] [ROLE_ID]`);
 		return;
 	}
 
 	const guild = client.guilds.cache.get(guildId);
 	if (!guild) {
-		consoleLog(`[${getTimestamp()}] Error: Guild '${guildId}' not found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Guild '${guildId}' not found.`)}`);
 		return;
 	}
 
@@ -637,69 +629,69 @@ async function terminalRoleTake(subCmd, args, { client, takeGuildRole, consoleLo
 		const status = await takeGuildRole(guild, member, role, null, 'Taken via terminal.');
 
 		if (status !== 'taken') {
-			consoleLog(`[${getTimestamp()}] Error: ${ROLE_TAKE_ERRORS[status] ?? `Could not take role (${status}).`}`);
+			consoleLog(`${getTimestamp()} ${colorize('red', 'Error')}: ${colorize('red', `${ROLE_TAKE_ERRORS[status] ?? `Could not take role (${status}).`}`)}`);
 			return;
 		}
-		consoleLog(`[${getTimestamp()}] Success: Took role '${stripControl(role.name)}' (${roleId}) from '${stripControl(member.user.tag)}' (${userId}) in guild '${guildId}' via terminal.`);
+		consoleLog(`${getTimestamp()} ${colorize('green', `Success: Took role '${stripControl(role.name)}' (${roleId}) from '${stripControl(member.user.tag)}' (${userId}) in guild '${guildId}' via terminal.`)}`);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Error taking role: `, err);
+		consoleLog(`${getTimestamp()} ${colorize('red', 'Error taking role')}: `, err);
 	}
 }
 
-async function terminalRoleAdd(subCmd, args, { client, validateRoleSelection, addGuildRole, getRolesMaxPerGuild, consoleLog, getTimestamp }) {
+async function terminalRoleAdd(subCmd, args, { client, validateRoleSelection, addGuildRole, getRolesMaxPerGuild, colorize, consoleLog, getTimestamp }) {
 	// Usage: role-add [GUILD_ID] [ROLE_ID]
 	const [, guildId, roleId] = args;
 	if (args.length !== 3 || !SNOWFLAKE_REGEX.test(guildId) || !SNOWFLAKE_REGEX.test(roleId)) {
-		consoleLog(`[${getTimestamp()}] Error: Usage -> role-add [GUILD_ID] [ROLE_ID]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} ->role-add [GUILD_ID] [ROLE_ID]`);
 		return;
 	}
 
 	const guild = client.guilds.cache.get(guildId);
 	if (!guild) {
-		consoleLog(`[${getTimestamp()}] Error: Guild '${guildId}' not found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Guild '${guildId}' not found.`)}`);
 		return;
 	}
 
 	const role = guild.roles.cache.get(roleId);
 	const problem = validateRoleSelection(guild, role);
 	if (problem) {
-		consoleLog(`[${getTimestamp()}] Error: ${ROLE_ERRORS[problem]}`);
+		consoleLog(`${getTimestamp()} ${colorize('red', 'Error')}: ${colorize('red', `${ROLE_ERRORS[problem]}`)}`);
 		return;
 	}
 
 	try {
 		const result = addGuildRole(guildId, roleId);
-		if (result === 'exists') consoleLog(`[${getTimestamp()}] Role '${roleId}' is already selected in guild '${guildId}'.`);
-		else if (result === 'limit') consoleLog(`[${getTimestamp()}] Error: Limit of ${getRolesMaxPerGuild()} roles per guild reached.`);
-		else consoleLog(`[${getTimestamp()}] Success: Selected role '${stripControl(role.name)}' (${roleId}) in guild '${guildId}' via terminal.`);
+		if (result === 'exists') consoleLog(`${getTimestamp()} ${colorize('cyan', `Role '${roleId}' is already selected in guild '${guildId}'.`)}`);
+		else if (result === 'limit') consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Limit of ${getRolesMaxPerGuild()} roles per guild reached.`)}`);
+		else consoleLog(`${getTimestamp()} ${colorize('green', `Success: Selected role '${stripControl(role.name)}' (${roleId}) in guild '${guildId}' via terminal.`)}`);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Error writing roles file: `, err);
+		consoleLog(`${getTimestamp()} ${colorize('red', 'Error writing roles file')}: `, err);
 	}
 }
 
-async function terminalRoleRemove(subCmd, args, { removeGuildRole, consoleLog, getTimestamp }) {
+async function terminalRoleRemove(subCmd, args, { removeGuildRole, colorize, consoleLog, getTimestamp }) {
 	// Usage: role-remove [GUILD_ID] [ROLE_ID]
 	const [, guildId, roleId] = args;
 	if (args.length !== 3 || !SNOWFLAKE_REGEX.test(guildId) || !SNOWFLAKE_REGEX.test(roleId)) {
-		consoleLog(`[${getTimestamp()}] Error: Usage -> role-remove [GUILD_ID] [ROLE_ID]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} ->role-remove [GUILD_ID] [ROLE_ID]`);
 		return;
 	}
 
 	try {
 		const result = removeGuildRole(guildId, roleId);
-		if (result === 'missing') consoleLog(`[${getTimestamp()}] Error: Role '${roleId}' is not selected in guild '${guildId}'.`);
-		else consoleLog(`[${getTimestamp()}] Success: Unselected role '${roleId}' in guild '${guildId}' via terminal.`);
+		if (result === 'missing') consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Role '${roleId}' is not selected in guild '${guildId}'.`)}`);
+		else consoleLog(`${getTimestamp()} ${colorize('green', `Success: Unselected role '${roleId}' in guild '${guildId}' via terminal.`)}`);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Error writing roles file: `, err);
+		consoleLog(`${getTimestamp()} ${colorize('red', 'Error writing roles file')}: `, err);
 	}
 }
 
-async function terminalRoleList(subCmd, args, { client, getAllGuildRoles, consoleLog, getTimestamp }) {
+async function terminalRoleList(subCmd, args, { client, getAllGuildRoles, colorize, consoleLog, getTimestamp }) {
 	// Global: role-list
 	// Specific Guild: role-list [GUILD_ID]
 	const guildId = args[1];
 	if (args.length > 2 || (guildId && !SNOWFLAKE_REGEX.test(guildId))) {
-		consoleLog(`[${getTimestamp()}] Error: Usage -> role-list [GUILD_ID]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} ->role-list [GUILD_ID]`);
 		return;
 	}
 
@@ -707,12 +699,12 @@ async function terminalRoleList(subCmd, args, { client, getAllGuildRoles, consol
 	try {
 		all = getAllGuildRoles();
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Error reading roles file: `, err);
+		consoleLog(`${getTimestamp()} ${colorize('red', 'Error reading roles file')}: `, err);
 		return;
 	}
 
 	let hasEntries = false;
-	consoleLog(`[${getTimestamp()}] Selected roles:`);
+	consoleLog(`${getTimestamp()} ${colorized('magenta', 'Selected roles')}:`);
 	for (const gId of (guildId ? [guildId] : Object.keys(all))) {
 		const ids = all[gId] ?? [];
 		if (ids.length === 0) continue;
@@ -721,22 +713,22 @@ async function terminalRoleList(subCmd, args, { client, getAllGuildRoles, consol
 		consoleLog(`\n--- Guild: '${gId}'${guild ? ` (${stripControl(guild.name)})` : ''} ---`);
 		for (const id of ids) {
 			const role = guild?.roles.cache.get(id);
-			consoleLog(`	${id}: ${role ? stripControl(role.name) : '(unknown or deleted)'}`);
+			consoleLog(`	${id}: ${role ? stripControl(role.name) : `${colorized('gray', '(unknown or deleted)')}`}`);
 		}
 	}
-	if (!hasEntries) consoleLog(`[${getTimestamp()}] No roles selected.`);
+	if (!hasEntries) consoleLog(`${getTimestamp()} ${colorized('cyan', 'No roles selected')}.`);
 }
 
-async function terminalLore(subCmd, args, { locales, defaultLang, loadSafeModule, consoleLog, getTimestamp }) {
+async function terminalLore(subCmd, args, { locales, defaultLang, loadSafeModule, colorize, consoleLog, getTimestamp }) {
 	const allLoreFiles = getLoreFiles();
 
 	if (!fs.existsSync(loresDir)) {
-		consoleLog(`[${getTimestamp()}] Error: '${loresDir}' directory not found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize(''${loresDir}' directory not found.`);
 		return;
 	}
 
 	if (allLoreFiles.length === 0) {
-		consoleLog(`[${getTimestamp()}] No guild lore files found in '${loresDir}'.`);
+		consoleLog(`${getTimestamp()} No guild lore files found in '${loresDir}'.`);
 		return;
 	}
 
@@ -764,7 +756,7 @@ async function terminalLore(subCmd, args, { locales, defaultLang, loadSafeModule
 	}
 
 	if (requestedLang && !LANG_CODE_REGEX.test(requestedLang)) {
-		consoleLog(`[${getTimestamp()}] Error: Invalid language code '${requestedLang}'.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Invalid language code '${requestedLang}'.`);
 		return;
 	}
 
@@ -798,7 +790,7 @@ async function terminalLore(subCmd, args, { locales, defaultLang, loadSafeModule
 		}
 
 		if (rawSnippets.length === 0) {
-			consoleLog(`[${getTimestamp()}] Error: No non-empty lore files found for guild ID '${requestedGuildId}'.`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('No non-empty lore files found for guild ID '${requestedGuildId}'.`);
 			return;
 		}
 	} else {
@@ -848,7 +840,7 @@ async function terminalLore(subCmd, args, { locales, defaultLang, loadSafeModule
 		}
 
 		if (rawSnippets.length === 0) {
-			consoleLog(`[${getTimestamp()}] Error: All lore files across all guilds in './lores' are empty.`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('All lore files across all guilds in './lores' are empty.`);
 			return;
 		}
 	}
@@ -861,19 +853,19 @@ async function terminalLore(subCmd, args, { locales, defaultLang, loadSafeModule
 	const templateLang = requestedLang || defaultLang;
 	const loreTemplate = locales[templateLang]?.replyLore || locales[defaultLang]?.replyLore || locales['uk']?.replyLore || 'Lore: {loreSnippet}';
 
-	consoleLog(`[${getTimestamp()}] [File: '${targetFile}'] ${loreTemplate.replace(/\{loreSnippet\}/g, () => selectedSnippet)}`);
+	consoleLog(`${getTimestamp()} [File: '${targetFile}'] ${loreTemplate.replace(/\{loreSnippet\}/g, () => selectedSnippet)}`);
 }
 
-async function terminalLoreList(subCmd, args, { loadSafeModule, consoleLog, getTimestamp }) {
+async function terminalLoreList(subCmd, args, { loadSafeModule, colorize, consoleLog, getTimestamp }) {
 	const allLoreFiles = getLoreFiles();
 
 	if (!fs.existsSync(loresDir)) {
-		consoleLog(`[${getTimestamp()}] Error: '${loresDir}' directory not found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize(''${loresDir}' directory not found.`);
 		return;
 	}
 
 	if (allLoreFiles.length === 0) {
-		consoleLog(`[${getTimestamp()}] No lore files found.`);
+		consoleLog(`${getTimestamp()} No lore files found.`);
 		return;
 	}
 
@@ -902,17 +894,17 @@ async function terminalLoreList(subCmd, args, { loadSafeModule, consoleLog, getT
 	}
 
 	if (targetLang && !LANG_CODE_REGEX.test(targetLang)) {
-		consoleLog(`[${getTimestamp()}] Error: Invalid language code '${targetLang}'.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Invalid language code '${targetLang}'.`);
 		return;
 	}
 
 	if (selectedFiles.length === 0) {
-		consoleLog(`[${getTimestamp()}] No lore files matched the criteria.`);
+		consoleLog(`${getTimestamp()} No lore files matched the criteria.`);
 		return;
 	}
 
 	let hasEntries = false;
-	consoleLog(`[${getTimestamp()}] Lore Listing:`);
+	consoleLog(`${getTimestamp()} Lore Listing:`);
 	for (const file of selectedFiles) {
 		const filePath = path.join(loresDir, file);
 		if (!fs.existsSync(filePath)) continue;
@@ -925,18 +917,18 @@ async function terminalLoreList(subCmd, args, { loadSafeModule, consoleLog, getT
 	}
 
 	if (!hasEntries) {
-		consoleLog(`[${getTimestamp()}] Error: No lores found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('No lores found.`);
 	}
 }
 
-async function terminalLoreCreate(subCmd, args, { removeDuplicateLoreInFiles, readLoreFileStrict, writeLoreFile, exceedsLoreLimit, getLoreFilePath, getLoreMaxBytes, consoleLog, getTimestamp }) {
+async function terminalLoreCreate(subCmd, args, { removeDuplicateLoreInFiles, readLoreFileStrict, writeLoreFile, exceedsLoreLimit, getLoreFilePath, getLoreMaxBytes, colorize, consoleLog, getTimestamp }) {
 	// Usage: lore-create [GUILD_ID] [LANGUAGE] [LORE_SNIPPET]
 	const guildIdArg = args[1];
 	const langArg = args[2];
 	const snippetText = restAfter(subCmd, 3);
 
 	if (!guildIdArg || !langArg || !snippetText) {
-		consoleLog(`[${getTimestamp()}] Error: Usage -> lore-create [GUILD_ID] [LANGUAGE] [LORE_SNIPPET]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} ->lore-create [GUILD_ID] [LANGUAGE] [LORE_SNIPPET]`);
 		return;
 	}
 
@@ -946,7 +938,7 @@ async function terminalLoreCreate(subCmd, args, { removeDuplicateLoreInFiles, re
 
 	const filePath = getLoreFilePath(guildIdArg, langArg);
 	if (!filePath) {
-		consoleLog(`[${getTimestamp()}] Error: Invalid guild ID or language code.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Invalid guild ID or language code.`);
 		return;
 	}
 
@@ -955,41 +947,41 @@ async function terminalLoreCreate(subCmd, args, { removeDuplicateLoreInFiles, re
 		existingSnippets.push(snippetText);
 
 		if (exceedsLoreLimit(existingSnippets)) {
-			consoleLog(`[${getTimestamp()}] Error: Lore file would exceed the ${getLoreMaxBytes()} Bytes limit. Snippet not added.`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Lore file would exceed the ${getLoreMaxBytes()} Bytes limit. Snippet not added.`);
 			return;
 		}
 
 		writeLoreFile(filePath, existingSnippets);
 		removeDuplicateLoreInFiles(loresDir, filePath);
-		consoleLog(`[${getTimestamp()}] Success: Added snippet to '${filePath}'`);
+		consoleLog(`${getTimestamp()} Success: Added snippet to '${filePath}'`);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Error writing lore file: `, err);
+		consoleLog(`${getTimestamp()} Error writing lore file: `, err);
 	}
 }
 
-async function terminalLoreRemove(subCmd, args, { removeDuplicateLoreInFiles, readLoreFileStrict, writeLoreFile, getLoreFilePath, consoleLog, getTimestamp }) {
+async function terminalLoreRemove(subCmd, args, { removeDuplicateLoreInFiles, readLoreFileStrict, writeLoreFile, getLoreFilePath, colorize, consoleLog, getTimestamp }) {
 	// Usage: lore-remove [GUILD_ID] [LANGUAGE] [SNIPPET_NUMBER]
 	const removeGuildId = args[1];
 	const removeLang = args[2];
 	const removeIndex = parseInt(args[3], 10);
 
 	if (!removeGuildId || !removeLang || isNaN(removeIndex)) {
-		consoleLog(`[${getTimestamp()}] Error: Usage -> lore-remove [GUILD_ID] [LANGUAGE] [SNIPPET_NUMBER]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} ->lore-remove [GUILD_ID] [LANGUAGE] [SNIPPET_NUMBER]`);
 		return;
 	}
 
 	if (!fs.existsSync(loresDir)) {
-		consoleLog(`[${getTimestamp()}] Error: '${loresDir}' directory not found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize(''${loresDir}' directory not found.`);
 		return;
 	}
 
 	const filePath = getLoreFilePath(removeGuildId, removeLang);
 	if (!filePath) {
-		consoleLog(`[${getTimestamp()}] Error: Invalid guild ID or language code.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Invalid guild ID or language code.`);
 		return;
 	}
 	if (!fs.existsSync(filePath)) {
-		consoleLog(`[${getTimestamp()}] Error: Lore file for guild ID '${removeGuildId}' and language '${removeLang}' not found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Lore file for guild ID '${removeGuildId}' and language '${removeLang}' not found.`);
 		return;
 	}
 
@@ -1000,18 +992,18 @@ async function terminalLoreRemove(subCmd, args, { removeDuplicateLoreInFiles, re
 		writeLoreFile(filePath, snippets);
 		removeDuplicateLoreInFiles(loresDir, filePath);
 
-		consoleLog(`[${getTimestamp()}] Success: Removed snippet #${removeIndex} from '${path.basename(filePath)}' via terminal.`);
+		consoleLog(`${getTimestamp()} Success: Removed snippet #${removeIndex} from '${path.basename(filePath)}' via terminal.`);
 	} else {
-		consoleLog(`[${getTimestamp()}] Error: Snippet number #${removeIndex} not found in '${path.basename(filePath)}'.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Snippet number #${removeIndex} not found in '${path.basename(filePath)}'.`);
 	}
 }
 
 async function terminalVoiceJoin(subCmd, args, context) {
-	const { client, voiceConnections, guildPlayers, guildVolumes, saveVoiceState, joinVoice, getCurrentVolume, consoleLog, getTimestamp } = context;
+	const { client, voiceConnections, guildPlayers, guildVolumes, saveVoiceState, joinVoice, getCurrentVolume, colorize, consoleLog, getTimestamp } = context;
 	// Usage: voice-join [CHANNEL_ID]
 	const targetChannelId = args[1];
 	if (!targetChannelId) {
-		consoleLog(`[${getTimestamp()}] Error: Please provide a voice channel ID.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Please provide a voice channel ID.`);
 		return;
 	}
 	let targetChannel = null;
@@ -1020,28 +1012,28 @@ async function terminalVoiceJoin(subCmd, args, context) {
 		if (channel) { targetChannel = channel; break; }
 	}
 	if (!targetChannel) {
-		consoleLog(`[${getTimestamp()}] Error: Voice channel not found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Voice channel not found.`);
 		return;
 	}
 
 	if (!targetChannel.isVoiceBased()) {
-		consoleLog(`[${getTimestamp()}] Error: Channel '${targetChannel.name}' is not a voice channel.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Channel '${targetChannel.name}' is not a voice channel.`);
 		return;
 	}
 
 	try {
 		await joinVoice(targetChannel, voiceConnections, guildPlayers);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Error: ${err.message}`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('${err.message}`);
 		return;
 	}
 	saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-	consoleLog(`[${getTimestamp()}] Successfully joined voice channel: '${targetChannel.name}'`);
+	consoleLog(`${getTimestamp()} Successfully joined voice channel: '${targetChannel.name}'`);
 }
 
 async function terminalVoiceLeave(subCmd, args, context) {
-	const { voiceConnections, guildPlayers, guildVolumes, saveVoiceState, getCurrentVolume, consoleLog, getTimestamp } = context;
+	const { voiceConnections, guildPlayers, guildVolumes, saveVoiceState, getCurrentVolume, colorize, consoleLog, getTimestamp } = context;
 	const leaveGuildId = args[1];
 	const leaveGuild = (gId) => {
 		const conn = voiceConnections.get(gId);
@@ -1059,23 +1051,23 @@ async function terminalVoiceLeave(subCmd, args, context) {
 		}
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-		consoleLog(`[${getTimestamp()}] Left all voice channels.`);
+		consoleLog(`${getTimestamp()} Left all voice channels.`);
 		return;
 	}
 
 	// Specific Guild: voice-leave [GUILD_ID]
 	if (!voiceConnections.has(leaveGuildId)) {
-		consoleLog(`[${getTimestamp()}] Error: Bot is not connected to a voice channel in guild ID '${leaveGuildId}'.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Bot is not connected to a voice channel in guild ID '${leaveGuildId}'.`);
 		return;
 	}
 	leaveGuild(leaveGuildId);
 	saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-	consoleLog(`[${getTimestamp()}] Left voice channel for guild ID '${leaveGuildId}'.`);
+	consoleLog(`${getTimestamp()} Left voice channel for guild ID '${leaveGuildId}'.`);
 }
 
 async function terminalSoundboardPlay(subCmd, args, context) {
-	const { voiceConnections, guildPlayers, guildVolumes, saveVoiceState, getSoundFilePath, setupPlayerEvents, getCurrentVolume, consoleLog, getTimestamp } = context;
+	const { voiceConnections, guildPlayers, guildVolumes, saveVoiceState, getSoundFilePath, setupPlayerEvents, getCurrentVolume, colorize, consoleLog, getTimestamp } = context;
 	let playGuildId = null, rawTargetSound = '';
 	if (args[1] && voiceConnections.has(args[1])) {
 		// Specific Guild: soundboard-play [GUILD_ID] [SOUND_NAME]
@@ -1088,14 +1080,14 @@ async function terminalSoundboardPlay(subCmd, args, context) {
 	fs.mkdirSync(soundsDir, { recursive: true });
 	const soundPath = getSoundFilePath(rawTargetSound);
 	if (!soundPath || !fs.existsSync(soundPath)) {
-		consoleLog(`[${getTimestamp()}] Error: Sound file not found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Sound file not found.`);
 		return;
 	}
 	const targetSound = path.basename(soundPath, SOUND_EXT);
 
 	const guildsToPlay = playGuildId ? [playGuildId] : Array.from(voiceConnections.keys());
 	if (guildsToPlay.length === 0) {
-		consoleLog(`[${getTimestamp()}] Error: Bot is not connected to any voice channels.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Bot is not connected to any voice channels.`);
 		return;
 	}
 
@@ -1131,11 +1123,11 @@ async function terminalSoundboardPlay(subCmd, args, context) {
 	}
 	saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-	consoleLog(`[${getTimestamp()}] Played sound '${targetSound}'.`);
+	consoleLog(`${getTimestamp()} Played sound '${targetSound}'.`);
 }
 
 async function terminalSoundboardStop(subCmd, args, context) {
-	const { voiceConnections, guildPlayers, guildVolumes, saveVoiceState, getCurrentVolume, consoleLog, getTimestamp } = context;
+	const { voiceConnections, guildPlayers, guildVolumes, saveVoiceState, getCurrentVolume, colorize, consoleLog, getTimestamp } = context;
 	const stopGuildId = args[1];
 	if (stopGuildId) {
 		// Specific Guild: soundboard-stop [GUILD_ID]
@@ -1145,9 +1137,9 @@ async function terminalSoundboardStop(subCmd, args, context) {
 			guildPlayers.delete(stopGuildId);
 			saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-			consoleLog(`[${getTimestamp()}] Stopped playback for guild ID '${stopGuildId}'.`);
+			consoleLog(`${getTimestamp()} Stopped playback for guild ID '${stopGuildId}'.`);
 		} else {
-			consoleLog(`[${getTimestamp()}] Error: No active playback found for guild ID '${stopGuildId}'.`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('No active playback found for guild ID '${stopGuildId}'.`);
 		}
 	} else {
 		// Global: soundboard-stop
@@ -1157,17 +1149,17 @@ async function terminalSoundboardStop(subCmd, args, context) {
 		guildPlayers.clear();
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-		consoleLog(`[${getTimestamp()}] Stopped playback on all guilds.`);
+		consoleLog(`${getTimestamp()} Stopped playback on all guilds.`);
 	}
 }
 
 async function terminalSoundboardVolume(subCmd, args, context) {
-	const { voiceConnections, guildPlayers, guildVolumes, saveVoiceState, getCurrentVolume, consoleLog, getTimestamp } = context;
+	const { voiceConnections, guildPlayers, guildVolumes, saveVoiceState, getCurrentVolume, colorize, consoleLog, getTimestamp } = context;
 	if (args.length === 2) {
 		// Global: soundboard-volume [VOLUME]
 		const volumePercent = parseInt(args[1], 10);
 		if (isNaN(volumePercent) || volumePercent < 0 || volumePercent > 100) {
-			consoleLog(`[${getTimestamp()}] Error: Invalid volume level (0-100).`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Invalid volume level (0-100).`);
 			return;
 		}
 		const volume = volumePercent / 100;
@@ -1180,13 +1172,13 @@ async function terminalSoundboardVolume(subCmd, args, context) {
 
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-		consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}% on all guilds.`);
+		consoleLog(`${getTimestamp()} Volume set to ${volumePercent}% on all guilds.`);
 	} else if (args.length >= 3) {
 		// Specific Guild: soundboard-volume [GUILD_ID] [VOLUME]
 		const guildId = args[1];
 		const volumePercent = parseInt(args[2], 10);
 		if (isNaN(volumePercent) || volumePercent < 0 || volumePercent > 100) {
-			consoleLog(`[${getTimestamp()}] Error: Invalid volume level (0-100).`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Invalid volume level (0-100).`);
 			return;
 		}
 		const volume = volumePercent / 100;
@@ -1198,9 +1190,9 @@ async function terminalSoundboardVolume(subCmd, args, context) {
 		}
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-		consoleLog(`[${getTimestamp()}] Volume set to ${volumePercent}% for guild ID '${guildId}'.`);
+		consoleLog(`${getTimestamp()} Volume set to ${volumePercent}% for guild ID '${guildId}'.`);
 	} else {
-		consoleLog(`[${getTimestamp()}] Error: Usage -> soundboard-volume [VOLUME] or soundboard-volume [GUILD_ID] [VOLUME]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} ->soundboard-volume [VOLUME] or soundboard-volume [GUILD_ID] [VOLUME]`);
 	}
 }
 

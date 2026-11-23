@@ -5,7 +5,7 @@ const {
 	isWhitelist: _isWhitelist, isWhitelistNot: _isWhitelistNot, isAuthorizedTesterNot: _isAuthorizedTesterNot, isAdminManageServer: _isAdminManageServer, isRoleManagerNot: _isRoleManagerNot, isSelectedRoleNot: _isSelectedRoleNot, isGuildNot: _isGuildNot, isVoiceNot: _isVoiceNot,
 	saveVoiceState, restoreVoiceState, loadVolumes,
 	readLoreFileStrict, writeLoreFile, exceedsLoreLimit,
-	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, roleColorEmoji,
+	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, colorize, roleColorEmoji,
 	getRolesMaxPerGuild, getRolesMaxFileBytes,
 	getLoreMaxBytes, getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown: _shutdown, restart: _restart, loginWithRetry
@@ -27,7 +27,7 @@ const isSelectedRoleNot = (interaction) => _isSelectedRoleNot(interaction, local
 const isGuildNot = (interaction) => _isGuildNot(interaction, locales);
 const isVoiceNot = (interaction) => _isVoiceNot(interaction, voiceConnections, locales);
 const shutdown = (exitCode = 0) => _shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume, exitCode);
-const restart = (exitCode = 0) => _restart(client, voiceConnections, guildPlayers, rl, __filename, guildVolumes, currentVolume, exitCode);
+const restart = (exitCode = 42) => _restart(client, voiceConnections, guildPlayers, rl, __filename, guildVolumes, currentVolume, exitCode);
 
 // Dependencies.
 const fs = require('fs');
@@ -37,7 +37,7 @@ let envFileMissing = false;
 if (fs.existsSync(envPath)) {
 	const result = require('dotenv').config({ path: envPath, quiet: true });
 	if (result.error) {
-		consoleLog(`[Config] Failed to parse "${path.basename(envPath)}" file (${result.error.message}). Using defaults.`);
+		consoleLog(`${colorize('gray', '[Config]')} ${colorize('yellow', `Failed to parse "${path.basename(envPath)}" file (${result.error.message}). Using defaults.`)}`);
 	}
 } else {
 	envFileMissing = true;
@@ -63,11 +63,11 @@ for (const lang of languages) {
 const defaultLang = 'en';
 
 process.on('unhandledRejection', err => {
-	consoleLog(`[${getTimestamp()}] Unhandled promise rejection: `, err);
+	consoleLog(`${getTimestamp()} ${colorize('red', 'Unhandled promise rejection')}: `, err);
 });
 
 process.on('uncaughtException', err => {
-	consoleLog(`[${getTimestamp()}] Uncaught exception: `, err);
+	consoleLog(`${getTimestamp()} ${colorize('red', 'Uncaught exception')}: `, err);
 	try {
 		shutdown(1);
 	} catch (e) {
@@ -166,7 +166,7 @@ const executionContext = {
 	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isRoleManagerNot, isSelectedRoleNot, isGuildNot, isVoiceNot,
 	saveVoiceState, restoreVoiceState,
 	readLoreFileStrict, writeLoreFile, exceedsLoreLimit,
-	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, roleColorEmoji,
+	getAllGuildRoles, getGuildRoles, addGuildRole, removeGuildRole, validateRoleSelection, createSelectedRole, giveGuildRole, takeGuildRole, colorize, roleColorEmoji,
 	getRolesMaxPerGuild, getRolesMaxFileBytes,
 	getLoreMaxBytes: () => CONFIG.loreMaxFileBytes, getLoreFilePath, getSoundFilePath, joinVoice, setupPlayerEvents,
 	shutdown, restart, rl, loadSafeModule
@@ -174,16 +174,17 @@ const executionContext = {
 
 // Run this code after the client is ready.
 client.once('clientReady', async () => {
-	writeCenteredLog(`Start of the session`);
+	writeCenteredLog('Start of the session');
 
 	consoleLog(`\nNarrator | ${packageJson.version}`);
-	consoleLog(`Press 'Ctrl+C' to shut down bot.`);
-	consoleLog(`Print "help" for commands.\n`);
-	consoleLog(`[${getTimestamp()}] Logged in as ${client.user.tag}!`);
+	consoleLog("Press 'Ctrl+C' to shut down bot.");
+	consoleLog('Print "help" for commands.\n');
+	
+	consoleLog(`${getTimestamp()} ${colorize('green', `Logged in as ${client.user.tag}!`)}`);
 
 	// Status.
 	try {
-		consoleLog(`[${getTimestamp()}] Setting bot status up... `);
+		consoleLog(`${getTimestamp()} ${colorize('cyan', 'Setting bot status up...')}`);
 		const statusText = `${CONFIG.statusName || 'Narrator'} | ${packageJson.version}`;
 
 		const activityConfig = {
@@ -199,28 +200,30 @@ client.once('clientReady', async () => {
 			activities: [activityConfig],
 			status: CONFIG.statusBot,
 		});
-		consoleLog(`[${getTimestamp()}] Status set successfully!`);
+		consoleLog(`${getTimestamp()} ${colorize('green', 'Status set successfully!')}`);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Failed to set status: `, err);
+		consoleLog(`${getTimestamp()} ${colorize('red', 'Failed to set status')}: `, err);
 	}
 
 	// Register slash (/).
 	const rest = new REST({ version: '10' }).setToken(CONFIG.discordToken);
 	try {
-		consoleLog(`[${getTimestamp()}] Refreshing application (/) commands... `);
+		consoleLog(`${getTimestamp()} ${colorize('cyan', 'Refreshing application (/) commands...')}`);
 		await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Failed to register commands: `, err);
+		consoleLog(`${getTimestamp()} ${colorize('red', 'Failed to register commands')}: `, err);
 	}
+	
+	consoleLog();
 
 	try {
 		await restoreVoiceState(client, voiceConnections, guildVolumes, guildPlayers, () => currentVolume);
 	} catch (err) {
-		consoleLog(`[${getTimestamp()}] Failed to restore voice state: `, err);
+		consoleLog(`${getTimestamp()} ${colorize('red', 'Failed to restore voice state')}: `, err);
 	}
 	saveVoiceState(voiceConnections, guildPlayers, guildVolumes, currentVolume);
 
-	consoleLog(`[${getTimestamp()}] Waiting for commands...\n`);
+	consoleLog(`\n${getTimestamp()} Waiting for commands...\n`);
 	isBotReady = true;
 	if (!rl.closed) {
 		rl.prompt();
@@ -235,7 +238,7 @@ client.on('interactionCreate', async interaction => {
 		if (err.code === 10062 || err.code === 40060) {
 			return;
 		}
-		consoleLog(`[${getTimestamp()}] Interaction handling error: `, err);
+		consoleLog(`${getTimestamp()} ${colorize('red', 'Interaction handling error')}: `, err);
 	}
 });
 
@@ -266,13 +269,13 @@ process.on('SIGTERM', () => shutdown());
 process.on('SIGUSR2', () => shutdown());
 
 if (CONFIG.envFileMissing) {
-	consoleLog(`[${getTimestamp()}] [Config] No "${path.basename(envPath)}" file found at '${envPath}'. Falling back to process environment and defaults.`);
+	consoleLog(`${getTimestamp()} ${colorize('gray', `[Config]`)} ${colorize('yellow', `No "${path.basename(envPath)}" file found at '${envPath}'. Falling back to process environment and defaults.`)}`);
 }
 
 if (CONFIG.discordToken) {
 	loginWithRetry(client, 1, CONFIG.discordToken);
 } else {
-	consoleLog(`[${getTimestamp()}] No 'DISCORD_TOKEN' found. Skipping Discord login.`);
+	consoleLog(`${getTimestamp()} ${colorize('yellow', "No 'DISCORD_TOKEN' found. Skipping Discord login.")}`);
 	if (!rl.closed) {
 		rl.prompt();
 	}
