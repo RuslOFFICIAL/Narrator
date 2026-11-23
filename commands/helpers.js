@@ -1136,6 +1136,7 @@ async function loginWithRetry(client, attempt = 1, token = activeConfig?.discord
 }
 
 module.exports = {
+	isIgnorableInteractionError,
 	loadSafeModule, getCmdText, getLocText, getLocalizedLoreSnippets, removeDuplicateLoreInFiles, setupGlobalMessageSanitizer,
 	consoleLog, getTimestamp, formatUptime, makeLogMessage, safeReply, getFormattedDate, writeLogToFile, writeCenteredLog, setLogReadline, setConfig, handleCommandError,
 	isWhitelist, isWhitelistNot, isAuthorizedTesterNot, isAdminManageServer, isRoleManagerNot, isSelectedRoleNot, isGuildNot, isVoiceNot,

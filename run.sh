@@ -122,7 +122,7 @@ wait_for_changes() {
 			stty sane 2>/dev/null
 			say_warn "\nChanges detected in '$CHANGED_FILE'. Restarting completely...\n"
 			trap - EXIT
-			exec sh "$SCRIPT_PATH"
+			exec bash "$SCRIPT_PATH"
 		fi
 		[ "$(get_bot_snapshot)" != "$SNAP" ] && return 0
 		sleep 1
@@ -181,7 +181,7 @@ main() {
 	if [ -n "$CHANGED_FILE" ]; then
 		say_warn "\nChanges detected in '$CHANGED_FILE'. Restarting completely...\n"
 		trap - EXIT
-		exec sh "$SCRIPT_PATH"
+		exec bash "$SCRIPT_PATH"
 	fi
 
 	# Run the bot in a loop and react to its exit code.
@@ -199,7 +199,7 @@ main() {
 				stty sane 2>/dev/null
 				say_warn "\nChanges detected in '$CHANGED_FILE'. Restarting completely..."
 				trap - EXIT
-				exec sh "$SCRIPT_PATH"
+				exec bash "$SCRIPT_PATH"
 			fi
 			if [ "$(get_bot_snapshot)" != "$BOT_SNAPSHOT" ]; then
 				say_warn "\nBot files changed. Restarting bot..."
@@ -234,7 +234,7 @@ main() {
 			44)
 				say_ok "\nRestarting watcher (Status 44)...\n"
 				trap - EXIT
-				exec sh "$SCRIPT_PATH"
+				exec bash "$SCRIPT_PATH"
 				;;
 			*)
 				say_err "\nBot crashed (Status $STATUS). Waiting for changes...\n"

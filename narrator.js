@@ -90,6 +90,10 @@ const client = new Client({
 	}
 });
 
+client.on('error', err => {
+	consoleLog(`${getTimestamp()} ${colorize('red', 'Client error')}: `, err);
+});
+
 setupGlobalMessageSanitizer();
 
 // Variables.

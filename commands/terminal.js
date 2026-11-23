@@ -54,7 +54,7 @@ ${colorize('magenta', 'BOT')}:
 - ${colorize('blue', 'status')}: Status of the bot.
 - ${colorize('blue', 'ping')}: Check bot latency.
 - ${colorize('blue', 'clear')}: Clear the terminal screen.
-\nSERVER:
+\n${colorize('blue', 'SERVER')}:
 - ${colorize('blue', 'echo')}: Send a message to a specific channel by ID or edit a message by ID.
 - ${colorize('blue', 'info')}: Show bot info.
 - ${colorize('blue', 'role-create')}: Create a role and add it to a server's selected roles.
@@ -954,7 +954,7 @@ async function terminalLoreCreate(subCmd, args, { removeDuplicateLoreInFiles, re
 		removeDuplicateLoreInFiles(loresDir, filePath);
 		consoleLog(`${getTimestamp()} ${colorize('green', 'Success')}: ${colorize('green', `Added snippet to '${filePath}'`)}`);
 	} catch (err) {
-		consoleLog(`${getTimestamp()} $colorize('red', 'Error writing lore file')}: `, err);
+		consoleLog(`${getTimestamp()} ${colorize('red', 'Error writing lore file')}: `, err);
 	}
 }
 
@@ -1062,7 +1062,7 @@ async function terminalVoiceLeave(subCmd, args, context) {
 	leaveGuild(leaveGuildId);
 	saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-	consoleLog(`${getTimestamp()} ${colorize(`Left voice channel for guild ID '${leaveGuildId}'.`)}`);
+	consoleLog(`${getTimestamp()} ${colorize('green', `Left voice channel for guild ID '${leaveGuildId}'.`)}`);
 }
 
 async function terminalSoundboardPlay(subCmd, args, context) {
