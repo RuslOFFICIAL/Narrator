@@ -5,7 +5,20 @@ cd "$(dirname "$0")" || exit
 # Variables.
 SCRIPT_NAME="$(basename "$0")"
 SCRIPT_PATH="./$SCRIPT_NAME"
-FILE_PACKAGE="package.json"
+MAIN_SCRIPT_NAME="narrator.js"
+MAIN_SCRIPT="./$MAIN_SCRIPT_NAME"
+FILE_PACKAGE_NAME="package.json"
+FILE_PACKAGE="./$FILE_PACKAGE_NAME"
+ENV_FILE_NAME=".env"
+ENV_FILE="./$ENV_FILE_NAME"
+
+BOT_WATCH_TARGETS=(
+	"$MAIN_SCRIPT_NAME"
+	"$FILE_PACKAGE_NAME"
+	"$ENV_FILE_NAME"
+	"commands"
+	"locales"
+)
 
 DATA_DIR="data"
 CONF_FILE="$DATA_DIR/run.conf"
@@ -47,7 +60,7 @@ get_conf() {
 # Prints "<file> <mtime>" per watched file.
 get_snapshot() {
 	for f in $WATCH_FILES; do
-		echo "$f $(get_mtime "$f")"
+		printf '%s %s\n' "$f" "$(get_mtime "$f")"
 	done
 }
 
@@ -108,8 +121,14 @@ kill_tree() {
 
 # Files that restart the bot when changed.
 get_bot_snapshot() {
-	{ echo narrator.js; echo package.json; echo .env; find commands locales -type f -name '*.js' 2>/dev/null; } | while read -r f; do
-		echo "$f $(get_mtime "$f")"
+	for target in "${BOT_WATCH_TARGETS[@]}"; do
+		if [ -d "$target" ]; then
+			find "$target" -type f -name '*.js' 2>/dev/null
+		else
+			printf '%s\n' "$target"
+		fi
+	done | while IFS= read -r f; do
+		printf '%s %s\n' "$f" "$(get_mtime "$f")"
 	done
 }
 
@@ -161,7 +180,7 @@ main() {
 
 	# Install dependencies.
 	if [ ! -f "$FILE_PACKAGE" ]; then
-		say_warn "\nFile '$FILE_PACKAGE' not found."
+		say_warn "\nFile '$FILE_PACKAGE_NAME' not found."
 		npm init -y
 	fi
 
@@ -186,9 +205,9 @@ main() {
 
 	# Run the bot in a loop and react to its exit code.
 	while true; do
-		node narrator.js <&3 3<&- &
-		NM_PID=$!
 		BOT_SNAPSHOT=$(get_bot_snapshot)
+		node "$MAIN_SCRIPT" <&3 3<&- &
+		NM_PID=$!
 		RESTART_BOT=""
 
 		# Watch for file changes while the bot is running.
