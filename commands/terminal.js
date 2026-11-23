@@ -6,7 +6,6 @@ const { execFile } = require('child_process');
 const { createAudioPlayer, createAudioResource, VoiceConnectionStatus } = require('@discordjs/voice');
 
 // Variables.
-const dataDir = path.join(__dirname, '../data');
 const loresDir = path.join(__dirname, '../lores');
 const soundsDir = path.join(__dirname, '../sounds');
 const formatsMd = 'docs/formats.md'
@@ -584,7 +583,7 @@ async function terminalRoleGive(subCmd, args, { client, giveGuildRole, colorize,
 	// Usage: role-give [GUILD_ID] [USER_ID] [ROLE_ID]
 	const [, guildId, userId, roleId] = args;
 	if (args.length !== 4 || !SNOWFLAKE_REGEX.test(guildId) || !SNOWFLAKE_REGEX.test(userId) || !SNOWFLAKE_REGEX.test(roleId)) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} ->role-give [GUILD_ID] [USER_ID] [ROLE_ID]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} -> role-give [GUILD_ID] [USER_ID] [ROLE_ID]`);
 		return;
 	}
 
@@ -613,7 +612,7 @@ async function terminalRoleTake(subCmd, args, { client, takeGuildRole, colorize,
 	// Usage: role-take [GUILD_ID] [USER_ID] [ROLE_ID]
 	const [, guildId, userId, roleId] = args;
 	if (args.length !== 4 || !SNOWFLAKE_REGEX.test(guildId) || !SNOWFLAKE_REGEX.test(userId) || !SNOWFLAKE_REGEX.test(roleId)) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} ->role-take [GUILD_ID] [USER_ID] [ROLE_ID]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} -> role-take [GUILD_ID] [USER_ID] [ROLE_ID]`);
 		return;
 	}
 
@@ -642,7 +641,7 @@ async function terminalRoleAdd(subCmd, args, { client, validateRoleSelection, ad
 	// Usage: role-add [GUILD_ID] [ROLE_ID]
 	const [, guildId, roleId] = args;
 	if (args.length !== 3 || !SNOWFLAKE_REGEX.test(guildId) || !SNOWFLAKE_REGEX.test(roleId)) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} ->role-add [GUILD_ID] [ROLE_ID]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} -> role-add [GUILD_ID] [ROLE_ID]`);
 		return;
 	}
 
@@ -673,7 +672,7 @@ async function terminalRoleRemove(subCmd, args, { removeGuildRole, colorize, con
 	// Usage: role-remove [GUILD_ID] [ROLE_ID]
 	const [, guildId, roleId] = args;
 	if (args.length !== 3 || !SNOWFLAKE_REGEX.test(guildId) || !SNOWFLAKE_REGEX.test(roleId)) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} ->role-remove [GUILD_ID] [ROLE_ID]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} -> role-remove [GUILD_ID] [ROLE_ID]`);
 		return;
 	}
 
@@ -691,7 +690,7 @@ async function terminalRoleList(subCmd, args, { client, getAllGuildRoles, colori
 	// Specific Guild: role-list [GUILD_ID]
 	const guildId = args[1];
 	if (args.length > 2 || (guildId && !SNOWFLAKE_REGEX.test(guildId))) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} ->role-list [GUILD_ID]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} -> role-list [GUILD_ID]`);
 		return;
 	}
 
@@ -704,7 +703,7 @@ async function terminalRoleList(subCmd, args, { client, getAllGuildRoles, colori
 	}
 
 	let hasEntries = false;
-	consoleLog(`${getTimestamp()} ${colorized('magenta', 'Selected roles')}:`);
+	consoleLog(`${getTimestamp()} ${colorize('magenta', 'Selected roles')}:`);
 	for (const gId of (guildId ? [guildId] : Object.keys(all))) {
 		const ids = all[gId] ?? [];
 		if (ids.length === 0) continue;
@@ -713,17 +712,17 @@ async function terminalRoleList(subCmd, args, { client, getAllGuildRoles, colori
 		consoleLog(`\n--- Guild: '${gId}'${guild ? ` (${stripControl(guild.name)})` : ''} ---`);
 		for (const id of ids) {
 			const role = guild?.roles.cache.get(id);
-			consoleLog(`	${id}: ${role ? stripControl(role.name) : `${colorized('gray', '(unknown or deleted)')}`}`);
+			consoleLog(`	${id}: ${role ? stripControl(role.name) : `${colorize('gray', '(unknown or deleted)')}`}`);
 		}
 	}
-	if (!hasEntries) consoleLog(`${getTimestamp()} ${colorized('cyan', 'No roles selected')}.`);
+	if (!hasEntries) consoleLog(`${getTimestamp()} ${colorize('cyan', 'No roles selected')}.`);
 }
 
 async function terminalLore(subCmd, args, { locales, defaultLang, loadSafeModule, colorize, consoleLog, getTimestamp }) {
 	const allLoreFiles = getLoreFiles();
 
 	if (!fs.existsSync(loresDir)) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize(''${loresDir}' directory not found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `'${loresDir}' directory not found.`)}`);
 		return;
 	}
 
@@ -756,7 +755,7 @@ async function terminalLore(subCmd, args, { locales, defaultLang, loadSafeModule
 	}
 
 	if (requestedLang && !LANG_CODE_REGEX.test(requestedLang)) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Invalid language code '${requestedLang}'.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Invalid language code '${requestedLang}'.`)}`);
 		return;
 	}
 
@@ -790,7 +789,7 @@ async function terminalLore(subCmd, args, { locales, defaultLang, loadSafeModule
 		}
 
 		if (rawSnippets.length === 0) {
-			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('No non-empty lore files found for guild ID '${requestedGuildId}'.`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `No non-empty lore files found for guild ID '${requestedGuildId}'.`)}`);
 			return;
 		}
 	} else {
@@ -840,7 +839,7 @@ async function terminalLore(subCmd, args, { locales, defaultLang, loadSafeModule
 		}
 
 		if (rawSnippets.length === 0) {
-			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('All lore files across all guilds in './lores' are empty.`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `All lore files across all guilds in '${loresDir}' are empty.`)}`);
 			return;
 		}
 	}
@@ -851,21 +850,21 @@ async function terminalLore(subCmd, args, { locales, defaultLang, loadSafeModule
 
 	// Determine template language with fallback.
 	const templateLang = requestedLang || defaultLang;
-	const loreTemplate = locales[templateLang]?.replyLore || locales[defaultLang]?.replyLore || locales['uk']?.replyLore || 'Lore: {loreSnippet}';
+	const loreTemplate = colorize('blue',`${locales[templateLang]?.replyLore || locales[defaultLang]?.replyLore || locales['uk']?.replyLore || 'Lore: {loreSnippet}'}`);
 
-	consoleLog(`${getTimestamp()} [File: '${targetFile}'] ${loreTemplate.replace(/\{loreSnippet\}/g, () => selectedSnippet)}`);
+	consoleLog(`${getTimestamp()} ${colorize('magenta', `[File: '${targetFile}']`)} ${loreTemplate.replace(/\{loreSnippet\}/g, () => selectedSnippet)}`);
 }
 
 async function terminalLoreList(subCmd, args, { loadSafeModule, colorize, consoleLog, getTimestamp }) {
 	const allLoreFiles = getLoreFiles();
 
 	if (!fs.existsSync(loresDir)) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize(''${loresDir}' directory not found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `'${loresDir}' directory not found.`)}`);
 		return;
 	}
 
 	if (allLoreFiles.length === 0) {
-		consoleLog(`${getTimestamp()} No lore files found.`);
+		consoleLog(`${getTimestamp()} ${colorize('cyan', 'No lore files found')}`);
 		return;
 	}
 
@@ -894,17 +893,17 @@ async function terminalLoreList(subCmd, args, { loadSafeModule, colorize, consol
 	}
 
 	if (targetLang && !LANG_CODE_REGEX.test(targetLang)) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Invalid language code '${targetLang}'.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Invalid language code '${targetLang}'.`)}`);
 		return;
 	}
 
 	if (selectedFiles.length === 0) {
-		consoleLog(`${getTimestamp()} No lore files matched the criteria.`);
+		consoleLog(`${getTimestamp()} ${colorize('cyan', 'No lore files matched the criteria.')}`);
 		return;
 	}
 
 	let hasEntries = false;
-	consoleLog(`${getTimestamp()} Lore Listing:`);
+	consoleLog(`${getTimestamp()} ${colorize('magenta', 'Lore Listing')}:`);
 	for (const file of selectedFiles) {
 		const filePath = path.join(loresDir, file);
 		if (!fs.existsSync(filePath)) continue;
@@ -917,7 +916,7 @@ async function terminalLoreList(subCmd, args, { loadSafeModule, colorize, consol
 	}
 
 	if (!hasEntries) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('No lores found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'No lores found.')}`);
 	}
 }
 
@@ -928,7 +927,7 @@ async function terminalLoreCreate(subCmd, args, { removeDuplicateLoreInFiles, re
 	const snippetText = restAfter(subCmd, 3);
 
 	if (!guildIdArg || !langArg || !snippetText) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} ->lore-create [GUILD_ID] [LANGUAGE] [LORE_SNIPPET]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} -> lore-create [GUILD_ID] [LANGUAGE] [LORE_SNIPPET]`);
 		return;
 	}
 
@@ -938,7 +937,7 @@ async function terminalLoreCreate(subCmd, args, { removeDuplicateLoreInFiles, re
 
 	const filePath = getLoreFilePath(guildIdArg, langArg);
 	if (!filePath) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Invalid guild ID or language code.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Invalid guild ID or language code.')}`);
 		return;
 	}
 
@@ -947,15 +946,15 @@ async function terminalLoreCreate(subCmd, args, { removeDuplicateLoreInFiles, re
 		existingSnippets.push(snippetText);
 
 		if (exceedsLoreLimit(existingSnippets)) {
-			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Lore file would exceed the ${getLoreMaxBytes()} Bytes limit. Snippet not added.`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Lore file would exceed the ${getLoreMaxBytes()} Bytes limit. Snippet not added.`)}`);
 			return;
 		}
 
 		writeLoreFile(filePath, existingSnippets);
 		removeDuplicateLoreInFiles(loresDir, filePath);
-		consoleLog(`${getTimestamp()} Success: Added snippet to '${filePath}'`);
+		consoleLog(`${getTimestamp()} ${colorize('green', `Success: Added snippet to '${filePath}'`)}`);
 	} catch (err) {
-		consoleLog(`${getTimestamp()} Error writing lore file: `, err);
+		consoleLog(`${getTimestamp()} $colorize('red', 'Error writing lore file')}: `, err);
 	}
 }
 
@@ -966,22 +965,22 @@ async function terminalLoreRemove(subCmd, args, { removeDuplicateLoreInFiles, re
 	const removeIndex = parseInt(args[3], 10);
 
 	if (!removeGuildId || !removeLang || isNaN(removeIndex)) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} ->lore-remove [GUILD_ID] [LANGUAGE] [SNIPPET_NUMBER]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} -> lore-remove [GUILD_ID] [LANGUAGE] [SNIPPET_NUMBER]`);
 		return;
 	}
 
 	if (!fs.existsSync(loresDir)) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize(''${loresDir}' directory not found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `'${loresDir}' directory not found.`)}`);
 		return;
 	}
 
 	const filePath = getLoreFilePath(removeGuildId, removeLang);
 	if (!filePath) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Invalid guild ID or language code.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Invalid guild ID or language code.')}`);
 		return;
 	}
 	if (!fs.existsSync(filePath)) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Lore file for guild ID '${removeGuildId}' and language '${removeLang}' not found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Lore file for guild ID '${removeGuildId}' and language '${removeLang}' not found.`)}`);
 		return;
 	}
 
@@ -992,9 +991,9 @@ async function terminalLoreRemove(subCmd, args, { removeDuplicateLoreInFiles, re
 		writeLoreFile(filePath, snippets);
 		removeDuplicateLoreInFiles(loresDir, filePath);
 
-		consoleLog(`${getTimestamp()} Success: Removed snippet #${removeIndex} from '${path.basename(filePath)}' via terminal.`);
+		consoleLog(`${getTimestamp()} ${colorize('green', `Success: Removed snippet #${removeIndex} from '${path.basename(filePath)}' via terminal.`)}`);
 	} else {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Snippet number #${removeIndex} not found in '${path.basename(filePath)}'.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Snippet number #${removeIndex} not found in '${path.basename(filePath)}'.`)}`);
 	}
 }
 
@@ -1003,7 +1002,7 @@ async function terminalVoiceJoin(subCmd, args, context) {
 	// Usage: voice-join [CHANNEL_ID]
 	const targetChannelId = args[1];
 	if (!targetChannelId) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Please provide a voice channel ID.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Please provide a voice channel ID.')}`);
 		return;
 	}
 	let targetChannel = null;
@@ -1012,24 +1011,24 @@ async function terminalVoiceJoin(subCmd, args, context) {
 		if (channel) { targetChannel = channel; break; }
 	}
 	if (!targetChannel) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Voice channel not found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Voice channel not found.')}`);
 		return;
 	}
 
 	if (!targetChannel.isVoiceBased()) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Channel '${targetChannel.name}' is not a voice channel.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Channel '${targetChannel.name}' is not a voice channel.`)}`);
 		return;
 	}
 
 	try {
 		await joinVoice(targetChannel, voiceConnections, guildPlayers);
 	} catch (err) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('${err.message}`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${err.message}`);
 		return;
 	}
 	saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-	consoleLog(`${getTimestamp()} Successfully joined voice channel: '${targetChannel.name}'`);
+	consoleLog(`${getTimestamp()} ${colorize('green', `Successfully joined voice channel: '${targetChannel.name}'`)}`);
 }
 
 async function terminalVoiceLeave(subCmd, args, context) {
@@ -1051,19 +1050,19 @@ async function terminalVoiceLeave(subCmd, args, context) {
 		}
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-		consoleLog(`${getTimestamp()} Left all voice channels.`);
+		consoleLog(`${getTimestamp()} ${colorize('green', 'Left all voice channels.')}`);
 		return;
 	}
 
 	// Specific Guild: voice-leave [GUILD_ID]
 	if (!voiceConnections.has(leaveGuildId)) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Bot is not connected to a voice channel in guild ID '${leaveGuildId}'.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `Bot is not connected to a voice channel in guild ID '${leaveGuildId}'.`)}`);
 		return;
 	}
 	leaveGuild(leaveGuildId);
 	saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-	consoleLog(`${getTimestamp()} Left voice channel for guild ID '${leaveGuildId}'.`);
+	consoleLog(`${getTimestamp()} ${colorize(`Left voice channel for guild ID '${leaveGuildId}'.`)}`);
 }
 
 async function terminalSoundboardPlay(subCmd, args, context) {
@@ -1080,14 +1079,14 @@ async function terminalSoundboardPlay(subCmd, args, context) {
 	fs.mkdirSync(soundsDir, { recursive: true });
 	const soundPath = getSoundFilePath(rawTargetSound);
 	if (!soundPath || !fs.existsSync(soundPath)) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Sound file not found.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Sound file not found.')}`);
 		return;
 	}
 	const targetSound = path.basename(soundPath, SOUND_EXT);
 
 	const guildsToPlay = playGuildId ? [playGuildId] : Array.from(voiceConnections.keys());
 	if (guildsToPlay.length === 0) {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Bot is not connected to any voice channels.`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Bot is not connected to any voice channels.')}`);
 		return;
 	}
 
@@ -1123,7 +1122,7 @@ async function terminalSoundboardPlay(subCmd, args, context) {
 	}
 	saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-	consoleLog(`${getTimestamp()} Played sound '${targetSound}'.`);
+	consoleLog(`${getTimestamp()} ${colorize('green', `Played sound '${targetSound}'.`)}`);
 }
 
 async function terminalSoundboardStop(subCmd, args, context) {
@@ -1137,9 +1136,9 @@ async function terminalSoundboardStop(subCmd, args, context) {
 			guildPlayers.delete(stopGuildId);
 			saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-			consoleLog(`${getTimestamp()} Stopped playback for guild ID '${stopGuildId}'.`);
+			consoleLog(`${getTimestamp()} ${colorize('green', `Stopped playback for guild ID '${stopGuildId}'.`)}`);
 		} else {
-			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('No active playback found for guild ID '${stopGuildId}'.`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', `No active playback found for guild ID '${stopGuildId}'.`)}`);
 		}
 	} else {
 		// Global: soundboard-stop
@@ -1149,7 +1148,7 @@ async function terminalSoundboardStop(subCmd, args, context) {
 		guildPlayers.clear();
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-		consoleLog(`${getTimestamp()} Stopped playback on all guilds.`);
+		consoleLog(`${getTimestamp()} ${colorize('green', 'Stopped playback on all guilds.')}`);
 	}
 }
 
@@ -1159,7 +1158,7 @@ async function terminalSoundboardVolume(subCmd, args, context) {
 		// Global: soundboard-volume [VOLUME]
 		const volumePercent = parseInt(args[1], 10);
 		if (isNaN(volumePercent) || volumePercent < 0 || volumePercent > 100) {
-			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Invalid volume level (0-100).`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Invalid volume level (0-100).')}`);
 			return;
 		}
 		const volume = volumePercent / 100;
@@ -1172,13 +1171,13 @@ async function terminalSoundboardVolume(subCmd, args, context) {
 
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-		consoleLog(`${getTimestamp()} Volume set to ${volumePercent}% on all guilds.`);
+		consoleLog(`${getTimestamp()} ${colorize('green', `Volume set to ${volumePercent}% on all guilds.`)}`);
 	} else if (args.length >= 3) {
 		// Specific Guild: soundboard-volume [GUILD_ID] [VOLUME]
 		const guildId = args[1];
 		const volumePercent = parseInt(args[2], 10);
 		if (isNaN(volumePercent) || volumePercent < 0 || volumePercent > 100) {
-			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('Invalid volume level (0-100).`);
+			consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Invalid volume level (0-100).')}`);
 			return;
 		}
 		const volume = volumePercent / 100;
@@ -1190,9 +1189,9 @@ async function terminalSoundboardVolume(subCmd, args, context) {
 		}
 		saveVoiceState(voiceConnections, guildPlayers, guildVolumes, getCurrentVolume());
 
-		consoleLog(`${getTimestamp()} Volume set to ${volumePercent}% for guild ID '${guildId}'.`);
+		consoleLog(`${getTimestamp()} ${colorize('green', `Volume set to ${volumePercent}% for guild ID '${guildId}'.`)}`);
 	} else {
-		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} ->soundboard-volume [VOLUME] or soundboard-volume [GUILD_ID] [VOLUME]`);
+		consoleLog(`${getTimestamp()} ${colorize('yellow', 'Error')}: ${colorize('yellow', 'Usage')} -> soundboard-volume [VOLUME] or soundboard-volume [GUILD_ID] [VOLUME]`);
 	}
 }
 
