@@ -112,10 +112,15 @@ cleanup() {
 	fi
 }
 
+log_forced_end() {
+	node -e "require('./commands/helpers.js').writeCenteredLog('End of the session (' + process.argv[1] + ')')" "${1:-Forced Stop}" 2>/dev/null
+}
+
 kill_tree() {
 	WINPID=$(cat "/proc/$1/winpid" 2>/dev/null)
 	if [ -n "$WINPID" ] && command -v taskkill >/dev/null 2>&1; then
 		taskkill //F //T //PID "$WINPID" >/dev/null 2>&1
+		log_forced_end "Updated File"
 	fi
 }
 
@@ -162,7 +167,7 @@ main() {
 	if [ -f "$CONF_FILE" ]; then
 		OLD_PID=$(get_conf PID)
 		if [ -n "$OLD_PID" ] && [ "$OLD_PID" != "$$" ] && kill -0 "$OLD_PID" 2>/dev/null && is_run_sh "$OLD_PID"; then
-			say_warn "Stopping previous instance (PID: $OLD_PID)..."
+			say_warn "Stopping previous instance (PID: $OLD_PID)...\n"
 			kill -15 "$OLD_PID" 2>/dev/null
 			sleep 1
 			kill -0 "$OLD_PID" 2>/dev/null && kill -9 "$OLD_PID" 2>/dev/null
