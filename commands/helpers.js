@@ -40,11 +40,12 @@ const ANSI = {
 	bold: '\x1b[1m',
 	dim: '\x1b[2m',
 	red: '\x1b[31m',
-	green: '\x1b[32m',
+	orange: '\x1b[38;5;208m',
 	yellow: '\x1b[33m',
+	green: '\x1b[32m',
+	cyan: '\x1b[36m',
 	blue: '\x1b[34m',
 	magenta: '\x1b[35m',
-	cyan: '\x1b[36m',
 	gray: '\x1b[90m'
 };
 const COLOR_EMOJIS = [
@@ -1032,6 +1033,16 @@ async function joinVoice(channel, voiceConnections, guildPlayers) {
 	return connection;
 }
 
+async function clearPresence(client) {
+	try {
+		if (!client?.user || !client.ws || client.ws.status !== 0) return; // 0 = Ready.
+		client.user.setPresence({ activities: [], status: 'invisible' });
+		await new Promise(resolve => setTimeout(resolve, 500));
+	} catch (err) {
+		consoleLog(`${getTimestamp()} ${colorize('red', 'Failed to clear status')}: `, err);
+	}
+}
+
 async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes, currentVolume = 1.0, exitCode = 0) {
 	if (isExiting) return;
 	isExiting = true;
@@ -1063,6 +1074,7 @@ async function shutdown(client, voiceConnections, guildPlayers, rl, guildVolumes
 			}
 		}
 		
+		await clearPresence(client);
 		if (client.ws) client.ws.destroy();
 		await client.destroy();
 	} catch (err) {
@@ -1105,6 +1117,7 @@ async function restart(client, voiceConnections, guildPlayers, rl, scriptFilenam
 			}
 		}
 		
+		await clearPresence(client);
 		if (client.ws) client.ws.destroy();
 		await client.destroy();
 	} catch (err) {
