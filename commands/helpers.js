@@ -36,17 +36,68 @@ const ROLES_MAX_PER_GUILD = 250;
 const ROLES_MAX_FILE_BYTES = 2 ** 20; // 1 MiB.
 
 const ANSI = {
+	// Text styles.
 	reset: '\x1b[0m',
 	bold: '\x1b[1m',
 	dim: '\x1b[2m',
+	italic: '\x1b[3m',
+	underline: '\x1b[4m',
+	blink: '\x1b[5m',
+	inverse: '\x1b[7m',
+	hidden: '\x1b[8m',
+	strikethrough: '\x1b[9m',
+	
+	// Selective off codes (keep other active styles).
+	normalIntensity: '\x1b[22m', // Turns off 'bold' and 'dim'.
+	noItalic: '\x1b[23m',
+	noUnderline: '\x1b[24m',
+	noInverse: '\x1b[27m',
+	noStrikethrough: '\x1b[29m',
+	
+	// Standard 8 foreground colors (30-37).
+	black: '\x1b[30m',
 	red: '\x1b[31m',
-	orange: '\x1b[38;5;208m',
-	yellow: '\x1b[33m',
 	green: '\x1b[32m',
-	cyan: '\x1b[36m',
+	yellow: '\x1b[33m',
 	blue: '\x1b[34m',
 	magenta: '\x1b[35m',
-	gray: '\x1b[90m'
+	cyan: '\x1b[36m',
+	white: '\x1b[37m',
+	
+	// Bright/high-intensity 8 foreground colors (90-97).
+	brightBlack: '\x1b[90m',
+	gray: '\x1b[90m', // Alias for 'brightBlack'.
+	brightRed: '\x1b[91m',
+	brightGreen: '\x1b[92m',
+	brightYellow: '\x1b[93m',
+	brightBlue: '\x1b[94m',
+	brightMagenta: '\x1b[95m',
+	brightCyan: '\x1b[96m',
+	brightWhite: '\x1b[97m',
+	
+	// Standard 8 background colors (40–47).
+	bgBlack: '\x1b[40m',
+	bgRed: '\x1b[41m',
+	bgGreen: '\x1b[42m',
+	bgYellow: '\x1b[43m',
+	bgBlue: '\x1b[44m',
+	bgMagenta: '\x1b[45m',
+	bgCyan: '\x1b[46m',
+	bgWhite: '\x1b[47m',
+	
+	// Bright/high-intensity 8 background colors (100–107).
+	bgBrightBlack: '\x1b[100m',
+	bgGray: '\x1b[100m', // Also 'bgBrightBlack'.
+	bgBrightRed: '\x1b[101m',
+	bgBrightGreen: '\x1b[102m',
+	bgBrightYellow: '\x1b[103m',
+	bgBrightBlue: '\x1b[104m',
+	bgBrightMagenta: '\x1b[105m',
+	bgBrightCyan: '\x1b[106m',
+	bgBrightWhite: '\x1b[107m',
+	
+	// 256-colors.
+	orange: '\x1b[38;5;208m',
 };
 const COLOR_EMOJIS = [
 	{ emoji: '🔴', rgb: [221, 46, 68] },
