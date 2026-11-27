@@ -99,6 +99,7 @@ const ANSI = {
 	// 256-colors.
 	orange: '\x1b[38;5;208m',
 };
+
 const COLOR_EMOJIS = [
 	{ emoji: '🔴', rgb: [221, 46, 68] },
 	{ emoji: '🟠', rgb: [244, 144, 12] },
