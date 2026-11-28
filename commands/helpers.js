@@ -5,7 +5,7 @@ const readline = require('readline');
 const util = require('util');
 const { MessageFlags, TextChannel, ThreadChannel, PermissionFlagsBits } = require('discord.js');
 const { joinVoiceChannel, VoiceConnectionStatus, VoiceConnectionDisconnectReason, AudioPlayerStatus, createAudioPlayer, createAudioResource, StreamType, entersState } = require('@discordjs/voice');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 const FFMPEG_PATH = (() => {
 	try { return require('ffmpeg-static') || 'ffmpeg'; } catch (err) { return 'ffmpeg'; }
 })();
@@ -409,6 +409,15 @@ function cleanOldLogs() {
 	}
 }
 
+function lockLogFile(filePath) {
+	if (process.platform !== 'linux') return;
+	const isRoot = process.getuid && process.getuid() === 0;
+	const [cmd, args] = isRoot
+		? ['chattr', ['+a', filePath]]
+		: ['sudo', ['-n', 'chattr', '+a', filePath]];
+	execFile(cmd, args, () => {});
+}
+
 function appendToLog(text) {
 	fs.mkdirSync(logsDir, { recursive: true });
 
@@ -435,8 +444,10 @@ function appendToLog(text) {
 			continue;
 		}
 
-		fs.appendFileSync(filePath, data, 'utf8');
+		const isNewFile = logState.size === 0;
+		fs.appendFileSync(filePath, data, { encoding: 'utf8', flag: 'a' });
 		logState.size += bytes;
+		if (isNewFile) lockLogFile(filePath);
 		return;
 	}
 }
